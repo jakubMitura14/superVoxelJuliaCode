@@ -1,0 +1,125 @@
+Basic plan
+
+We have DiscreteProblem as type of ode problem with discrete values
+newest plan
+1) we get the output of CNN as a 3D float array marking strength of edges
+2) apply sigmoid
+3) treshold by alpha the values above set to 0 - marks edges and below set to 1 - as interior
+4) mark alpha as one to be modified by additive noise from infer opt to make sure that one would be able to get gradients
+5) after tresholding array will be called maskArr
+6) create second array of the same shape as mask arr with increasing indicies - so each entry will hold its linear integer index we will call it indexArr
+7) perform diffuison similar to https://discourse.julialang.org/t/diffusion-by-using-cuda-jl-differentialequations-and-diffeqgpu/78310
+    a)copyindex arr create indexArrCopy
+    b) move n steps in d direction by
+        * translating indexArr n in d direction
+        * translate 1...n times the maskArr each time multiply indexArrCopy - to ensure that we will not crosss an edge
+    c)save index arr as max.(indexArr, indexArrCopy) 
+    d) repeat b and c in a loop with decreasing n and going through all directions
+    e) in case we want to approximate derivative we will need second copy of indexarr at the begining of the iteration and then in the end
+        return the diffrence between new and old values
+8) encompass 7 in either discrete problem or ode problem dependening on step 7 e
+9) wrap 8 in steady state problem consider adding jumps 
+10) assign edges as the middle number between two neighbouring areas
+    a) if those are two next numbers we will set it to lower and negate
+    b) if there are multiple numbers in vicinity we choose arbitrary lowest and maximum
+    c) in practice
+        *we need to take into account only non edge indexes in calculating edge index ...
+
+TEST
+1) create maskArr of ones - after end of iterations all of the entries should be the same as max of index array
+2) divide the mask arr with 2 planes of zeros - it should converge to 4 diffrent numbers in 4 corners
+3) create setting similar to 2 but with thicker borders and those borders will be floating random point number that will oscilate between
+    alpha nad beta values, run all code with additive noise of infer otpim 
+    run optimazation of mask arr with loss described as number of unique values in the output - should generally converge to single value or sth like that - destroying borders
+
+
+
+***** older ideas
+We can then use JumpProblem from DiffEqJump to augment the discrete problem with jumps and select the stochastic simulation algorithm (SSA) to use in sampling the jump processes. To create a JumpProblem 
+
+https://diffeq.sciml.ai/stable/tutorials/discrete_stochastic_example/
+
+seems we can just implement also some custom finite difference scheme
+Notes for Developers: Implement a Scheme · MethodOfLines.jl (sciml.ai)
+
+after we have generated output of cnn that is interpreted after tresholding as borders of the supervoxels;  we generate couple schemes with different thresholds and later use all of them to calculate soft properties ... to preserve differentiability  - or i suppose so
+
+simplest scheme 
+threshold the cnn output so values above threshold will be 0 and below 1  - name this array arrA
+get normal 3d diffusion based on Diffusion by using CUDA.jl, DifferentialEquations and DiffEqGPU - Specific Domains / GPU - JuliaLang
+on each step of diffusion multiply by arrA so values would no be able to propagate through the boundaries
+
+plan B
+
+we multiply by arrA so all borders would be 0 
+
+implement central difference scheme based on 
+Notes for Developers: Implement a Scheme · MethodOfLines.jl (sciml.ai)
+
+in this case we can perform couple steps in each iteration so for example look 5 steps in all directions if we did not had any border pixel return max if we had look 4 pixels in all directions ...in the end look 1 pixel in single direction at once
+
+
+plan C
+define it as a discrete problem with jump - not ode
+
+
+
+
+
+
+**********
+PDE heterogenous
+
+https://docs.sciml.ai/dev/modules/NeuralPDE/examples/heterogeneous/
+
+video heterogenous data 
+
+https://youtu.be/5zaB1B4hOnQ
+
+https://youtu.be/hsQiFP4S5RY
+
+****************
+JUMP processes
+https://diffeq.sciml.ai/stable/tutorials/jump_diffusion/
+https://diffeq.sciml.ai/stable/types/jump_types/
+https://tutorials.sciml.ai/html/jumps/spatial.html
+ 
+
+
+
+***********
+SOLVER options etc
+https://diffeq.sciml.ai/stable/basics/common_solver_opts/
+https://diffeq.sciml.ai/stable/basics/problem/
+https://diffeq.sciml.ai/stable/basics/faq/
+https://diffeq.sciml.ai/stable/features/progress_bar/
+
+***
+discrete problems
+https://diffeq.sciml.ai/stable/types/discrete_types/
+https://diffeq.sciml.ai/stable/solvers/discrete_solve/
+
+
+*****
+steady state
+https://diffeq.sciml.ai/stable/types/steady_state_types/
+https://diffeq.sciml.ai/stable/solvers/steady_state_solve/
+
+
+****** 
+paralel ensemble
+https://diffeq.sciml.ai/stable/features/ensemble/
+
+
+****
+autograd
+https://diffeq.sciml.ai/stable/analysis/sensitivity/
+https://arxiv.org/abs/1812.01892
+
+There are two forms. For discrete adjoints, the form is:
+
+du0,dp = adjoint_sensitivities(sol,alg,dg,ts;sensealg=InterpolatingAdjoint(),
+                               checkpoints=sol.t,kwargs...)
+
+where alg is the ODE algorithm to solve the adjoint problem, dg is the jump function, sensealg is the sensitivity algorithm, and ts is the time points for data. dg is given by:
+
