@@ -84,7 +84,8 @@ https://diffeq.sciml.ai/stable/tutorials/jump_diffusion/
 https://diffeq.sciml.ai/stable/types/jump_types/
 https://tutorials.sciml.ai/html/jumps/spatial.html
  
-
+the callback to finish the solver when condition is met 
+https://github.com/SciML/JumpProcesses.jl/blob/7f65f273d0f7a15ae6666d6bb17cceffaecd9eba/test/extinction_test.jl
 
 
 ***********
@@ -123,3 +124,4 @@ du0,dp = adjoint_sensitivities(sol,alg,dg,ts;sensealg=InterpolatingAdjoint(),
 
 where alg is the ODE algorithm to solve the adjoint problem, dg is the jump function, sensealg is the sensitivity algorithm, and ts is the time points for data. dg is given by:
 
+Use BacksolveAdjoint if the event terminates the time evolution and several states are saved. Currently, the continuous adjoint sensitivities do not support multiple events per time point. The shadowing methods are not compatible with callbacks.
