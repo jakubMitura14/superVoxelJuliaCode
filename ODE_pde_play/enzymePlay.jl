@@ -6,31 +6,38 @@ using CUDA, Enzyme, Test
 
 
 
-function mul_kernel(A)
+function mul_kernel(Nx,Ny,Nz,A)
     x= (threadIdx().x+ ((blockIdx().x -1)*CUDA.blockDim_x()))
     y= (threadIdx().y+ ((blockIdx().y -1)*CUDA.blockDim_y()))
     z= (threadIdx().z+ ((blockIdx().z -1)*CUDA.blockDim_z()))
 
-    if x <= length(A)
-        A[x,y,z] *= A[x,y,z]
-    end
+    currMax=100000000.0
     
+    if (x <= Nx && y<=Ny && z<=Nz)
+        currMax=max(currMax)
+        #A[x,y,z]*=A[x,y,z]
+    end
+
+    # if x <= length(A)
+    #     currMax=max(currMax)
+    # end
+
     return nothing
 end
 
-function grad_mul_kernel(A, dA)
-    Enzyme.autodiff_deferred(mul_kernel, Const, Duplicated(A, dA))
+function grad_mul_kernel(Nx,Ny,Nz,A, dA)
+    Enzyme.autodiff_deferred(mul_kernel,Const(Nx),Const(Ny), Const(Nz), Duplicated(A, dA))
     return nothing
 end
 
 
 blocks= Int(64*64*64/512)
 A = CUDA.ones(64,64,64)
-@cuda threads=(8*8*8) blocks = blocks mul_kernel(A)
+@cuda threads=(8*8*8) blocks = blocks mul_kernel(64,64,64,A)
 A = CUDA.ones(64,64,64)
 dA = similar(A)
 dA .= 1
-@cuda threads= (8*8*8) blocks=blocks grad_mul_kernel(A, dA)
+@cuda threads= (8*8*8) blocks=blocks grad_mul_kernel(64,64,64,A, dA)
 print(dA)
 
 
