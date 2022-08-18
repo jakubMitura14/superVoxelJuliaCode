@@ -36,8 +36,8 @@ end
 """
 given 2 numbers return sth like max
 """
-@inline function alaMax(a, b)::Float32
-    return (((@myPowTwo((a / (a + b)) + 1, 4) / @myPowTwo((a / (a + b)) + 1, 4) + @myPowTwo((b / (a + b)) + 1, 4))) * a) + ((@myPowTwo((b / (a + b)) + 1, 4) / @myPowTwo((a / (a + b)) + 1, 4) + @myPowTwo((b / (a + b)) + 1, 4)) * b)
+@inline function alaMax(a::Float32, b::Float32)::Float32
+    return (((@myPowTwo((a / (a + b)) + 1, 6) / @myPowTwo((a / (a + b)) + 1, 6) + @myPowTwo((b / (a + b)) + 1, 6))) * a) + ((@myPowTwo((b / (a + b)) + 1, 6) / @myPowTwo((a / (a + b)) + 1, 6) + @myPowTwo((b / (a + b)) + 1, 6)) * b)
 end#alaMax
 
 # @inline function alaMaxp(a, b)::Float32
@@ -52,12 +52,12 @@ function mul_kernel(Nx, Ny, Nz, A, p, Aout)
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
 
-    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x+1, y, z]) * A[x+1, y, z]))
-    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x-1, y, z]) * A[x-1, y, z]))
-    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x, y+1, z]) * A[x, y+1, z]))
-    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x, y-1, z]) * A[x, y-1, z]))
-    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x, y, z+1]) * A[x, y, z+1]))
-    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x, y, z-1]) * A[x, y, z-1]))
+    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x+1, y, z]) * A[x+1, y, z])) * (1 - p[x, y, z])
+    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x-1, y, z]) * A[x-1, y, z])) * (1 - p[x, y, z])
+    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x, y+1, z]) * A[x, y+1, z])) * (1 - p[x, y, z])
+    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x, y-1, z]) * A[x, y-1, z])) * (1 - p[x, y, z])
+    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x, y, z+1]) * A[x, y, z+1])) * (1 - p[x, y, z])
+    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x, y, z-1]) * A[x, y, z-1])) * (1 - p[x, y, z])
 
     # alaMaxp(p[x, y, z], p[x+1, y, z]) 
     # (@myPowTwo((p[x+1,y,z]/(p[x+1,y,z]+p[x,y,z]))+1,4))/(@myPowTwo((p[x+1,y,z]/(p[x+1,y,z]+p[x,y,z]))+1,4)+@myPowTwo((p[x,y,z]/(p[x+1,y,z]+p[x,y,z]))+1,4)  )
