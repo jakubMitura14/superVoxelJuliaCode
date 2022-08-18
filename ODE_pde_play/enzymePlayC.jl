@@ -72,46 +72,20 @@ end#processNeighbours
         return @myPowTwo((Float32(a)/(Float32(a)+Float32(b)))+1,4)
 end    
 
-
-function mul_kernel(Nx::Int64,Ny::Int64,Nz::Int64,A::CuDeviceArray{Float32, 3}
-    ,p::CuDeviceArray{Float32, 3},Aout::CuDeviceArray{Float32, 3})
+function mul_kernel(Nx,Ny,Nz,A,p,Aout)
     #adding one bewcouse of padding
     x= (threadIdx().x+ ((blockIdx().x -1)*CUDA.blockDim_x()))+1
     y= (threadIdx().y+ ((blockIdx().y -1)*CUDA.blockDim_y()))+1
     z= (threadIdx().z+ ((blockIdx().z -1)*CUDA.blockDim_z()))+1
-    #Aout[x,y,z]= alaMax(p[x,y,z],p[x,y,z])
-    #normPair(Float32(A[x,y,z]),Float32(A[x,y,z]),Float32(A[x+1,y,z]),Int32(20))  #
-
-    Aout= p[x,y,z]*p[x,y,z]# myDiv(p[x,y,z],p[x-1,y,z])#*alaMax(A[x,y,z],A[x-1,y,z])
-    
-    # Aout[x,y,z]=processNeighbours(
-    #     A[x,y,z]
-    #     ,p[x,y,z]
-    #     ,p[x-1,y,z]
-    #     ,p[x+1,y,z]
-    #     ,p[x,y-1,z]
-    #     ,p[x,y+1,z]
-    #     ,p[x,y,z-1]
-    #     ,p[x,y,z+1]
-    #     ,A[x-1,y,z]
-    #     ,A[x+1,y,z]
-    #     ,A[x,y-1,z]
-    #     ,A[x,y+1,z]
-    #     ,A[x,y,z-1]
-    #     ,A[x,y,z+1])
-
-
-    # if(p[x+1,y,z]< p[x-1,y,z])
-    #     Aout[x,y,z]=A[x,y,z]*p[x,y,z]
-    # end
+    Aout[x,y,z]= myDiv(p[x,y,z],p[x,y,z])
  
-
     return nothing
 end
 
 function grad_mul_kernel(Nx,Ny,Nz,A, dA,p,dp,Aout,dAout)
     Enzyme.autodiff_deferred(mul_kernel, Const, Const(Nx), Const(Ny), Const(Nz)
-    , Duplicated(A, dA), Duplicated(p, dp), Duplicated(Aout,dAout)    )
+    , Duplicated(A, dA), Duplicated(p, dp), Duplicated(Aout,dAout)
+    )
     return nothing
 end
 
@@ -122,7 +96,7 @@ A = CuArray(Float32.(reshape(collect(1:Nx*Ny*Nz),(Nx,Ny,Nz))))
 dA = similar(A)
 
 
-p = CuArray(Float32.(rand(0.0:1.0,Nx,Ny,Nz)))
+p = CuArray(Float32.(rand(0.1:100.0,Nx,Ny,Nz)))
 dp = CUDA.ones(Nx,Ny,Nz)
 
 Aout = CUDA.zeros(Nx,Ny,Nz)
@@ -132,7 +106,6 @@ dA .= 1
 @cuda threads= (8,8,8) blocks=(8,8,8) grad_mul_kernel(Nx,Ny,Nz,A, dA,p,dp,Aout,dAout)
 
 maximum(dp)
-minimum(dp)
 
 
 maximum(Aout)
