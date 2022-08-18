@@ -18,14 +18,67 @@ rays= ( ((-3,0,0),(-2,0,0),(-1,0,0))
     
     )
 
+    
+    
+    
+
+
+
+
+
 function mul_kernel(Nx,Ny,Nz,A,p,Aout,rays,numRays,lenRay)
     #adding one bewcouse of padding
     x= (threadIdx().x+ ((blockIdx().x -1)*CUDA.blockDim_x()))+1
     y= (threadIdx().y+ ((blockIdx().y -1)*CUDA.blockDim_y()))+1
     z= (threadIdx().z+ ((blockIdx().z -1)*CUDA.blockDim_z()))+1
 
+    if(p[x+1,y,z]< p[x-1,y,z])
+        Aout[x,y,z]=A[x,y,z]
+    end
+    # Aout[x,y,z]=(p[x+1,y,z]< p[x-1,y,z])
+    # *(p[x+1,y,z]< p[x,y+1,z])
+    # *(p[x+1,y,z]< p[x,y-1,z])
+    # *(p[x+1,y,z]< p[x,y,z+1])
+    # *(p[x+1,y,z]< p[x,y,z-1])
+    # *(A[x,y,z]<A[x+1,y,z] )   *A[x+1,y,z]+
+    # (p[x-1,y,z]< p[x+1,y,z])
+    # *(p[x-1,y,z]< p[x,y-1,z])
+    # *(p[x-1,y,z]< p[x,y+1,z])
+    # *(p[x-1,y,z]< p[x,y-1,z])
+    # *(p[x-1,y,z]< p[x,y+1,z])
+    # *(A[x,y,z]<A[x-1,y,z] )    *A[x-1,y,z]
+    # +
+    # (p[x,y+1,z]< p[x+1,y,z])
+    # *(p[x,y+1,z]< p[x-1,y,z])
+    # *(p[x,y+1,z]< p[x,y-1,z])
+    # *(p[x,y+1,z]< p[x,y,z+1])
+    # *(p[x,y+1,z]< p[x,y,z-1])
+    # *(A[x,y,z]<A[x,y+1,z] )    *A[x,y+1,z]+
+    # (p[x,y-1,z]< p[x+1,y,z])
+    # *(p[x,y-1,z]< p[x-1,y,z])
+    # *(p[x,y-1,z]< p[x,y+1,z])
+    # *(p[x,y-1,z]< p[x,y,z+1])
+    # *(p[x,y-1,z]< p[x,y,z-1])
+    # *(A[x,y,z]<A[x,y-1,z] )   *A[x,y-1,z]+
+    # (p[x,y,z+1]< p[x+1,y,z])
+    # *(p[x,y,z+1]< p[x-1,y,z])
+    # *(p[x,y,z+1]< p[x,y+1,z])
+    # *(p[x,y,z+1]< p[x,y-1,z])
+    # *(p[x,y,z+1]< p[x,y,z-1])
+    # *(A[x,y,z]<A[x,y,z+1] )    *A[x,y,z+1]+
+    # (p[x,y,z-1]< p[x+1,y,z])
+    # *(p[x,y,z-1]< p[x-1,y,z])
+    # *(p[x,y,z-1]< p[x,y+1,z])
+    # *(p[x,y,z-1]< p[x,y-1,z])
+    # *(p[x,y,z-1]< p[x,y,z+1])
+    # *(A[x,y,z]<A[x+1,y,z-1] )    *A[x,y,z-1]
+
+
+
     #CUDA.@cuprint "x $(x) y $(y) z $(z) "
-    Aout[x,y,z]=p[x,y,z]*(p[x,y,z]>A[x,y,z])+ A[x,y,z]*(p[x,y,z]<A[x,y,z])
+    # Aout[x,y,z]=
+    #             p[x,y,z]*(p[x,y,z]>A[x,y,z])
+    #             +A[x,y,z]*(p[x,y,z]<A[x,y,z])
 
     # #we will look in some distance in directions around - then we will save as output the max index from the direction with smallest cost
     # #grid_handle = this_grid()
@@ -94,3 +147,93 @@ maximum(Aout)
 """
 simple cost function will be designed as just the number of unique values
 """
+
+
+a=200
+b=170
+c=10
+
+pa=1.1
+pb=1.8
+pc=1.2
+
+function mySmallSoftMax(a,b,c,pa,pb,pc)
+    #normalize
+    sumP=((pa^6)+(pb^6)+(pc^6))
+    
+    # sumEl=((a^3)+(b^3)+(c^3))
+    
+    sumP=((pa)+(pb)+(pc))
+    sumEl=((a)+(b)+(c))
+    
+    return ((a^3)*(pa^6))+((b^3)*(pb^6))+((c^3)*(pc^6))
+
+end#mySmallSoftMax
+
+a=70
+b=4
+
+a-b
+b-a
+
+c=10
+poww=6
+multi=5000
+
+
+#given it is always at leas 2
+za=  a^4-(a-b)^4
+zb=  b^4-(a-b)^4
+
+
+dda=za/(za+zb)
+ddb=zb/(za+zb)
+
+za=a-(b-a)
+zb=b-(b-a)
+
+
+
+as=a/(a+b)
+bs=b/(a+b)
+
+as+bs
+
+bs=c/(a+b+c)
+
+dias=
+
+
+as+bs+cs
+
+
+bs>1
+
+
+as=(a*multi)/(a*multi+b*multi+c*multi)
+bs=(b*multi)/(a*multi+b*multi+c*multi)
+cs=(c*multi)/(a*multi+b*multi+c*multi)
+
+
+as= (a)^poww/((a)^poww+(b)^poww+(c)^poww)
+bs= (b)^poww/((a)^poww+(b)^poww+(c)^poww)
+cs= (c)^poww/((a*20)^poww+(b*20)^poww+(c*20)^poww)
+
+
+a=70
+b=69
+poww=4
+as= (a)^poww/((a)^poww+(b)^poww+(c)^poww)
+bs= (b)^poww/((a)^poww+(b)^poww+(c)^poww)
+
+as+bs
+
+
+
+a=70
+b=69
+poww=4
+as= (a/(a+b+c))
+bs= (b/(a+b+c))
+
+as+bs
