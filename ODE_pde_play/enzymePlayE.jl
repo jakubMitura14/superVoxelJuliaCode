@@ -25,13 +25,13 @@ macro myPowTwo(ex, num)
 end
 
 
-@inline function myDiv(a::Float32, b::Float32)::Float32
-    return @myPowTwo((Float32(a) / (Float32(a) + Float32(b))) + 1, 4)
-end
+# @inline function myDiv(a::Float32, b::Float32)::Float32
+#     return @myPowTwo((Float32(a) / (Float32(a) + Float32(b))) + 1, 4)
+# end
 
-@inline function normPair(el::Float32, a::Float32, b::Float32)::Float32
-    return @myPowTwo((el / (a + b)) + 1, 4)
-end#normPair
+# @inline function normPair(el::Float32, a::Float32, b::Float32)::Float32
+#     return @myPowTwo((el / (a + b)) + 1, 4)
+# end#normPair
 
 """
 given 2 numbers return sth like max
@@ -40,10 +40,10 @@ given 2 numbers return sth like max
     return (((@myPowTwo((a / (a + b)) + 1, 4) / @myPowTwo((a / (a + b)) + 1, 4) + @myPowTwo((b / (a + b)) + 1, 4))) * a) + ((@myPowTwo((b / (a + b)) + 1, 4) / @myPowTwo((a / (a + b)) + 1, 4) + @myPowTwo((b / (a + b)) + 1, 4)) * b)
 end#alaMax
 
-@inline function alaMaxp(a, b)::Float32
-    # return ((normPair(a,a,b) /(normPair(a,a,b) + normPair(b,a,b) ))) + ((normPair(b,a,b) /(normPair(a,a,b) + normPair(b,a,b) )))
-    return ((@myPowTwo((a / (a + b)) + 1, 4) / @myPowTwo((a / (a + b)) + 1, 4) + @myPowTwo((b / (a + b)) + 1, 4))) + (@myPowTwo((b / (a + b)) + 1, 4) / @myPowTwo((a / (a + b)) + 1, 4) + @myPowTwo((b / (a + b)) + 1, 4))
-end#alaMax
+# @inline function alaMaxp(a, b)::Float32
+#     # return ((normPair(a,a,b) /(normPair(a,a,b) + normPair(b,a,b) ))) + ((normPair(b,a,b) /(normPair(a,a,b) + normPair(b,a,b) )))
+#     return ((@myPowTwo((a / (a + b)) + 1, 4) / @myPowTwo((a / (a + b)) + 1, 4) + @myPowTwo((b / (a + b)) + 1, 4))) + (@myPowTwo((b / (a + b)) + 1, 4) / @myPowTwo((a / (a + b)) + 1, 4) + @myPowTwo((b / (a + b)) + 1, 4))
+# end#alaMax
 
 
 function mul_kernel(Nx, Ny, Nz, A, p, Aout)
@@ -53,6 +53,11 @@ function mul_kernel(Nx, Ny, Nz, A, p, Aout)
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
 
     Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x+1, y, z]) * A[x+1, y, z]))
+    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x-1, y, z]) * A[x-1, y, z]))
+    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x, y+1, z]) * A[x, y+1, z]))
+    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x, y-1, z]) * A[x, y-1, z]))
+    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x, y, z+1]) * A[x, y, z+1]))
+    Aout[x, y, z] = alaMax(A[x, y, z], ((1 - p[x, y, z-1]) * A[x, y, z-1]))
 
     # alaMaxp(p[x, y, z], p[x+1, y, z]) 
     # (@myPowTwo((p[x+1,y,z]/(p[x+1,y,z]+p[x,y,z]))+1,4))/(@myPowTwo((p[x+1,y,z]/(p[x+1,y,z]+p[x,y,z]))+1,4)+@myPowTwo((p[x,y,z]/(p[x+1,y,z]+p[x,y,z]))+1,4)  )
@@ -82,7 +87,7 @@ Aout = CUDA.zeros(Nx, Ny, Nz)
 dAout = CUDA.ones(Nx, Ny, Nz)
 
 dA .= 1
-@cuda threads = (8, 8, 8) blocks = (8, 8, 8) grad_mul_kernel(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+@cuda threads = (4, 4, 4) blocks = (8, 8, 8) grad_mul_kernel(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 
 print("max $(maximum(dp)) min $(minimum(dp))")
 
