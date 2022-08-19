@@ -168,68 +168,68 @@ heatmap(cpuArr)
 print("topLeft $(topLeft) topRight $(topRight) bottomLeft $(bottomLeft)  bottomRight $(bottomRight)")
 
 
-cpuArr.*10000
+# cpuArr.*10000
 
-Array(Aout[3,:,:])
-Array(Aout[4,:,:])
-Array(Aout[5,:,:])
-Array(Aout[6,:,:])
-Array(Aout[7,:,:])
+# Array(Aout[3,:,:])
+# Array(Aout[4,:,:])
+# Array(Aout[5,:,:])
+# Array(Aout[6,:,:])
+# Array(Aout[7,:,:])
 
-maximum(Aout)
+# maximum(Aout)
 
-###############
-#scale
-
-
-((a-0.5)*10000)+((a-0.5)*100)^2
-((b-0.5)*10000)+((b-0.5)*100)^2
+# ###############
+# #scale
 
 
-a=0.45
-b=0.55
-a=0.01
-b=0.99
-
-a=0.6
-b=0.7
+# ((a-0.5)*10000)+((a-0.5)*100)^2
+# ((b-0.5)*10000)+((b-0.5)*100)^2
 
 
+# a=0.45
+# b=0.55
+# a=0.01
+# b=0.99
 
-as=((a-0.5)+(b-0.5))
-bs=((b-0.5)+(b-0.5))
-aa=as/(as+bs)
-bb=bs/(as+bs)
-
-
-(((as)+500)+1)/1000
-(((bs)+500)+1)/1000
-
-a=0.0000001#-48
-a=0.01#-50
-a=0.1#-38
-a=0.45#-3
-a=0.55#7
-a=0.7#22
-a=0.99#52
-a=0.999999#53
-(( (((a-0.5)*100 + (a+0.5)^2)+1))/54)
-
-a=0.3
-(a-0.5)/(a-0.5)
+# a=0.6
+# b=0.7
 
 
-zz=(a^2-2*a*b-b^2)/(a^2 -2*a*b+ b^2)
+
+# as=((a-0.5)+(b-0.5))
+# bs=((b-0.5)+(b-0.5))
+# aa=as/(as+bs)
+# bb=bs/(as+bs)
 
 
-a=0.55
-b=0.5
-((a-b)+1)^3
+# (((as)+500)+1)/1000
+# (((bs)+500)+1)/1000
 
-ass= a-0.5
-asb= ((ass+1)^2)
-asc=(ass*10)+5
+# a=0.0000001#-48
+# a=0.01#-50
+# a=0.1#-38
+# a=0.45#-3
+# a=0.55#7
+# a=0.7#22
+# a=0.99#52
+# a=0.999999#53
+# (( (((a-0.5)*100 + (a+0.5)^2)+1))/54)
+
+# a=0.3
+# (a-0.5)/(a-0.5)
 
 
-# /home/jakub/julia-1.7.3-linux-x86_64/julia-1.7.3/bin/julia /media/jakub/NewVolume/projects/superVoxelJuliaCode/ODE_pde_play/enzymePlayE.jl
-#/media/jakub/NewVolume/projects/superVoxelJuliaCode/ODE_pde_play/enzymePlayE.jl
+# zz=(a^2-2*a*b-b^2)/(a^2 -2*a*b+ b^2)
+
+
+# a=0.55
+# b=0.5
+# ((a-b)+1)^3
+
+# ass= a-0.5
+# asb= ((ass+1)^2)
+# asc=(ass*10)+5
+
+
+# # /home/jakub/julia-1.7.3-linux-x86_64/julia-1.7.3/bin/julia /media/jakub/NewVolume/projects/superVoxelJuliaCode/ODE_pde_play/enzymePlayE.jl
+# #/media/jakub/NewVolume/projects/superVoxelJuliaCode/ODE_pde_play/enzymePlayE.jl
