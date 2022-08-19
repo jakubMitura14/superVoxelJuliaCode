@@ -61,6 +61,14 @@ a=0.55
 #     return ((@myPowTwo((a / (a + b)) + 1, 4) / @myPowTwo((a / (a + b)) + 1, 4) + @myPowTwo((b / (a + b)) + 1, 4))) + (@myPowTwo((b / (a + b)) + 1, 4) / @myPowTwo((a / (a + b)) + 1, 4) + @myPowTwo((b / (a + b)) + 1, 4))
 # end#alaMax
 
+
+@inline function getScaled(a::Float32,pp::Float32)::Float32
+    return ((a*(alaMax(Float32(pp),Float32(0.5))-0.48)/0.52))*10
+    #return alaMax(pp,Float32(0.5))
+end
+# Aout[x, y, z]=((a*(alaMax(Float32(pp),Float32(0.5))-0.48)/0.52))*4
+
+
 #idea divide in the end by this spot probability and as a preprocessing step multiply A by inversed p squared ...
 function expandKernel(Nx, Ny, Nz, A, p, Aout)
     #adding one bewcouse of padding
@@ -69,12 +77,27 @@ function expandKernel(Nx, Ny, Nz, A, p, Aout)
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
     #CUDA.@cuprint("x $(x) y $(y) z $(z) curr $(A[x,y,z]) z+1 $(A[x, y, z+1] ) currp $(1 - p[x, y, z]) p in z+1 $(1 - p[x, y, z+1]) ) alamax z +1 $( alaMax(A[x, y, z], ((1 - p[x, y, z+1]) * A[x, y, z+1])) * (1 - p[x, y, z]))  \n    ")
 
-    Aout[x, y, z] = alaMax(A[x, y, z], (A[x+1, y, z])) 
-    Aout[x, y, z] = alaMax(A[x, y, z], (A[x-1, y, z])) 
-    Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y+1, z])) 
-    Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y-1, z]))
-    Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y, z+1]))
-    Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y, z-1]))
+    # Aout[x, y, z] = alaMax(A[x, y, z], (A[x+1, y, z])) 
+    # Aout[x, y, z] = alaMax(A[x, y, z], (A[x-1, y, z])) 
+    # Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y+1, z])) 
+    # Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y-1, z]))
+    # Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y, z+1]))
+    # Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y, z-1]))
+
+    curr::Float32=getScaled(A[x, y, z],p[x,y,z]) #(((A[x, y, z]*(alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))*4)
+    Aout[x, y, z] = alaMax(curr, getScaled(A[x+1, y, z],p[x+1,y,z] )) 
+    Aout[x, y, z] = alaMax(curr, getScaled(A[x-1, y, z],p[x-1,y,z] ))
+    Aout[x, y, z] = alaMax(curr, getScaled(A[x, y+1, z],p[x,y+1,z] ))
+    Aout[x, y, z] = alaMax(curr, getScaled(A[x, y-1, z],p[x,y-1,z] ))
+    Aout[x, y, z] = alaMax(curr, getScaled(A[x, y, z+1],p[x,y,z+1] ))
+    Aout[x, y, z] = alaMax(curr, getScaled(A[x, y, z-1],p[x,y,z-1] ))
+    Aout[x, y, z] = getScaled(Aout[x, y, z],p[x,y,z-1])
+    
+
+
+    # (((A[x, y, z]*(alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))*4)
+
+    #Aout[x, y, z] = (A[x, y, z]+(A[x+1, y, z])+(A[x-1, y, z])+(A[x, y+1, z])+(A[x, y-1, z])+(A[x, y, z+1])+(A[x, y, z-1]) )/7
 
 
     return nothing
@@ -93,7 +116,7 @@ function scaleDownKern(Nx, Ny, Nz, A, p, Aout)
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
     #CUDA.@cuprint("x $(x) y $(y) z $(z) curr $(A[x,y,z]) z+1 $(A[x, y, z+1] ) currp $(1 - p[x, y, z]) p in z+1 $(1 - p[x, y, z+1]) ) alamax z +1 $( alaMax(A[x, y, z], ((1 - p[x, y, z+1]) * A[x, y, z+1])) * (1 - p[x, y, z]))  \n    ")
     #in case the probability in this spot is low it will be scaled down accordingly we add 10 for numerical stability
-    Aout[x, y, z]=((A[x, y, z]*(alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))
+    Aout[x, y, z]=((A[x, y, z]*(alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))*2
    
     return nothing
 end
@@ -134,8 +157,8 @@ Aout = CUDA.zeros(Nx, Ny, Nz)
 dAout = CUDA.ones(Nx, Ny, Nz)
 
 dA .= 1
-@cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 @cuda threads = (4, 4, 4) blocks = (2, 2, 2) expandKernelDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+@cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 
 #@cuda threads = (2, 2, 2) blocks = (1, 1, 1) grad_mul_kernel(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 
@@ -161,15 +184,13 @@ cpuArrPrim=Array(A[3,:,:])
 # heatmap(cpuArrPrim)
 # heatmap(cpuArr)
 
-for i in 1:40
-    @cuda threads = (4, 4, 4) blocks = (2 ,2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
-    A=Aout
+for i in 1:5
+    #@cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+    #A=Aout
     @cuda threads = (4, 4, 4) blocks = (2, 2, 2) expandKernelDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
-    # @cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
-
+    #@cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
     A=Aout
 end
-@cuda threads = (4, 4, 4) blocks = (2 ,2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 
 cpuArr=Array(Aout[3,:,:])
 topLeft= cpuArr[2,2]
@@ -186,8 +207,6 @@ bottomRightCorn= Array(Aout[3,:,:])
 heatmap(cpuArr)
 print("topLeft $(topLeft) topRight $(topRight) bottomLeft $(bottomLeft)  bottomRight $(bottomRight)")
 
-
-cpuArr.*10000
 
 Array(Aout[3,:,:])
 Array(Aout[4,:,:])
