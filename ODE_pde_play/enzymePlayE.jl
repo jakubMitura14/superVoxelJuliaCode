@@ -25,9 +25,6 @@ macro myPowTwo(ex, num)
 end
 
 
-# @inline function myDiv(a::Float32, b::Float32)::Float32
-#     return @myPowTwo((Float32(a) / (Float32(a) + Float32(b))) + 1, 4)
-# end
 
 @inline function normPaira(a::Float32,b::Float32)::Float32
     return @myPowTwo((a/(a+b))+1,5)
@@ -44,22 +41,6 @@ given 2 numbers return sth like max
    return ((normPaira(a,b) /(normPaira(a,b) + normPairb(a,b) ))*a) + ((normPairb(a,b) /(normPaira(a,b) + normPairb(a,b) ))*b)
 end#alaMax
 
-@inline  function alaMaxp(a,b)::Float32
-    return ((normPaira(a,b) /(normPaira(a,b) + normPairb(a,b) ))) + ((normPairb(a,b) /(normPaira(a,b) + normPairb(a,b) )))
- end#alaMax
- 
-
-a=0.55
-((alaMax(Float32(a),Float32(0.5))-0.48)/0.52)
-
-
-# alaMax(Float32(100.0),Float32(10.0))
-
-
-# @inline function alaMaxp(a, b)::Float32
-#     # return ((normPair(a,a,b) /(normPair(a,a,b) + normPair(b,a,b) ))) + ((normPair(b,a,b) /(normPair(a,a,b) + normPair(b,a,b) )))
-#     return ((@myPowTwo((a / (a + b)) + 1, 4) / @myPowTwo((a / (a + b)) + 1, 4) + @myPowTwo((b / (a + b)) + 1, 4))) + (@myPowTwo((b / (a + b)) + 1, 4) / @myPowTwo((a / (a + b)) + 1, 4) + @myPowTwo((b / (a + b)) + 1, 4))
-# end#alaMax
 
 #idea divide in the end by this spot probability and as a preprocessing step multiply A by inversed p squared ...
 function expandKernel(Nx, Ny, Nz, A, p, Aout)
