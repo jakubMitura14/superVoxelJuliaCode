@@ -96,7 +96,8 @@ function scaleDownKern(Nx, Ny, Nz, A, p, Aout)
     #in case the probability in this spot is low it will be scaled down accordingly we add 10 for numerical stability
     #A[x, y, z]=(A[x, y, z]*p[x,y,z])*1.4
     # Aout[x, y, z]=((A[x, y, z]*(alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))
-    Aout[x, y, z]=((A[x, y, z]*(alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))
+    #Aout[x, y, z]=((A[x, y, z]*(alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))
+    A[x, y, z]=(A[x, y, z]*p[x,y,z])
 
     return nothing
 end
@@ -144,16 +145,20 @@ A, dA, p, dp, Aout, dAout=createTestData(Nx, Ny, Nz,oneSidePad, crossBorderWhere
 
 
 ### run
+threads=(4,4,4)
+blocks = (2,2,2)
+
+@cuda threads = threads blocks = blocks scaleDownKernDeffP(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 
 for i in 1:40
-    @cuda threads = (4, 4, 4) blocks = (2 ,2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
-    A=Aout
-    @cuda threads = (4, 4, 4) blocks = (2, 2, 2) expandKernelDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+    @cuda threads = threads blocks = blocks scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+    #A=Aout
+    @cuda threads = threads blocks = blocks expandKernelDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
     # @cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 
     A=Aout
 end
-@cuda threads = (4, 4, 4) blocks = (2 ,2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+@cuda threads = threads blocks = blocks scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 
 
 # @cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeffP(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
@@ -184,4 +189,11 @@ bottomRightCorn= Array(Aout[3,:,:])
 heatmap(cpuArr)
 print("topLeft $(topLeft) topRight $(topRight) bottomLeft $(bottomLeft)  bottomRight $(bottomRight)")
 
+
+
+
+
+##### composing gradients flow
+#https://enzyme.mit.edu/julia/generated/box/
+#Here I see you zero out input derivatives each step and initialize output derivatives of next step with input derivatives of the previous one
 
