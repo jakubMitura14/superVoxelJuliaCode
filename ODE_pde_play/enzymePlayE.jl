@@ -74,7 +74,7 @@ function scaleDownKern(Nx, Ny, Nz, A, p, Aout)
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
     #CUDA.@cuprint("x $(x) y $(y) z $(z) curr $(A[x,y,z]) z+1 $(A[x, y, z+1] ) currp $(1 - p[x, y, z]) p in z+1 $(1 - p[x, y, z+1]) ) alamax z +1 $( alaMax(A[x, y, z], ((1 - p[x, y, z+1]) * A[x, y, z+1])) * (1 - p[x, y, z]))  \n    ")
     #in case the probability in this spot is low it will be scaled down accordingly we add 10 for numerical stability
-    Aout[x, y, z]=((A[x, y, z]*(alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))
+    Aout[x, y, z]=((A[x, y, z]*(alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))*1.5
    
     return nothing
 end
@@ -167,6 +167,8 @@ bottomRightCorn= Array(Aout[3,:,:])
 heatmap(cpuArr)
 print("topLeft $(topLeft) topRight $(topRight) bottomLeft $(bottomLeft)  bottomRight $(bottomRight)")
 
+
+1+1
 
 # cpuArr.*10000
 
