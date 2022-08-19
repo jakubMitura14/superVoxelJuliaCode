@@ -43,21 +43,21 @@ function expandKernel(Nx, Ny, Nz, A, p, Aout)
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
     #CUDA.@cuprint("x $(x) y $(y) z $(z) curr $(A[x,y,z]) z+1 $(A[x, y, z+1] ) currp $(1 - p[x, y, z]) p in z+1 $(1 - p[x, y, z+1]) ) alamax z +1 $( alaMax(A[x, y, z], ((1 - p[x, y, z+1]) * A[x, y, z+1])) * (1 - p[x, y, z]))  \n    ")
-    # Aout[x, y, z] = alaMax(A[x, y, z], (A[x+1, y, z])) 
-    # Aout[x, y, z] = alaMax(A[x, y, z], (A[x-1, y, z])) 
-    # Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y+1, z])) 
-    # Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y-1, z]))
-    # Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y, z+1]))
-    # Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y, z-1]))
+    Aout[x, y, z] = alaMax(A[x, y, z], (A[x+1, y, z])) 
+    Aout[x, y, z] = alaMax(A[x, y, z], (A[x-1, y, z])) 
+    Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y+1, z])) 
+    Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y-1, z]))
+    Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y, z+1]))
+    Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y, z-1]))
 
     
-    curr=A[x, y, z]*p[x,y,z]
-    Aout[x, y, z] = alaMax(curr, (A[x+1, y, z]*p[x+1,y,z])) 
-    Aout[x, y, z] = alaMax(curr, (A[x-1, y, z]*p[x-1,y,z])) 
-    Aout[x, y, z] = alaMax(curr, (A[x, y+1, z]*p[x,y+1,z])) 
-    Aout[x, y, z] = alaMax(curr, (A[x, y-1, z]*p[x,y-1,z]))
-    Aout[x, y, z] = alaMax(curr, (A[x, y, z+1]*p[x,y,z+1]))
-    Aout[x, y, z] = alaMax(curr, (A[x, y, z-1]*p[x,y,z-1]))
+    # curr=A[x, y, z]*p[x,y,z]
+    # Aout[x, y, z] = alaMax(curr, (A[x+1, y, z]*p[x+1,y,z])) 
+    # Aout[x, y, z] = alaMax(curr, (A[x-1, y, z]*p[x-1,y,z])) 
+    # Aout[x, y, z] = alaMax(curr, (A[x, y+1, z]*p[x,y+1,z])) 
+    # Aout[x, y, z] = alaMax(curr, (A[x, y-1, z]*p[x,y-1,z]))
+    # Aout[x, y, z] = alaMax(curr, (A[x, y, z+1]*p[x,y,z+1]))
+    # Aout[x, y, z] = alaMax(curr, (A[x, y, z-1]*p[x,y,z-1]))
     return nothing
 end
 
@@ -94,8 +94,10 @@ function scaleDownKern(Nx, Ny, Nz, A, p, Aout)
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
     #CUDA.@cuprint("x $(x) y $(y) z $(z) curr $(A[x,y,z]) z+1 $(A[x, y, z+1] ) currp $(1 - p[x, y, z]) p in z+1 $(1 - p[x, y, z+1]) ) alamax z +1 $( alaMax(A[x, y, z], ((1 - p[x, y, z+1]) * A[x, y, z+1])) * (1 - p[x, y, z]))  \n    ")
     #in case the probability in this spot is low it will be scaled down accordingly we add 10 for numerical stability
-    A[x, y, z]=(A[x, y, z]*p[x,y,z])*1.4
-   
+    #A[x, y, z]=(A[x, y, z]*p[x,y,z])*1.4
+    # Aout[x, y, z]=((A[x, y, z]*(alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))
+    Aout[x, y, z]=((A[x, y, z]*(alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))
+
     return nothing
 end
 function scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
@@ -137,22 +139,33 @@ end
 
 Nx, Ny, Nz = 8 , 8 , 8
 oneSidePad=1
-crossBorderWhere=8
+crossBorderWhere=4
 A, dA, p, dp, Aout, dAout=createTestData(Nx, Ny, Nz,oneSidePad, crossBorderWhere)
 
 
 ### run
 
-@cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeffP(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
-for i in 1:20
+for i in 1:40
     @cuda threads = (4, 4, 4) blocks = (2 ,2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
-    # A=Aout
+    A=Aout
     @cuda threads = (4, 4, 4) blocks = (2, 2, 2) expandKernelDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
-    @cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+    # @cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 
     A=Aout
 end
 @cuda threads = (4, 4, 4) blocks = (2 ,2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+
+
+# @cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeffP(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+# for i in 1:20
+#     @cuda threads = (4, 4, 4) blocks = (2 ,2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+#     # A=Aout
+#     @cuda threads = (4, 4, 4) blocks = (2, 2, 2) expandKernelDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+#     @cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+
+#     A=Aout
+# end
+# @cuda threads = (4, 4, 4) blocks = (2 ,2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 
 
 
