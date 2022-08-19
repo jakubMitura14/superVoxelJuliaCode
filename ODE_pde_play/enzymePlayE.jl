@@ -49,15 +49,13 @@ function expandKernel(Nx, Ny, Nz, A, p, Aout)
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
     #CUDA.@cuprint("x $(x) y $(y) z $(z) curr $(A[x,y,z]) z+1 $(A[x, y, z+1] ) currp $(1 - p[x, y, z]) p in z+1 $(1 - p[x, y, z+1]) ) alamax z +1 $( alaMax(A[x, y, z], ((1 - p[x, y, z+1]) * A[x, y, z+1])) * (1 - p[x, y, z]))  \n    ")
-
-    Aout[x, y, z] = alaMax(A[x, y, z], (A[x+1, y, z])) 
-    Aout[x, y, z] = alaMax(A[x, y, z], (A[x-1, y, z])) 
-    Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y+1, z])) 
-    Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y-1, z]))
-    Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y, z+1]))
-    Aout[x, y, z] = alaMax(A[x, y, z], (A[x, y, z-1]))
-
-
+    curr=A[x, y, z]*p[x,y,z]
+    Aout[x, y, z] = alaMax(curr, (A[x+1, y, z]*p[x+1,y,z])) 
+    Aout[x, y, z] = alaMax(curr, (A[x-1, y, z]*p[x-1,y,z])) 
+    Aout[x, y, z] = alaMax(curr, (A[x, y+1, z]*p[x,y+1,z])) 
+    Aout[x, y, z] = alaMax(curr, (A[x, y-1, z]*p[x,y-1,z]))
+    Aout[x, y, z] = alaMax(curr, (A[x, y, z+1]*p[x,y,z+1]))
+    Aout[x, y, z] = alaMax(curr, (A[x, y, z-1]*p[x,y,z-1]))
     return nothing
 end
 
@@ -67,6 +65,8 @@ function expandKernelDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
     return nothing
 end
 
+#idea scale p's as preprocessing using devised differentiable function - then one can do bigger stencil by multiplying ps of fields in a way
+
 function scaleDownKern(Nx, Ny, Nz, A, p, Aout)
     #adding one bewcouse of padding
     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
@@ -74,7 +74,7 @@ function scaleDownKern(Nx, Ny, Nz, A, p, Aout)
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
     #CUDA.@cuprint("x $(x) y $(y) z $(z) curr $(A[x,y,z]) z+1 $(A[x, y, z+1] ) currp $(1 - p[x, y, z]) p in z+1 $(1 - p[x, y, z+1]) ) alamax z +1 $( alaMax(A[x, y, z], ((1 - p[x, y, z+1]) * A[x, y, z+1])) * (1 - p[x, y, z]))  \n    ")
     #in case the probability in this spot is low it will be scaled down accordingly we add 10 for numerical stability
-    Aout[x, y, z]=((A[x, y, z]*(alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))*1.5
+    Aout[x, y, z]=((A[x, y, z]*(alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))*1.2
    
     return nothing
 end
@@ -85,6 +85,23 @@ function scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 end
 
 
+function scaleDownP(Nx, Ny, Nz, A, p, Aout)
+    #adding one bewcouse of padding
+    x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
+    y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
+    z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
+    #CUDA.@cuprint("x $(x) y $(y) z $(z) curr $(A[x,y,z]) z+1 $(A[x, y, z+1] ) currp $(1 - p[x, y, z]) p in z+1 $(1 - p[x, y, z+1]) ) alamax z +1 $( alaMax(A[x, y, z], ((1 - p[x, y, z+1]) * A[x, y, z+1])) * (1 - p[x, y, z]))  \n    ")
+    #in case the probability in this spot is low it will be scaled down accordingly we add 10 for numerical stability
+    p[x, y, z]=(((alaMax(Float32(p[x,y,z]),Float32(0.5))-0.48)/0.52))*1.2
+   
+    return nothing
+end
+
+function scaleDownKernDeffP(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+    Enzyme.autodiff_deferred(scaleDownP, Const, Const(Nx), Const(Ny), Const(Nz), Duplicated(A, dA), Duplicated(p, dp), Duplicated(Aout, dAout)
+    )
+    return nothing
+end
 
 Nx, Ny, Nz = 8 + 2, 8 + 2, 8 + 2
 
@@ -98,6 +115,9 @@ withPad[2:9,2:9,2:9]=nums
 A = CuArray(withPad)
 dA = similar(A)
 probs = Float32.(ones(8,8,8)).*0.1
+
+
+
 probs[4,:,:].=0.9
 probs[:,4,:].=0.9
 probs[:,:,4].=0.9
@@ -108,14 +128,24 @@ withPadp[2:9,2:9,2:9]=probs
 
 Int(round(maximum(withPadp)))
 
-p = CuArray(withPadp)
+
+
 dp = CUDA.ones(Nx, Ny, Nz)
 
 Aout = CUDA.zeros(Nx, Ny, Nz)
 dAout = CUDA.ones(Nx, Ny, Nz)
 
 dA .= 1
-@cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+
+
+p = CuArray(withPadp)
+
+
+###important preprocessing step
+scaleDownP
+
+# @cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+# @cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeffP(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 @cuda threads = (4, 4, 4) blocks = (2, 2, 2) expandKernelDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 
 #@cuda threads = (2, 2, 2) blocks = (1, 1, 1) grad_mul_kernel(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
@@ -142,9 +172,11 @@ cpuArrPrim=Array(A[3,:,:])
 # heatmap(cpuArrPrim)
 # heatmap(cpuArr)
 
+#important preprocessing
+@cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeffP(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 for i in 1:40
-    @cuda threads = (4, 4, 4) blocks = (2 ,2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
-    A=Aout
+    # @cuda threads = (4, 4, 4) blocks = (2 ,2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+    # A=Aout
     @cuda threads = (4, 4, 4) blocks = (2, 2, 2) expandKernelDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
     # @cuda threads = (4, 4, 4) blocks = (2, 2, 2) scaleDownKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
 
@@ -166,6 +198,7 @@ bottomRightCorn= Array(Aout[3,:,:])
 
 heatmap(cpuArr)
 print("topLeft $(topLeft) topRight $(topRight) bottomLeft $(bottomLeft)  bottomRight $(bottomRight)")
+
 
 
 1+1
