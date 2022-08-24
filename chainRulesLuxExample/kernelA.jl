@@ -8,31 +8,31 @@ using Zygote, Lux
 using Lux, Random
 
 #lux layers from http://lux.csail.mit.edu/dev/manual/interface/
-struct KernelA{F1, F2} <: Lux.AbstractExplicitLayer
-    in_dims::Int
-    out_dims::Int
-    init_weight::F1
-    init_bias::F2
+struct KernelAstr<: Lux.AbstractExplicitLayer
+    confA::Int
 end
 
-function KernelA(in_dims::Int, out_dims::Int; init_weight=Lux.glorot_uniform,
-                init_bias=Lux.zeros32)
-    return KernelA{typeof(init_weight), typeof(init_bias)}(in_dims, out_dims, init_weight,
-                                                          init_bias)
+function KernelA(confA::Int)
+    return KernelAstr(confA)
 end
 
-l = KernelA(2, 4)
-function Lux.initialparameters(rng::AbstractRNG, l::KernelA)
-    return (weight=l.init_weight(rng, l.out_dims, l.in_dims),
-            bias=l.init_bias(rng, l.out_dims, 1))
+l = KernelA(2)
+
+function Lux.initialparameters(rng::AbstractRNG, l::KernelAstr)
+    return (paramsA=rand(rng, l.confA, l.confA))
 end
 
-Lux.initialstates(::AbstractRNG, ::KernelA) = NamedTuple()
+Lux.initialstates(::AbstractRNG, ::KernelAstr) = NamedTuple()
 
-# But still recommened to define these
-Lux.parameterlength(l::KernelA) = l.out_dims * l.in_dims + l.out_dims
 
-Lux.statelength(::KernelA) = 0
+println("Parameter Length: ", Lux.parameterlength(l), "; State Length: ",
+        Lux.statelength(l))
+
+
+# # But still recommened to define these
+# Lux.parameterlength(l::KernelAstr) = l.out_dims * l.in_dims + l.out_dims
+
+# Lux.statelength(::KernelAstr) = 0
 
 function (l::KernelA)(x::AbstractMatrix, ps, st::NamedTuple)
     y = ps.weight * x .+ ps.bias
