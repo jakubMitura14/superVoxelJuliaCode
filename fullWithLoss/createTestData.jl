@@ -1,4 +1,5 @@
 
+
 # nums=Float32.(rand(1.0:1000000,3,3,3))
 
 """
@@ -30,6 +31,3 @@ function createTestData(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
     return (A, dA, p, dp, Aout, dAout)
 
 end
-
-### test Data
-

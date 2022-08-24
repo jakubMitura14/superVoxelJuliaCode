@@ -6,6 +6,11 @@ oneSidePad = 1
 crossBorderWhere = 4
 A, dA, p, dp, Aout, dAout = createTestData(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
 
+
+# cpuArr = Array(A[3, :, :])
+# heatmap(cpuArr)
+
+
 ### run
 threads = (4, 4, 4)
 blocks = (2, 2, 2)
@@ -97,6 +102,7 @@ Int(round(outLoss[1]))
 
 
 var(Aempty)
+
 
 
 cpuArr = Array(Aout[3, :, :])

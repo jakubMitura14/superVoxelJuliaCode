@@ -63,6 +63,7 @@ patienGroupName="3"
 fid = h5open(pathToHDF5, "w")
 mainScrollDat,algoOutput=saveAndVisRandGraphNoAlgoOutPutSeen(base_arr,fid,patienGroupName,dim_x,dim_y,dim_z)
 
+gplot(randGG)
 
 # algoOutput= getArrByName("algoOutput" ,mainScrollDat)
 # algoOutput[:,:,:]=algoOutputB
