@@ -12,21 +12,6 @@ using Lux, Random
 
 
 
-# Two kernels to be called one after the other.
-@kernel function example_kernel(x, y, z)
-    i = @index(Global)
-    if(i == 1)
-        z[i] = 2 * x[i] + y[i]
-    elseif (i == 2)
-        z[i] = 3 * x[i] + y[i]
-    elseif (i == 3)
-        z[i] = 4 * x[i] + y[i]
-    elseif (i == 4)
-        z[i] = 5 * x[i] + y[i]
-    end
-    nothing
-end
-
 
 @kernel function example_kernel2(z, a, result)
     i = @index(Global)
@@ -35,16 +20,7 @@ end
 end
 
 
-# Function calls to allow easier high-level code.
-function call_example_kernel1(x, y)
-    z = similar(x)
-    fill!(z, 1)
 
-    kernel = example_kernel(CUDADevice())
-    event = kernel(x, y, z, ndrange=4)
-    wait(event)
-    return z
-end
 
 
 function call_example_kernel2(z, a)
@@ -66,36 +42,6 @@ function call_all(x, y, a)
 end
 
 
-# rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(call_example_kernel1), x, y)
-    z = call_example_kernel1(x, y)
-
-    function call_example_kernel1_pullback(z̄)
-        # Allocate shadow memory.
-        dz_dx = similar(x)
-        fill!(dz_dx, 0)
-        dz_dy = similar(y)
-        fill!(dz_dy, 0)
-
-        # Define differentials.
-        dx = Duplicated(x, dz_dx)
-        dy = Duplicated(y, dz_dy)
-        dz = Duplicated(z, z̄)
-    
-        # AD call.
-        gpu_kernel_autodiff = autodiff(example_kernel(CUDADevice()))
-        event = gpu_kernel_autodiff(dx, dy, dz, ndrange=4)
-        
-        # Return differentials of input.
-        f̄ = NoTangent()
-        x̄ = dx.dval
-        ȳ = dy.dval
-        
-        return f̄, x̄, ȳ
-    end
-    
-    return z, call_example_kernel1_pullback
-end
 
 
 function ChainRulesCore.rrule(::typeof(call_example_kernel2), z, a)
