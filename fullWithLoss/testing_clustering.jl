@@ -17,6 +17,7 @@ blocks = (2, 2, 2)
 
 maxx = maximum(A)
 @cuda threads = threads blocks = blocks scaleDownKernDeffP(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout)
+
 @cuda threads = threads blocks = blocks normalizeKernDeff(Nx, Ny, Nz, A, dA, p, dp, Aout, dAout, maxx)
 
 for i in 1:80

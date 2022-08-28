@@ -1,6 +1,8 @@
 # based on https://github.com/JuliaDiff/ChainRules.jl/issues/665
 # abstract diff https://frankschae.github.io/post/abstract_differentiation/
 #lux layers from http://lux.csail.mit.edu/dev/manual/interface/
+# backpropagation checkpointing https://fluxml.ai/Zygote.jl/dev/adjoints/#Checkpointing-1
+# 
 using ChainRulesCore
 using CUDA
 using CUDAKernels

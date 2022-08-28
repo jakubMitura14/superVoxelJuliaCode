@@ -15,54 +15,59 @@ using FillArrays
 
 nSize = 3
 
-# Two kernels to be called one after the other.
-@kernel function example_kernel(x,out, p)
-    i, j = @index(Global, NTuple)
-    out[i,j]=x[i,j]*p[i,j]
-    nothing
+
+function mul_kernel(A,p,Aout)
+    #adding one bewcouse of padding
+    x= (threadIdx().x+ ((blockIdx().x -1)*CUDA.blockDim_x()))+1
+    y= (threadIdx().y+ ((blockIdx().y -1)*CUDA.blockDim_y()))+1
+    z= (threadIdx().z+ ((blockIdx().z -1)*CUDA.blockDim_z()))+1
+    Aout[x,y,z]= p[x,y,z]*p[x,y,z]
+ 
+    return nothing
 end
 
-# Function calls to allow easier high-level code.
-function call_example_kernel1(x, p,out)
-    # out=ones(Float32,size(x))
-    #kernel = example_kernel(CUDADevice())
-    kernel = example_kernel(CPU())
-    event = kernel(x, out, p, ndrange=size(x))
-    wait(event)
+function grad_mul_kernel(A, dA
+    ,p,dp,Aout#::CuArray{Float32, 3}
+    ,dAout)
+    Enzyme.autodiff_deferred(mul_kernel, Const
+    , Duplicated(A, dA), Duplicated(p, dp), Duplicated(Aout,dAout)
+    )
     return nothing
+end
+
+
+
+# Function calls to allow easier high-level code.
+function call_example_kernel1(A,p)
+    Aout=CUDA.ones(Float32,size(x))
+    @cuda threads= (8,8,8) blocks=(8,8,8) mul_kernel(A, p,Aout)
+    return Aout
     #return out
 end
 
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(call_example_kernel1), x, p)
-    z=ones(Float32,size(x))
-    call_example_kernel1(x, p,z)
+function ChainRulesCore.rrule(::typeof(call_example_kernel1), A, p)
+    Aout=CUDA.ones(Float32,size(A))
+    #call_example_kernel1(A, p,Aout)
 
-    function call_example_kernel1_pullback(z̄)
+    function call_example_kernel1_pullback(dAout)
         # Allocate shadow memory.
-        dz_dx = zeros(Float32,size(x))
-        dz_dp = zeros(Float32,size(p))
+        dp = CUDA.ones(size(p))
+        dA = CUDA.ones(size(A))
 
-        # Define differentials.
-        dx = Duplicated(x, dz_dx)
-        dp = Duplicated(p, dz_dp)
-        dz = Duplicated(z, collect(z̄))
-    
-        # AD call.
-        # gpu_kernel_autodiff = autodiff(example_kernel(CUDADevice()))
-        # gpu_kernel_autodiff = autodiff(call_example_kernel1(CPU()))
-        # event = gpu_kernel_autodiff(dx, dp, dz, ndrange=size(x))
-        Enzyme.autodiff_deferred(call_example_kernel1, Const,dx, dp, dz)
-        # Return differentials of input.
+        # @cuda threads= (8,8,8) blocks=(8,8,8) grad_mul_kernel(A, dA,p,dp,collect(Aout),dAout)
+        @cuda threads= (8,8,8) blocks=(8,8,8) grad_mul_kernel(A, dA,p,dp,collect(Aout),dAout)
+
+
         f̄ = NoTangent()
-        x̄ = dx.dval
-        ȳ = dy.dval
+        x̄ = dA
+        ȳ = dp
         
         return f̄, x̄, ȳ
     end
     
-    return z, call_example_kernel1_pullback
+    return Aout, call_example_kernel1_pullback
 end
 
 
@@ -79,7 +84,7 @@ end
 
 
 function Lux.initialparameters(rng::AbstractRNG, l::KernelAstr)
-    return (paramsA=rand(rng,Float32, l.confA, l.confA), paramsB = rand(rng,Float32, l.confA, l.confA))
+    return (paramsA=CuArray(rand(rng,Float32, l.confA, l.confA, l.confA)), paramsB = CuArray(rand(rng,Float32, l.confA, l.confA, l.confA)))
 end
 
 Lux.initialstates(::AbstractRNG, ::KernelAstr) = NamedTuple()
@@ -91,13 +96,14 @@ Lux.initialstates(::AbstractRNG, ::KernelAstr) = NamedTuple()
 
 # Lux.statelength(::KernelAstr) = 0
 
-function (l::KernelAstr)(x::AbstractMatrix, ps, st::NamedTuple)
-    z=ones(Float32,size(x))
-    return call_example_kernel1(x, ps.paramsA,z),st
+function (l::KernelAstr)(x, ps, st::NamedTuple)
+    return call_example_kernel1(x, ps.paramsA),st
 end
 
 rng = Random.default_rng()
-l = KernelA(nSize)
+Nx,Ny,Nz= 64+2,64+2,64+2        
+
+l = KernelA(Nx)
 
 rand(rng, l.confA, l.confA)
 
@@ -106,7 +112,9 @@ ps, st = Lux.setup(rng, l)
 println("Parameter Length: ", Lux.parameterlength(l), "; State Length: ",
         Lux.statelength(l))
 
-x = randn(rng, Float32, nSize, nSize)
+
+x = randn(rng, Float32, Nx, Ny,Nz)
+x= CuArray(x)
 
 Lux.apply(l, x, ps, st) # or `l(x, ps, st)`
 
@@ -124,14 +132,14 @@ function loss_function(model, ps, st, x)
     return sum(y_pred), st, ()
 end
 
-# tstate = Lux.Training.TrainState(rng, model, opt; transform_variables=Lux.gpu)
-tstate = Lux.Training.TrainState(rng, model, opt)
+tstate = Lux.Training.TrainState(rng, model, opt; transform_variables=Lux.gpu)
+#tstate = Lux.Training.TrainState(rng, model, opt)
 vjp_rule = Lux.Training.ZygoteVJP()
 
 
-function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, data::AbstractMatrix,
+function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, data,
     epochs::Int)
-    #data = data .|> Lux.gpu
+   # data = data .|> Lux.gpu
     for epoch in 1:epochs
         grads, loss, stats, tstate = Lux.Training.compute_gradients(vjp, loss_function,
                                                                 data, tstate)
