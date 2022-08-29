@@ -1,13 +1,13 @@
 using ChainRulesCore,Zygote,CUDA,Enzyme
 
 
-# using CUDAKernels
-# using KernelAbstractions
-# using KernelGradients
-# using Zygote, Lux
-# using Lux, Random
-# import NNlib, Optimisers, Plots, Random, Statistics, Zygote
-# using FillArrays
+using CUDAKernels
+using KernelAbstractions
+using KernelGradients
+using Zygote, Lux
+using Lux, Random
+import NNlib, Optimisers, Plots, Random, Statistics, Zygote
+using FillArrays
 
 
 Nx, Ny, Nz = 8, 8, 8
@@ -77,6 +77,87 @@ ress=Zygote.jacobian(calltestKern,A, p )
 typeof(ress)
 maximum(ress[1])
 maximum(ress[2])
+
+
+
+
+#lux layers from http://lux.csail.mit.edu/dev/manual/interface/
+struct KernelAstr<: Lux.AbstractExplicitLayer
+    confA::Int
+end
+
+function KernelA(confA::Int)
+    return KernelAstr(confA)
+end
+
+
+function Lux.initialparameters(rng::AbstractRNG, l::KernelAstr)
+    return (paramsA=CuArray(rand(rng,Float32, l.confA, l.confA, l.confA)), paramsB = CuArray(rand(rng,Float32, l.confA, l.confA, l.confA)))
+end
+
+Lux.initialstates(::AbstractRNG, ::KernelAstr) = NamedTuple()
+
+
+
+# # But still recommened to define these
+# Lux.parameterlength(l::KernelAstr) = l.out_dims * l.in_dims + l.out_dims
+
+# Lux.statelength(::KernelAstr) = 0
+
+function (l::KernelAstr)(x, ps, st::NamedTuple)
+    return calltestKern(x, ps.paramsA),st
+end
+
+rng = Random.default_rng()
+oneSidePad = 1
+totalPad=oneSidePad*2  
+Nx, Ny, Nz = 8+totalPad, 8+totalPad, 8+totalPad
+
+l = KernelA(Nx)
+
+ps, st = Lux.setup(rng, l)
+
+println("Parameter Length: ", Lux.parameterlength(l), "; State Length: ",
+        Lux.statelength(l))
+
+
+x = randn(rng, Float32, Nx, Ny,Nz)
+x= CuArray(x)
+
+Lux.apply(l, x, ps, st) # or `l(x, ps, st)`
+
+#x=CuArray(x)
+
+
+model = Lux.Chain(KernelA(Nx),KernelA(Nx) )
+opt = Optimisers.Adam(0.03)
+
+"""
+extremely simple loss function - that just wan to decrese sumof all inputs
+"""
+function loss_function(model, ps, st, x)
+    y_pred, st = Lux.apply(model, x, ps, st)
+    return sum(y_pred), st, ()
+end
+
+tstate = Lux.Training.TrainState(rng, model, opt; transform_variables=Lux.gpu)
+#tstate = Lux.Training.TrainState(rng, model, opt)
+vjp_rule = Lux.Training.ZygoteVJP()
+
+
+function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, data,
+    epochs::Int)
+   # data = data .|> Lux.gpu
+    for epoch in 1:epochs
+        grads, loss, stats, tstate = Lux.Training.compute_gradients(vjp, loss_function,
+                                                                data, tstate)
+        @info epoch=epoch loss=loss
+        tstate = Lux.Training.apply_gradients(tstate, grads)
+    end
+    return tstate
+end
+
+tstate = main(tstate, vjp_rule, x,1)
 
 # using ChainRulesTestUtils
 # test_rrule(testKern,A, p, Aout)
