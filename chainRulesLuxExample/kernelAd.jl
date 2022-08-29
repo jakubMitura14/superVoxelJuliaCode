@@ -73,7 +73,8 @@ function ChainRulesCore.rrule(::typeof(testKern), A, p,Aout)
         return f̄, x̄, ȳ
     end
     
-    return Aout, call_test_kernel1_pullback
+    # return Aout, call_test_kernel1_pullback
+    return call_test_kernel1_pullback
 end
 
 Zygote.jacobian(testKern,A, p,Aout )
