@@ -103,6 +103,8 @@ Lux.initialparameters(rng::AbstractRNG, l::FluxCompatLayer) = (p=l.init_paramete
 
 
 
+# some example for convolution https://github.com/avik-pal/Lux.jl/blob/main/lib/Boltz/src/vision/vgg.jl
+# 3D layer utilities from https://github.com/Dale-Black/MedicalModels.jl/blob/master/src/utils.jl
 
 tran = ( in, out) -> Flux.ConvTranspose((3, 3, 3), in=>out, stride=2, pad=Flux.SamePad())
 
