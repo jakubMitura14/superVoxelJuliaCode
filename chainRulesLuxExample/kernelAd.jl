@@ -1,6 +1,10 @@
+# based on https://github.com/JuliaDiff/ChainRules.jl/issues/665
+# abstract diff https://frankschae.github.io/post/abstract_differentiation/
+#lux layers from http://lux.csail.mit.edu/dev/manual/interface/
+# backpropagation checkpointing https://fluxml.ai/Zygote.jl/dev/adjoints/#Checkpointing-1
+
+
 using ChainRulesCore,Zygote,CUDA,Enzyme
-
-
 using CUDAKernels
 using KernelAbstractions
 using KernelGradients
@@ -54,7 +58,7 @@ maximum(aa)
 
 # rrule for ChainRules.
 function ChainRulesCore.rrule(::typeof(calltestKern), A, p)
-    Aout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+    Aout = calltestKern(A, p)#CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad )
     function call_test_kernel1_pullback(dAout)
         # Allocate shadow memory.
         threads = (4, 4, 4)
@@ -92,7 +96,8 @@ end
 
 
 function Lux.initialparameters(rng::AbstractRNG, l::KernelAstr)
-    return (paramsA=CuArray(rand(rng,Float32, l.confA, l.confA, l.confA)), paramsB = CuArray(rand(rng,Float32, l.confA, l.confA, l.confA)))
+    return (paramsA=CuArray(rand(rng,Float32, l.confA, l.confA, l.confA))
+    ,paramsB = CuArray(rand(rng,Float32, l.confA, l.confA, l.confA)))
 end
 
 Lux.initialstates(::AbstractRNG, ::KernelAstr) = NamedTuple()
@@ -124,20 +129,20 @@ println("Parameter Length: ", Lux.parameterlength(l), "; State Length: ",
 x = randn(rng, Float32, Nx, Ny,Nz)
 x= CuArray(x)
 
-Lux.apply(l, x, ps, st) # or `l(x, ps, st)`
+y_pred, st =Lux.apply(l, x, ps, st) # or `l(x, ps, st)`
 
 #x=CuArray(x)
 
 
 model = Lux.Chain(KernelA(Nx),KernelA(Nx) )
-opt = Optimisers.Adam(0.03)
+opt = Optimisers.Adam(0.0003)
 
 """
 extremely simple loss function - that just wan to decrese sumof all inputs
 """
 function loss_function(model, ps, st, x)
     y_pred, st = Lux.apply(model, x, ps, st)
-    return sum(y_pred), st, ()
+    return (100-sum(y_pred))^2, st, ()
 end
 
 tstate = Lux.Training.TrainState(rng, model, opt; transform_variables=Lux.gpu)
@@ -158,6 +163,9 @@ function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, da
 end
 
 tstate = main(tstate, vjp_rule, x,1)
+
+
+tstate = main(tstate, vjp_rule, x,1000)
 
 # using ChainRulesTestUtils
 # test_rrule(testKern,A, p, Aout)
