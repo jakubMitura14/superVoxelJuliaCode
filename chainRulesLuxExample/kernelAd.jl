@@ -16,13 +16,14 @@ totalPad=oneSidePad*2
 A = CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 dA= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 
-Aout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
-dAout= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+Aoutout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+dAoutout= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 
 p = CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 dp= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 
-
+threads = (4, 4, 4)
+blocks = (2, 2, 2)
 
 function testKern(A, p, Aout)
     #adding one bewcouse of padding
@@ -42,43 +43,40 @@ function testKernDeff( A, dA, p
     return nothing
 end
 
+function calltestKern(A, p)
+    Aout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+    @cuda threads = threads blocks = blocks testKern( A, p,  Aout)
+    return Aout
+end
 
-### run
-threads = (4, 4, 4)
-blocks = (2, 2, 2)
-@cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, dAout)
-@device_code_warntype @cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, dAout)
-@cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, dAout)
-maximum(dp)
-maximum(dA)
-
-
-
+aa=calltestKern(A, p)
+maximum(aa)
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(testKern), A, p,Aout)
-
+function ChainRulesCore.rrule(::typeof(calltestKern), A, p)
+    Aout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
     function call_test_kernel1_pullback(dAout)
         # Allocate shadow memory.
         threads = (4, 4, 4)
         blocks = (2, 2, 2)
         dp = CUDA.ones(size(p))
         dA = CUDA.ones(size(A))
-        @cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, collect(dAout))
+        @cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, CuArray(collect(dAout)))
 
         f̄ = NoTangent()
         x̄ = dA
         ȳ = dp
         
         return f̄, x̄, ȳ
-    end
-    
-    # return Aout, call_test_kernel1_pullback
-    return call_test_kernel1_pullback
+    end   
+    return Aout, call_test_kernel1_pullback
+
 end
 
-Zygote.jacobian(testKern,A, p,Aout )
-
+ress=Zygote.jacobian(calltestKern,A, p )
+typeof(ress)
+maximum(ress[1])
+maximum(ress[2])
 
 # using ChainRulesTestUtils
 # test_rrule(testKern,A, p, Aout)
