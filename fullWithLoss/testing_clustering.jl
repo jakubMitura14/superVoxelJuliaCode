@@ -4,18 +4,22 @@ using Distributions
 Nx, Ny, Nz = 32, 32, 32
 oneSidePad = 1
 crossBorderWhere = 16
-
 sitk=MedPipe3D.LoadFromMonai.getSimpleItkObject()
-
 pathToHDF5="/home/jakub/CTORGmini/smallDataSet.hdf5"
 data_dir = "/home/jakub/CTORGmini"
 
+
+
 origArr,indArr=createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
-size(indArr)
+modelConv = getConvModel()
 
 
 
-
+ps, st = Lux.setup(rng, modelConv)
+x = randn(rng, Float32, dim_x,dim_y,dim_z)
+x =reshape(x, (dim_x,dim_y,dim_z,1,1))
+y_pred, st =Lux.apply(modelConv, x, ps, st) 
+size(y_pred)
 
 
 

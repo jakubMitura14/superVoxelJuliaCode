@@ -26,8 +26,7 @@ using PythonCall
 
 
 # rng = Random.default_rng()
-# conv1 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.relu, stride=1, dilation=0)
-# modelConv=Lux.Chain(conv1(1,4),conv1(4,8),conv1(8,4),conv1(4,2),conv1(2,1))
+conv1 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.relu, stride=1, dilation=0)
 
 
 
@@ -36,13 +35,7 @@ function getConvModel()
 end#getConvModel
 
 
-"""pdf of the univariate normal distribution.
-    μ-mean
-    σ - variance
-"""
-function univariate_normal(x, μ, σ)
-    return ((1.0/sqrt(2 * π * σ)) *exp(-(x - μ)^2 / (2 * σ)))
-end#univariate_normal
+
 
 # """
 # good tutorial below

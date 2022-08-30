@@ -1,111 +1,42 @@
 using Revise
 using Statistics
-"""
-my mean
-"""
-function my3dMean(arr,Nx,Ny,Nz)
-    sum=0.0
-    for x in 1:Nx, y in 1:Ny, z in 1:Nz
-        sum+=arr[x,y,z]
-    end#for    
-    return sum/(Nx*Ny*Nz)
-end    
-
-function variance3d( arr,Nx,Ny,Nz )
-    mean=my3dMean(arr,Nx,Ny,Nz)
-    varr=0
-    for x in 1:Nx, y in 1:Ny, z in 1:Nz
-        varr+= ( (mean-arr[x,y,z])^2)
-    end#for  
-    return varr/(Nx*Ny*Nz)
-end#variance
-
-function my1dsum(arr,Nx)
-    sum=0
-    for x in 1:Nx
-        sum+=arr[x]
-    end#for    
-    return sum
-end    
-
-
-function my1dMean(arr,Nx)
-    return my1dsum(arr,Nx) /(Nx)
-end    
-
-function variance1d( arr,Nx)
-    mean=my1dMean(arr,Nx)
-    varr=0
-    for x in 1:Nx
-        varr+= ( (mean-arr[x])^2)
-    end#for  
-    return varr/(Nx)
-end#variance
-
-
 
 """
-test loss assuming that in each corner of the daa cube there should 
-be region with diffrent mean, small variance and big diffrence relative to other regions 
-for simplicity curently it will run on CPU
-"""
-function clusteringLossTest(outLoss,Nx, Ny, Nz,crossBorderWhere, oneSidePad,A,tops,tope, bottoms, bottome, lefts, lefte, rights, righte, anteriors,anteriore ,posteriors , posteriore)
-    outLoss[1]=15.0
+loss function will look for supervoxels in data
+    1) we need to define series of gaussian distributions where each will be responsible for single supervoxel
+    2) we would like to minimize the amount of supervoxel in this model it would mean that we want to maximize the number of the gaussians that would have 0 corresponding voxels
+    3) we want to make the distributions of the gaussians as dissimilar as possible - for example big kl divergence ? jensen inequality? 
+    4) we will associate gaussian with the region if probability evaluated for it is the biggest one among all gaussians
+    5) we need also to add information that he spatial variance measured as the squared sum of distances from centroids is maximized
 
-    top_left_post =A[tops:tope,lefts:lefte, posteriors:posteriore ] 
-    top_right_post =A[tops:tope,rights:righte, posteriors:posteriore ] 
+    imageArr - array with original image
+    pImageArr - processed image where all voxels associated to each supervoxel should have very similar value
+    gaussMeans - vector with values of calculated means (this are parameters)
+    gausVariance - scalar describing variance - the same for all gaussians thats means are in  gaussMeans vector
 
-    top_left_ant =A[tops:tope,lefts:lefte, anteriors:anteriore ] 
-    top_right_ant =A[tops:tope,rights:righte, anteriors:anteriore ] 
 
-    bottom_left_post =A[bottoms:bottome,lefts:lefte, posteriors:posteriore ] 
-    bottom_right_post =A[bottoms:bottome,rights:righte, posteriors:posteriore ] 
+    """
+function clusteringLoss()
+    #1) calculate gaussian for each gaussian pdf and save the max or pseudo max as algoOutput
+    #2) sum the output from 1 - we want to maximize this sum - so all points in an image will have high probability in some distribution 
+        #more precisely we would like to maximize both the sum as well as the number of the gaussians with large number of points
+        #so we will effectively minimize the number of clusters
+        #hence gaussians with small sums of probabilities associated so for example given two new gaussians where one will have the mean at zero and other at some value that is close 
+        #to mean of biggest cluster  and we want to maximize the sum of max probabilities - so you are either big or small ...
 
-    bottom_left_ant =A[bottoms:bottome,lefts:lefte, anteriors:anteriore ] 
-    bottom_right_ant =A[bottoms:bottome,rights:righte, anteriors:anteriore ] 
-
-    means=(
-        mean(top_left_post),mean(top_right_post)
-        ,mean(top_left_ant),mean(top_right_ant)
-        ,mean(bottom_left_post),mean(bottom_right_post)
-        ,mean(bottom_right_ant),mean(bottom_right_ant)    
-    )
-    variances= var(top_left_post)+var(top_right_post)
-    +var(top_left_ant)+var(top_right_ant)
-    +var(bottom_left_post)+var(bottom_right_post)
-    +var(bottom_right_ant)+var(bottom_right_ant)    
-
-    #print( " aaa $(variances)"  )
-
-    #regions= (top_left_post,top_right_post,top_left_ant,top_right_ant,bottom_left_post, bottom_right_post ,bottom_left_ant,bottom_right_ant)
-    #my3dMean(top_left_post,crossBorderWhere,crossBorderWhere,crossBorderWhere)
-
-    # sum=0.0
-    # for x in 1:5
-    #     sum+=top_left_post[x]
-    # end#for    
-    # return sum/5
+    #3)evaluate the similarity between distributions - for simplification for the beginning we will assume the same variance 
+        #for all variables so the measure of the dissimilarity between distributions could be described by just 
+        #variance of their means and we want to maximize this variance
     
-#     #means=map( arr-> my3dMean(arr,crossBorderWhere,crossBorderWhere,crossBorderWhere) ,regions)
-#     # variances=map(arr-> variance3d(arr,crossBorderWhere,crossBorderWhere,crossBorderWhere) ,regions)
-    
-    variance_ofMeans=var(means)
+    #4) for each gaussian we want it to be clustered so we want to minimize distance of high probability voxels from themselves
+        #simple metric would be to reduce the variance of the calculated probbailities in nieghberhoods around each points
+ 
+    #5) and most important we should have variance of chosen features in the original image among all voxels minimized
+        #using weights like in 1 and 2        
 
-#     # #variance in region should be small but big between regions
-    # outLoss[1]= (sum(variances) -(variance_ofMeans*6))
-    # outLoss[1]= (sum(variances) )#-variance_ofMeans
-    outLoss[1]= variances#-variance_ofMeans
-    #outLoss[1]= 15.0#-variance_ofMeans
-    
-    return 11.0
-end
+    # we can consider sth like relaxation labelling to strengthen the edges after all
 
-function clusteringLossTestDeff(outLoss,doutLoss,Nx, Ny, Nz,crossBorderWhere, oneSidePad, A, dA,tops,tope
-    , bottoms, bottome, lefts, lefte, rights, righte, anteriors,anteriore ,posteriors , posteriore)
-    return Enzyme.autodiff(Reverse, clusteringLossTest, Active,Duplicated(outLoss,doutLoss) #this tell about return
-    , Const(Nx), Const(Ny)
-    , Const(Nz), Duplicated(A, dA) , Const(crossBorderWhere), Const(oneSidePad)
-    ,Const(tops),Const(tope), Const(bottoms), Const(bottome), Const(lefts), Const(lefte), Const(rights)
-    , Const(righte), Const(anteriors) , Const(anteriore),Const(posteriors) , Const(posteriore))
-end
-# clusteringLossTest(Nx, Ny, Nz,crossBorderWhere, oneSidePad,A, p)
+
+
+
+end#clusteringLoss
