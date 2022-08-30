@@ -70,10 +70,27 @@ end #get_example_image
 # some example for convolution https://github.com/avik-pal/Lux.jl/blob/main/lib/Boltz/src/vision/vgg.jl
 # 3D layer utilities from https://github.com/Dale-Black/MedicalModels.jl/blob/master/src/utils.jl
 
-using TestImages, FileIO, ImageView,ImageEdgeDetection
+rng = Random.default_rng()
 
-conv1 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.tanh, stride=1)
-conv2 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.tanh, stride=2)
+conv1 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.relu, stride=1, dilation=0)
+conv2 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.relu, stride=2)
+
+dim_x,dim_y,dim_z=64,64,64
+
+#modelConv=Lux.Chain(conv1(1,4),conv1(4,16),conv1(16,4),conv1(4,1))
+modelConv=Lux.Chain(conv1(1,4),conv1(4,8),conv1(8,4),conv1(4,2),conv1(2,1))
+ps, st = Lux.setup(rng, modelConv)
+x = randn(rng, Float32, dim_x,dim_y,dim_z)
+x =reshape(x, (dim_x,dim_y,dim_z,1,1))
+y_pred, st =Lux.apply(modelConv, x, ps, st) 
+size(y_pred)
+
+"""
+just bunch of 3d convolutions together they should create/modify either the edges or the regions depending on interpretation
+"""
+function getGenericconv()
+
+end#getGenericconv
 
 
 """pdf of the univariate normal distribution."""
@@ -117,19 +134,33 @@ loss function will look for supervoxels in data
     3) we want to make the distributions of the gaussians as dissimilar as possible - for example big kl divergence ? jensen inequality? 
     4) we will associate gaussian with the region if probability evaluated for it is the biggest one among all gaussians
     5) we need also to add information that he spatial variance measured as the squared sum of distances from centroids is maximized
-"""
+
+    imageArr - array with original image
+    pImageArr - processed image where all voxels associated to each supervoxel should have very similar value
+    gaussMeans - vector with values of calculated means (this are parameters)
+    gausVariance - scalar describing variance - the same for all gaussians thats means are in  gaussMeans vector
+
+
+    """
 function clusteringLoss()
     #1) calculate gaussian for each gaussian pdf and save the max or pseudo max as algoOutput
     #2) sum the output from 1 - we want to maximize this sum - so all points in an image will have high probability in some distribution 
-    
+        #more precisely we would like to maximize both the sum as well as the number of the gaussians with large number of points
+        #so we will effectively minimize the number of clusters
+        #hence gaussians with small sums of probabilities associated so for example given two new gaussians where one will have the mean at zero and other at some value that is close 
+        #to mean of biggest cluster  and we want to maximize the sum of max probabilities - so you are either big or small ...
+
     #3)evaluate the similarity between distributions - for simplification for the beginning we will assume the same variance 
         #for all variables so the measure of the dissimilarity between distributions could be described by just 
         #variance of their means and we want to maximize this variance
     
     #4) for each gaussian we want it to be clustered so we want to minimize distance of high probability voxels from themselves
         #simple metric would be to reduce the variance of the calculated probbailities in nieghberhoods around each points
-    
-    #5) we can consider sth like relaxation labelling to strengthen the edges after all
+ 
+    #5) and most important we should have variance of chosen features in the original image among all voxels minimized
+        #using weights like in 1 and 2        
+
+    # we can consider sth like relaxation labelling to strengthen the edges after all
 
 
 
