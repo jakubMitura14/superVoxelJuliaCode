@@ -67,37 +67,72 @@ function get_example_image()
 end #get_example_image
 
 
-mainScrollDat,tupl=get_example_image()
-
-algoOutput= getArrByName("algoOutput" ,mainScrollDat)
-CT= getArrByName("image" ,mainScrollDat)
-boolLabel= getArrByName("labelSet" ,mainScrollDat)
-
-targetSpacing=(1,1,1)
-image=sitk.ReadImage(tupl[1])
-image=MedPipe3D.LoadFromMonai.resamplesitkImageTosize(image,targetSpacing,sitk,sitk.sitkBSpline)
-
-canny_filter = sitk.SobelEdgeDetectionImageFilter()
-#canny_filter = sitk.CannyEdgeDetectionImageFilter()
-image =  sitk.Cast(image, sitk.sitkFloat32)
-# canny_filter.SetLowerThreshold(50);
-# canny_filter.SetVariance(15);
-canny_edges = canny_filter.Execute(image)
-imageArr=MedPipe3D.LoadFromMonai.permuteAndReverseFromSitk(pyconvert(Array,sitk.GetArrayFromImage(image)))
-imageArr=(imageArr.-minimum(imageArr))
-imageArr=imageArr./maximum(imageArr)
-maximum(imageArr)
-algoOutput[:,:,:]=imageArr
-
 # some example for convolution https://github.com/avik-pal/Lux.jl/blob/main/lib/Boltz/src/vision/vgg.jl
 # 3D layer utilities from https://github.com/Dale-Black/MedicalModels.jl/blob/master/src/utils.jl
 
 using TestImages, FileIO, ImageView,ImageEdgeDetection
 
-img =  testimage("mandril_gray")
-img_edges = detect_edges(img, Canny(spatial_scale = 1.4))
-
 conv1 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.tanh, stride=1)
 conv2 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.tanh, stride=2)
 
+
+"""pdf of the univariate normal distribution."""
+function univariate_normal(x, mean, variance)
+    return ((1. / np.sqrt(2 * np.pi * variance)) * 
+            np.exp(-(x - mean)**2 / (2 * variance)))
+end#univariate_normal
+
+# """
+# good tutorial below
+# https://gowrishankar.info/blog/calculus-gradient-descent-optimization-through-jacobian-matrix-for-a-gaussian-distribution/
+# generally estimating mean and variance of gaussian distributions needs to be part of the backpropagation chain hence need to be 
+# done via optimazation based on idea on gradient descent - challenge here is to keep the SPD structure of the covariance matrix
+#     simple way to avoid it is to just train univariate distributions - and hopfully the other layesr will lead to the intensity values that are uniform enough 
+# """
+# function optimize_gauss_backprop()
+
+# end
+
+# """
+# https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
+# https://leenashekhar.github.io/2019-01-30-KL-Divergence/
+# """
+# function klDiv_univariate_gaussians()
+#     KL(p,q)=logσ2σ1+σ21+(μ1−μ2)22σ22−12
+# end    
+
+
+# """
+# https://sunil-s.github.io/assets/pdfs/multivariate_mutual_information.pdf
+# """
+# function mutualInformation()
+
+
+# end#mutualInformation
+
+"""
+loss function will look for supervoxels in data
+    1) we need to define series of gaussian distributions where each will be responsible for single supervoxel
+    2) we would like to minimize the amount of supervoxel in this model it would mean that we want to maximize the number of the gaussians that would have 0 corresponding voxels
+    3) we want to make the distributions of the gaussians as dissimilar as possible - for example big kl divergence ? jensen inequality? 
+    4) we will associate gaussian with the region if probability evaluated for it is the biggest one among all gaussians
+    5) we need also to add information that he spatial variance measured as the squared sum of distances from centroids is maximized
+"""
+function clusteringLoss()
+    #1) calculate gaussian for each gaussian pdf and save the max or pseudo max as algoOutput
+    #2) sum the output from 1 - we want to maximize this sum - so all points in an image will have high probability in some distribution 
+    
+    #3)evaluate the similarity between distributions - for simplification for the beginning we will assume the same variance 
+        #for all variables so the measure of the dissimilarity between distributions could be described by just 
+        #variance of their means and we want to maximize this variance
+    
+    #4) for each gaussian we want it to be clustered so we want to minimize distance of high probability voxels from themselves
+        #simple metric would be to reduce the variance of the calculated probbailities in nieghberhoods around each points
+    
+    #5) we can consider sth like relaxation labelling to strengthen the edges after all
+
+
+
+
+end#clusteringLoss
 

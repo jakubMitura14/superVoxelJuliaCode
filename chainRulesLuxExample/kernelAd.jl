@@ -76,13 +76,11 @@ function ChainRulesCore.rrule(::typeof(calltestKern), A, p)
     return Aout, call_test_kernel1_pullback
 
 end
-
+#first testing
 ress=Zygote.jacobian(calltestKern,A, p )
 typeof(ress)
 maximum(ress[1])
 maximum(ress[2])
-
-
 
 
 #lux layers from http://lux.csail.mit.edu/dev/manual/interface/
@@ -101,7 +99,6 @@ function Lux.initialparameters(rng::AbstractRNG, l::KernelAstr)
 end
 
 Lux.initialstates(::AbstractRNG, ::KernelAstr) = NamedTuple()
-
 
 
 # # But still recommened to define these
@@ -130,9 +127,6 @@ x = randn(rng, Float32, Nx, Ny,Nz)
 x= CuArray(x)
 
 y_pred, st =Lux.apply(l, x, ps, st) # or `l(x, ps, st)`
-
-#x=CuArray(x)
-
 
 model = Lux.Chain(KernelA(Nx),KernelA(Nx) )
 opt = Optimisers.Adam(0.0003)
