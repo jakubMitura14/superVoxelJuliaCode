@@ -5,6 +5,7 @@ includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/get_synth_data/gen
 includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/createTestData.jl")
 includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/clusterKernels.jl")
 includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/clusteringLoss.jl")
+includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/getEdgesB.jl")
 
 
  
