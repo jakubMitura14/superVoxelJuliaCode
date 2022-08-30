@@ -13,10 +13,7 @@ loss function will look for supervoxels in data
     pImageArr - processed image where all voxels associated to each supervoxel should have very similar value
     gaussMeans - vector with values of calculated means (this are parameters)
     gausVariance - scalar describing variance - the same for all gaussians thats means are in  gaussMeans vector
-
-
-    """
-function clusteringLoss()
+   
     #1) calculate gaussian for each gaussian pdf and save the max or pseudo max as algoOutput
     #2) sum the output from 1 - we want to maximize this sum - so all points in an image will have high probability in some distribution 
         #more precisely we would like to maximize both the sum as well as the number of the gaussians with large number of points
@@ -35,6 +32,10 @@ function clusteringLoss()
         #using weights like in 1 and 2        
 
     # we can consider sth like relaxation labelling to strengthen the edges after all
+
+    """
+function clusteringLoss()
+
 
 
 

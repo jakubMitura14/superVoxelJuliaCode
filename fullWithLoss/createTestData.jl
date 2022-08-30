@@ -92,7 +92,8 @@ function createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
     setRandValues(bottom_right_post)
     setRandValues(bottom_left_ant)
     setRandValues(bottom_right_ant)
-
+    origArr./maximum(origArr)
+    
     return origArr,indArr 
 end
 

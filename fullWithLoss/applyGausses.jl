@@ -1,8 +1,8 @@
-# based on https://github.com/JuliaDiff/ChainRules.jl/issues/665
-# abstract diff https://frankschae.github.io/post/abstract_differentiation/
-#lux layers from http://lux.csail.mit.edu/dev/manual/interface/
-# backpropagation checkpointing https://fluxml.ai/Zygote.jl/dev/adjoints/#Checkpointing-1
-
+"""
+define the lux layer with custom backpropagation through Enzyme
+will give necessery data for loss function and for graph creation from 
+    supervoxels
+"""
 
 using ChainRulesCore,Zygote,CUDA,Enzyme
 using CUDAKernels
@@ -13,52 +13,93 @@ using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
 using FillArrays
 
+rng = Random.default_rng()
 
-# Nx, Ny, Nz = 8, 8, 8
-# oneSidePad = 1
-# totalPad=oneSidePad*2
-# A = CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
-# dA= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+Nx, Ny, Nz = 8, 8, 8
+oneSidePad = 1
+totalPad=oneSidePad*2
+A = CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+dA= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 
-# Aoutout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
-# dAoutout= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+Aoutout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+dAoutout= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 
-# p = CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
-# dp= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+p = CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+dp= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 
-# threads = (4, 4, 4)
-# blocks = (2, 2, 2)
+#how many gaussians we will specify 
+const gauss_numb_top = 8
 
-function testKern(A, p, Aout)
-    #adding one bewcouse of padding
+threads_apply_gauss = (4, 4, 4)
+blocks_apply_gauss = (2, 2, 2)
+
+struct Gauss_apply_str<: Lux.AbstractExplicitLayer
+    gauss_numb::Int
+end
+
+function Gauss_apply(gauss_numb::Int)
+    return Gauss_apply_str(gauss_numb)
+end
+
+
+"""
+we will create a single variable for common variance we will initialize it as a small value
+    and secondly we will have the set of means for gaussians - we will set them uniformly from 0 to 1
+"""
+function Lux.initialparameters(rng::AbstractRNG, l::Gauss_apply_str)
+    return ((variance=0.05)
+    ,means =  CuArray(Float32.((collect(0:(l.gauss_numb-1)))./(l.gauss_numb-1) )))
+end
+Lux.initialstates(::AbstractRNG, ::Gauss_apply_str) = NamedTuple()
+
+l=Gauss_apply(gauss_numb_top)
+ps, st = Lux.setup(rng, l)
+
+
+"""
+voxel wise apply of the gaussian distributions
+"""
+function applyGaussKern(means,variance,indArr,out,meansLength)
+    #adding one becouse of padding
     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
-    Aout[x, y, z] = A[x, y, z] *p[x, y, z] *p[x, y, z] *p[x, y, z] 
-    
+    #iterate over all gauss parameters
+    for i in 2:meansLength
+        #we are saving alamax of two distributions previous and current one
+        out= alaMax(univariate_normal(indArr[x,y,z], means[i-1], variance)
+        ,univariate_normal(indArr[x,y,z], means[i], variance))
+    end #for    
+    return nothing
+end
+"""
+Enzyme definitions for calculating derivatives of applyGaussKern in back propagation
+"""
+function applyGaussKern_Deff(means,d_means,variance,indArr,d_indArr,out,d_out,meansLength)
+    Enzyme.autodiff_deferred(applyGaussKern, Const
+    ,Duplicated(means, d_means)
+    ,Active(variance)
+    ,Duplicated(indArr, d_indArr)
+    ,Duplicated(out, d_out)
+    ,Const(meansLength)    )
     return nothing
 end
 
-function testKernDeff( A, dA, p
-    , dp, Aout
-    , dAout)
-    Enzyme.autodiff_deferred(testKern, Const, Duplicated(A, dA), Duplicated(p, dp), Duplicated(Aout, dAout)
-    )
-    return nothing
-end
-
-function calltestKern(A, p)
-    Aout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
-    @cuda threads = threads blocks = blocks testKern( A, p,  Aout)
+"""
+call function with out variable initialization
+"""
+function callGaussApplyKern(means,variance,indArr,meansLength)
+    out = CUDA.zeros(size(indArr)) 
+    @cuda threads = threads_apply_gauss blocks = blocks_apply_gauss testKern( A, p,  Aout)
     return Aout
 end
 
-aa=calltestKern(A, p)
-maximum(aa)
+# aa=calltestKern(A, p)
+# maximum(aa)
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(calltestKern), A, p)
-    Aout = calltestKern(A, p)#CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad )
+function ChainRulesCore.rrule(::typeof(callGaussApplyKern), means,variance,indArr,meansLength)
+    out = calltestKern(A, p)#CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad )
     function call_test_kernel1_pullback(dAout)
         # Allocate shadow memory.
         threads = (4, 4, 4)
@@ -77,28 +118,14 @@ function ChainRulesCore.rrule(::typeof(calltestKern), A, p)
 
 end
 #first testing
-ress=Zygote.jacobian(calltestKern,A, p )
+# ress=Zygote.jacobian(calltestKern,A, p,Nx )
+
+
+
 typeof(ress)
 maximum(ress[1])
 maximum(ress[2])
 
-
-#lux layers from http://lux.csail.mit.edu/dev/manual/interface/
-struct KernelAstr<: Lux.AbstractExplicitLayer
-    confA::Int
-end
-
-function KernelA(confA::Int)
-    return KernelAstr(confA)
-end
-
-
-function Lux.initialparameters(rng::AbstractRNG, l::KernelAstr)
-    return (paramsA=CuArray(rand(rng,Float32, l.confA, l.confA, l.confA))
-    ,paramsB = CuArray(rand(rng,Float32, l.confA, l.confA, l.confA)))
-end
-
-Lux.initialstates(::AbstractRNG, ::KernelAstr) = NamedTuple()
 
 
 # # But still recommened to define these
