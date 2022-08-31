@@ -8,10 +8,19 @@ sitk=MedPipe3D.LoadFromMonai.getSimpleItkObject()
 pathToHDF5="/home/jakub/CTORGmini/smallDataSet.hdf5"
 data_dir = "/home/jakub/CTORGmini"
 
+#how many gaussians we will specify 
+const gauss_numb_top = 8
+threads_apply_gauss = (4, 4, 4)
+blocks_apply_gauss = (2, 2, 2)
+
+
+
+rng = Random.default_rng()
 
 
 origArr,indArr=createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
 modelConv = getConvModel()
+gaussApplyLayer=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
 
 
 

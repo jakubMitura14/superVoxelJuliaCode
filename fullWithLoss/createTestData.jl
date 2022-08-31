@@ -1,4 +1,4 @@
-
+using Distributions
 
 # nums=Float32.(rand(1.0:1000000,3,3,3))
 

@@ -31,10 +31,10 @@ blocks = (2, 2, 2)
 
 function testKern(A, p, Aout,Nx)
     #adding one bewcouse of padding
-    # x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
-    # y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
-    # z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
-    # Aout[x, y, z] = A[x, y, z] *p[x, y, z] *p[x, y, z] *p[x, y, z] 
+    x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
+    y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
+    z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
+    Aout[x, y, z] = A[x, y, z] *p[x, y, z] *p[x, y, z] *p[x, y, z] 
     
     return nothing
 end
@@ -47,8 +47,7 @@ function testKernDeff( A, dA, p
     return nothing
 end
 
-function calltestKern(A, Nxp)
-    Nx,p = Nxp
+function calltestKern(A, p,Nx)
     Aout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
     @cuda threads = threads blocks = blocks testKern( A, p,  Aout,Nx)
     return Aout
@@ -58,14 +57,14 @@ end
 # maximum(aa)
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(calltestKern), A, Nxp)
+function ChainRulesCore.rrule(::typeof(calltestKern), A, p,Nx)
     
     print("****")
     print(" type $(typeof(p)) Nx $(typeof(Nx))")
     print("****")
 
 
-    Aout = calltestKern(A, Nxp)#CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad )
+    Aout = calltestKern(A, p,Nx)#CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad )
     function call_test_kernel1_pullback(dAout)
         threads = (4, 4, 4)
         blocks = (2, 2, 2)
@@ -78,7 +77,7 @@ function ChainRulesCore.rrule(::typeof(calltestKern), A, Nxp)
         x̄ = dA
         ȳ = dp
         
-        return f̄, x̄, ȳ
+        return f̄, x̄, ȳ,NoTangent()
     end   
     return Aout, call_test_kernel1_pullback
 
@@ -86,8 +85,8 @@ end
 
 
 #first testing
-ress=Zygote.jacobian(calltestKern,A, (Nx,p) )
-
+ress=Zygote.jacobian(calltestKern,A,p,Nx )
+ress
 # typeof(ress)
 # maximum(ress[1])
 # maximum(ress[2])
@@ -106,8 +105,14 @@ function Lux.initialparameters(rng::AbstractRNG, l::KernelAstr)
     return (paramsA=CuArray(rand(rng,Float32, l.confA, l.confA, l.confA))
     ,Nx =l.confA )
 end
+"""
+https://stackoverflow.com/questions/52035775/in-julia-1-0-how-to-set-a-named-tuple-with-only-one-key-value-pair
+in order to get named tuple with single element put comma after
+"""
+function Lux.initialstates(::AbstractRNG, l::KernelAstr)::NamedTuple
+    return (NxSt=l.confA , )
+end
 
-Lux.initialstates(::AbstractRNG, ::KernelAstr) = NamedTuple()
 
 # # But still recommened to define these
 # Lux.parameterlength(l::KernelAstr) = l.out_dims * l.in_dims + l.out_dims
@@ -115,7 +120,7 @@ Lux.initialstates(::AbstractRNG, ::KernelAstr) = NamedTuple()
 # Lux.statelength(::KernelAstr) = 0
 
 function (l::KernelAstr)(x, ps, st::NamedTuple)
-    return calltestKern(ps.Nx,x, ps.paramsA),st
+    return calltestKern(x, ps.paramsA,ps.Nx),st
 end
 
 rng = Random.default_rng()
@@ -126,7 +131,7 @@ Nx, Ny, Nz = 8+totalPad, 8+totalPad, 8+totalPad
 l = KernelA(Nx)
 
 ps, st = Lux.setup(rng, l)
-
+st
 println("Parameter Length: ", Lux.parameterlength(l), "; State Length: ",
         Lux.statelength(l))
 
