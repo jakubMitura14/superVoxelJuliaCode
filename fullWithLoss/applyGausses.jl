@@ -55,7 +55,7 @@ we will create a single variable for common stdGaus we will initialize it as a s
     and secondly we will have the set of means for gaussians - we will set them uniformly from 0 to 1
 """
 function Lux.initialparameters(rng::AbstractRNG, l::Gauss_apply_str)
-    return ( (stdGaus=CuArray([Float32(0.05)]))
+    return ( (stdGaus=CUDA.ones(l.gauss_numb ))
     ,means =  CuArray(Float32.((collect(0:(l.gauss_numb-1)))./(l.gauss_numb-1) )))
 end
 function Lux.initialstates(::AbstractRNG, l::Gauss_apply_str)::NamedTuple
@@ -82,12 +82,14 @@ function applyGaussKern(means,stdGaus,origArr,out,meansLength)
     out[x,y,z]=univariate_normal(origArr[x,y,z], means[1], stdGaus[1]^2)
     for i in 2:meansLength
         #we are saving alamax of two distributions previous and current one
-        out[x,y,z]= alaMax(out[x,y,z],univariate_normal(origArr[x,y,z], means[i], stdGaus[1]^2))
+        #out[x,y,z]= alaMax(out[x,y,z],univariate_normal(origArr[x,y,z], means[i], stdGaus[i]^2))
+        out[x,y,z]= max(out[x,y,z],univariate_normal(origArr[x,y,z], means[i], stdGaus[i]^2))
        # out[x,y,z]= max(univariate_normal(origArr[x,y,z], means[i-1], stdGaus[1])
         # ,univariate_normal(origArr[x,y,z], means[i], stdGaus[1]))
     end #for    
     return nothing
 end
+
 
 
 """

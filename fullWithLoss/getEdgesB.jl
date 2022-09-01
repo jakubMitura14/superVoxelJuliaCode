@@ -26,7 +26,7 @@ using PythonCall
 conv1 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.tanh, stride=1, pad=Lux.SamePad())
 
 function getConvModel()
-    return Lux.Chain(conv1(1,4),conv1(4,8),conv1(8,4),conv1(4,2),conv1(2,1))
+    return Lux.Chain(conv1(1,4),conv1(4,8),conv1(8,16),conv1(16,16),conv1(16,8),conv1(8,4),conv1(4,2),conv1(2,1))
 end#getConvModel
 
 

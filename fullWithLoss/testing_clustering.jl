@@ -16,6 +16,8 @@ const gauss_numb_top = 8
 threads_apply_gauss = (8, 8, 8)
 blocks_apply_gauss = (4, 4, 4)
 
+
+
 rng = Random.default_rng()
 origArr,indArr=createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
 
@@ -26,14 +28,13 @@ model=Lux.Chain(
                     modelConv,
                     gaussApplyLayer
                     )
-# model=modelConv
 ps, st = Lux.setup(rng, model)
 x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
 x= CuArray(x)
 #y_pred, st =Lux.apply(model, x, ps, st) 
 
-# opt = Optimisers.NAdam()
-opt = Optimisers.Adam()
+opt = Optimisers.NAdam(0.003)
+#opt = Optimisers.Adam(0.003)
 #opt = Optimisers.OptimiserChain(Optimisers.ClipGrad(1.0), Optimisers.NAdam());
 
 
@@ -78,20 +79,12 @@ function loss_function(model, ps, st, x)
     # so we want maximize the ypred values so evrywhere we will have high prob in some gaussian
     # minimize variance inside the regions
     # maximize variance between regions
-    res= sum(varss)-100*sum(y_pred) -var(means)
+    res= sum(varss)-sum(y_pred) -var(means)
     return res, st, ()
 
     # return 1*(sum(y_pred)), st, ()
 end
 
-
-
-
-
-function loss_function(model, ps, st, x)
-    y_pred, st = Lux.apply(model, x, ps, st)
-    return -1*(sum(y_pred)), st, ()
-end
 
 # tstate = Lux.Training.TrainState(rng, model, opt; transform_variables=Lux.gpu)
 tstate = Lux.Training.TrainState(rng, model, opt; transform_variables=Lux.gpu)
@@ -114,12 +107,62 @@ end
 # x = randn(rng, Float32, dim_x,dim_y,dim_z)
 # x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
 # tstate = main(tstate, vjp_rule, CuArray(x),1)
-tstate = main(tstate, vjp_rule, CuArray(x),1000)
+origArr=CuArray(x)
+tstate = main(tstate, vjp_rule, origArr,1500)
+
+
+############################ visualization
+
+
+function applyGaussKern_for_vis(means,stdGaus,origArr,out,meansLength)
+    #adding one becouse of padding
+    x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
+    y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
+    z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
+    #iterate over all gauss parameters
+    maxx = 0.0
+    index=0
+    
+    for i in 1:meansLength
+       vall=univariate_normal(origArr[x,y,z,1,1], means[i], stdGaus[i]^2)
+       #CUDA.@cuprint "vall $(vall) i $(i)   " 
+       if(vall>maxx)
+            maxx=vall
+            index=i
+        end #if     
+    end #for
+
+    out[x,y,z,1,1]=float(index)    
+    return nothing
+end
+psss=tstate.parameters
+
+
+l1,l2,l3,l4,l5,l6=psss
+stdGaus,means=l6
+out = CUDA.zeros(size(origArr))
+
+pss= Lux.gpu(psss)
+stt= Lux.gpu(st)
+y_pred, st = Lux.apply(model, origArr, pss, stt)
+@cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern_for_vis(means,stdGaus,origArr,out,gauss_numb_top)
+
+outCpu= Array(out)
+
+maximum(outCpu)
+minimum(outCpu)
+
+p1 = heatmap(outCpu[:,:,8]) 
+p2 = heatmap(outCpu[:,19,:])
+p3 = heatmap(outCpu[2,:,:])
+p4 = heatmap(outCpu[30,:,:])
+
+plot(p1, p2, p3, p4, layout = (2, 2), legend = false)
 
 
 
-
-
+l6
+1+1
 # using Pkg
 # Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
 # 1+1
