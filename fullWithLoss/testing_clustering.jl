@@ -30,11 +30,62 @@ model=Lux.Chain(
 ps, st = Lux.setup(rng, model)
 x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
 x= CuArray(x)
-y_pred, st =Lux.apply(model, x, ps, st) 
+#y_pred, st =Lux.apply(model, x, ps, st) 
 
 # opt = Optimisers.NAdam()
 opt = Optimisers.Adam()
 #opt = Optimisers.OptimiserChain(Optimisers.ClipGrad(1.0), Optimisers.NAdam());
+
+
+
+
+
+
+
+const tops=1+Int(oneSidePad)
+const tope=Int(crossBorderWhere)+ Int(oneSidePad)
+const bottoms=crossBorderWhere
+const bottome=Nz+ oneSidePad
+const lefts=1+oneSidePad
+const lefte=crossBorderWhere+ oneSidePad
+const rights=crossBorderWhere+ oneSidePad+1
+const righte=Nx+ oneSidePad
+const anteriors=crossBorderWhere+ oneSidePad+1
+const anteriore=Ny+ oneSidePad
+const posteriors=1+oneSidePad
+const posteriore=crossBorderWhere+ oneSidePad
+
+
+function loss_function(model, ps, st, x)
+    y_pred, st = Lux.apply(model, x, ps, st)
+
+    top_left_post =view(y_pred,tops:tope,lefts:lefte, posteriors:posteriore )
+    top_right_post =view(y_pred,tops:tope,rights:righte, posteriors:posteriore)
+    
+    top_left_ant =view(y_pred,tops:tope,lefts:lefte, anteriors:anteriore )
+    top_right_ant =view(y_pred,tops:tope,rights:righte, anteriors:anteriore ) 
+    
+    bottom_left_post =view(y_pred,bottoms:bottome,lefts:lefte, posteriors:posteriore ) 
+    bottom_right_post =view(y_pred,bottoms:bottome,rights:righte, posteriors:posteriore ) 
+    
+    bottom_left_ant =view(y_pred,bottoms:bottome,lefts:lefte, anteriors:anteriore )
+    bottom_right_ant =view(y_pred,bottoms:bottome,rights:righte, anteriors:anteriore ) 
+    
+    varss= map(var  ,[top_left_post,top_right_post, top_left_ant,top_right_ant,bottom_left_post,bottom_right_post,bottom_left_ant, bottom_right_ant ])
+    means= map(mean  ,[top_left_post,top_right_post, top_left_ant,top_right_ant,bottom_left_post,bottom_right_post,bottom_left_ant, bottom_right_ant ])
+    
+    
+    # so we want maximize the ypred values so evrywhere we will have high prob in some gaussian
+    # minimize variance inside the regions
+    # maximize variance between regions
+    res= sum(varss)-100*sum(y_pred) -var(means)
+    return res, st, ()
+
+    # return 1*(sum(y_pred)), st, ()
+end
+
+
+
 
 
 function loss_function(model, ps, st, x)
@@ -62,10 +113,10 @@ end
 
 # x = randn(rng, Float32, dim_x,dim_y,dim_z)
 # x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
-tstate = main(tstate, vjp_rule, CuArray(x),1)
+# tstate = main(tstate, vjp_rule, CuArray(x),1)
+tstate = main(tstate, vjp_rule, CuArray(x),1000)
 
 
-tstate = main(tstate, vjp_rule,  CuArray(origArr),1000)
 
 
 

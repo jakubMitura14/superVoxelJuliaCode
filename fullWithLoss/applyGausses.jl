@@ -79,11 +79,10 @@ function applyGaussKern(means,stdGaus,origArr,out,meansLength)
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
     #iterate over all gauss parameters
-    
+    out[x,y,z]=univariate_normal(origArr[x,y,z], means[1], stdGaus[1]^2)
     for i in 2:meansLength
         #we are saving alamax of two distributions previous and current one
-        out[x,y,z]= alaMax(univariate_normal(origArr[x,y,z], means[i-1], stdGaus[1]^2)
-        ,univariate_normal(origArr[x,y,z], means[i], stdGaus[1]^2))
+        out[x,y,z]= alaMax(out[x,y,z],univariate_normal(origArr[x,y,z], means[i], stdGaus[1]^2))
        # out[x,y,z]= max(univariate_normal(origArr[x,y,z], means[i-1], stdGaus[1])
         # ,univariate_normal(origArr[x,y,z], means[i], stdGaus[1]))
     end #for    
