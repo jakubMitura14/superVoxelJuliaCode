@@ -7,6 +7,7 @@ includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/creat
 includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/clusterKernels.jl")
 includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/clusteringLoss.jl")
 includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/getEdgesB.jl")
+includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/applyGausses.jl")
 
 
  

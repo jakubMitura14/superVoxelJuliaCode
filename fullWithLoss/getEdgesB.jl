@@ -17,18 +17,13 @@ import NNlib, Optimisers, Plots, Random, Statistics, Zygote, HDF5
 using PythonCall
 
 
-
-
-
 # # some example for convolution https://github.com/avik-pal/Lux.jl/blob/main/lib/Boltz/src/vision/vgg.jl
 # # 3D layer utilities from https://github.com/Dale-Black/MedicalModels.jl/blob/master/src/utils.jl
 # dim_x,dim_y,dim_z=32,32,32
 
 
 # rng = Random.default_rng()
-conv1 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.relu, stride=1, dilation=0)
-
-
+conv1 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.tanh, stride=1, pad=Lux.SamePad())
 
 function getConvModel()
     return Lux.Chain(conv1(1,4),conv1(4,8),conv1(8,4),conv1(4,2),conv1(2,1))

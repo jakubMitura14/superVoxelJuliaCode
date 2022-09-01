@@ -3,41 +3,79 @@ using Distributions
 
 Nx, Ny, Nz = 32, 32, 32
 oneSidePad = 1
+totalPad = oneSidePad*2
+dim_x,dim_y,dim_z= Nx+totalPad, Ny+totalPad, Nz+totalPad
+
 crossBorderWhere = 16
-sitk=MedPipe3D.LoadFromMonai.getSimpleItkObject()
+# sitk=MedPipe3D.LoadFromMonai.getSimpleItkObject()
 pathToHDF5="/home/jakub/CTORGmini/smallDataSet.hdf5"
 data_dir = "/home/jakub/CTORGmini"
 
 #how many gaussians we will specify 
 const gauss_numb_top = 8
-threads_apply_gauss = (4, 4, 4)
-blocks_apply_gauss = (2, 2, 2)
-
-
+threads_apply_gauss = (8, 8, 8)
+blocks_apply_gauss = (4, 4, 4)
 
 rng = Random.default_rng()
-
-
 origArr,indArr=createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
+
+
 modelConv = getConvModel()
 gaussApplyLayer=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
+model=Lux.Chain(
+                    modelConv,
+                    gaussApplyLayer
+                    )
+# model=modelConv
+ps, st = Lux.setup(rng, model)
+x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
+x= CuArray(x)
+y_pred, st =Lux.apply(model, x, ps, st) 
+
+# opt = Optimisers.NAdam()
+opt = Optimisers.Adam()
+#opt = Optimisers.OptimiserChain(Optimisers.ClipGrad(1.0), Optimisers.NAdam());
+
+
+function loss_function(model, ps, st, x)
+    y_pred, st = Lux.apply(model, x, ps, st)
+    return -1*(sum(y_pred)), st, ()
+end
+
+# tstate = Lux.Training.TrainState(rng, model, opt; transform_variables=Lux.gpu)
+tstate = Lux.Training.TrainState(rng, model, opt; transform_variables=Lux.gpu)
+#tstate = Lux.Training.TrainState(rng, model, opt)
+vjp_rule = Lux.Training.ZygoteVJP()
+
+
+function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, data,
+    epochs::Int)
+   # data = data .|> Lux.gpu
+    for epoch in 1:epochs
+        grads, loss, stats, tstate = Lux.Training.compute_gradients(vjp, loss_function,
+                                                                data, tstate)
+        @info epoch=epoch loss=loss
+        tstate = Lux.Training.apply_gradients(tstate, grads)
+    end
+    return tstate
+end
+
+# x = randn(rng, Float32, dim_x,dim_y,dim_z)
+# x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
+tstate = main(tstate, vjp_rule, CuArray(x),1)
+
+
+tstate = main(tstate, vjp_rule,  CuArray(origArr),1000)
 
 
 
-ps, st = Lux.setup(rng, modelConv)
-x = randn(rng, Float32, dim_x,dim_y,dim_z)
-x =reshape(x, (dim_x,dim_y,dim_z,1,1))
-y_pred, st =Lux.apply(modelConv, x, ps, st) 
-size(y_pred)
+# using Pkg
+# Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
+# 1+1
+# heatmap(indArr[3,:,:])
 
 
-
-
-
-heatmap(indArr[3,:,:])
-
-
-1+1
+# 1+1
 
 # # cpuArr = Array(A[3, :, :])
 # # heatmap(cpuArr)
