@@ -26,57 +26,48 @@ origArr,indArr=createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderW
 
 
 modelConv = getConvModel()
-gaussApplyLayer=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
-model=Lux.Chain(modelConv,
-                    gaussApplyLayer
-                    )
-ps, st = Lux.setup(rng, model)
+# gaussApplyLayer=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
+
+"""
+important skip connection here gets input and concatenate it with the output of the last layer
+and the concatenated dimensions are last so for example if we have 3 channels input and 1 channel output of the model
+    and we will concatenate
+    we will have output of a model as a first channel and channels 2,3,4 will be input
+"""
+model=Lux.SkipConnection( Lux.Chain(modelConv,
+                    # gaussApplyLayer
+                    ), myCatt)
+                    ps, st = Lux.setup(rng, model)
 # x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
 x= CuArray(origArr)
 x=call_calculateFeatures(x,size(x),r,featuresNumb,threads_CalculateFeatures,blocks_CalculateFeatures )
+#additionally we want to normalize the input in each layer separately
+imageView=view(x,:,:,:,1,:)
+meanView=view(x,:,:,:,2,:)
+varView=view(x,:,:,:,3,:)
+#normalization
+imageView[:,:,:,:,:]= imageView./maximum(imageView) 
+meanView[:,:,:,:,:]= meanView./maximum(meanView) 
+varView[:,:,:,:,:]= varView./maximum(varView) 
+
+
+
+output[x,y,z,1,1]= image[x,y,z] #original image
+output[x,y,z,2,1]= summ #mean
+output[x,y,z,3,1]= sumCentered #variance
+
+
+
 #y_pred, st =Lux.apply(model, x, ps, st) 
 
 opt = Optimisers.NAdam(0.003)
 #opt = Optimisers.Adam(0.003)
 #opt = Optimisers.OptimiserChain(Optimisers.ClipGrad(1.0), Optimisers.NAdam());
 
-const tops=1+Int(oneSidePad)
-const tope=Int(crossBorderWhere)+ Int(oneSidePad)
-const bottoms=crossBorderWhere
-const bottome=Nz+ oneSidePad
-const lefts=1+oneSidePad
-const lefte=crossBorderWhere+ oneSidePad
-const rights=crossBorderWhere+ oneSidePad+1
-const righte=Nx+ oneSidePad
-const anteriors=crossBorderWhere+ oneSidePad+1
-const anteriore=Ny+ oneSidePad
-const posteriors=1+oneSidePad
-const posteriore=crossBorderWhere+ oneSidePad
-
-
-function loss_function(model, ps, st, x)
+function clusteringLoss(model, ps, st, x)
     y_pred, st = Lux.apply(model, x, ps, st)
-
-    top_left_post =view(y_pred,tops:tope,lefts:lefte, posteriors:posteriore )
-    top_right_post =view(y_pred,tops:tope,rights:righte, posteriors:posteriore)
-    
-    top_left_ant =view(y_pred,tops:tope,lefts:lefte, anteriors:anteriore )
-    top_right_ant =view(y_pred,tops:tope,rights:righte, anteriors:anteriore ) 
-    
-    bottom_left_post =view(y_pred,bottoms:bottome,lefts:lefte, posteriors:posteriore ) 
-    bottom_right_post =view(y_pred,bottoms:bottome,rights:righte, posteriors:posteriore ) 
-    
-    bottom_left_ant =view(y_pred,bottoms:bottome,lefts:lefte, anteriors:anteriore )
-    bottom_right_ant =view(y_pred,bottoms:bottome,rights:righte, anteriors:anteriore ) 
-    
-    varss= map(var  ,[top_left_post,top_right_post, top_left_ant,top_right_ant,bottom_left_post,bottom_right_post,bottom_left_ant, bottom_right_ant ])
-    means= map(mean  ,[top_left_post,top_right_post, top_left_ant,top_right_ant,bottom_left_post,bottom_right_post,bottom_left_ant, bottom_right_ant ])
-    
-    
-    # so we want maximize the ypred values so evrywhere we will have high prob in some gaussian
-    # minimize variance inside the regions
-    # maximize variance between regions
-    res= sum(varss)-sum(y_pred) -var(means)
+    print("   sizzzz $(size(y_pred))       ")
+    res= sum(y_pred)
     return res, st, ()
 
     # return 1*(sum(y_pred)), st, ()
@@ -93,7 +84,7 @@ function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, da
     epochs::Int)
    # data = data .|> Lux.gpu
     for epoch in 1:epochs
-        grads, loss, stats, tstate = Lux.Training.compute_gradients(vjp, loss_function,
+        grads, loss, stats, tstate = Lux.Training.compute_gradients(vjp, clusteringLoss,
                                                                 data, tstate)
         @info epoch=epoch loss=loss
         tstate = Lux.Training.apply_gradients(tstate, grads)
@@ -101,10 +92,10 @@ function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, da
     return tstate
 end
 
-# x = randn(rng, Float32, dim_x,dim_y,dim_z)
-# x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
-# tstate = main(tstate, vjp_rule, CuArray(x),1)
+
 tstate = main(tstate, vjp_rule, x,1)
+
+
 tstate = main(tstate, vjp_rule, x,1500)
 
 
@@ -304,3 +295,47 @@ l6
 # @test inp ≈ Float64[1.0, 2.0]
 # @test dinp ≈ Float64[1.0, 1.0]
 # out
+
+
+
+# const tops=1+Int(oneSidePad)
+# const tope=Int(crossBorderWhere)+ Int(oneSidePad)
+# const bottoms=crossBorderWhere
+# const bottome=Nz+ oneSidePad
+# const lefts=1+oneSidePad
+# const lefte=crossBorderWhere+ oneSidePad
+# const rights=crossBorderWhere+ oneSidePad+1
+# const righte=Nx+ oneSidePad
+# const anteriors=crossBorderWhere+ oneSidePad+1
+# const anteriore=Ny+ oneSidePad
+# const posteriors=1+oneSidePad
+# const posteriore=crossBorderWhere+ oneSidePad
+
+
+# function loss_function(model, ps, st, x)
+#     y_pred, st = Lux.apply(model, x, ps, st)
+
+#     top_left_post =view(y_pred,tops:tope,lefts:lefte, posteriors:posteriore )
+#     top_right_post =view(y_pred,tops:tope,rights:righte, posteriors:posteriore)
+    
+#     top_left_ant =view(y_pred,tops:tope,lefts:lefte, anteriors:anteriore )
+#     top_right_ant =view(y_pred,tops:tope,rights:righte, anteriors:anteriore ) 
+    
+#     bottom_left_post =view(y_pred,bottoms:bottome,lefts:lefte, posteriors:posteriore ) 
+#     bottom_right_post =view(y_pred,bottoms:bottome,rights:righte, posteriors:posteriore ) 
+    
+#     bottom_left_ant =view(y_pred,bottoms:bottome,lefts:lefte, anteriors:anteriore )
+#     bottom_right_ant =view(y_pred,bottoms:bottome,rights:righte, anteriors:anteriore ) 
+    
+#     varss= map(var  ,[top_left_post,top_right_post, top_left_ant,top_right_ant,bottom_left_post,bottom_right_post,bottom_left_ant, bottom_right_ant ])
+#     means= map(mean  ,[top_left_post,top_right_post, top_left_ant,top_right_ant,bottom_left_post,bottom_right_post,bottom_left_ant, bottom_right_ant ])
+    
+    
+#     # so we want maximize the ypred values so evrywhere we will have high prob in some gaussian
+#     # minimize variance inside the regions
+#     # maximize variance between regions
+#     res= sum(varss)-sum(y_pred) -var(means)
+#     return res, st, ()
+
+#     # return 1*(sum(y_pred)), st, ()
+# end

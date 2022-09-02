@@ -68,7 +68,7 @@ function calculateFeaturesExec(image,mainArrSize,output,r::Int,featuresNumb::Int
     z= (threadIdx().z+ ((blockIdx().z -1)*CUDA.blockDim_z()))
     
     if(x>0 && x<=mainArrSize[1] && y>0 && y<=mainArrSize[2] &&z>0 && z<=mainArrSize[3] )
-        output[x,y,z,1,1]= image[x,y,z] #mean
+        output[x,y,z,1,1]= image[x,y,z] #original image
         output[x,y,z,2,1]= summ #mean
         output[x,y,z,3,1]= sumCentered #variance
     end#if
@@ -161,22 +161,22 @@ end
 
 
 
-Nx, Ny, Nz = 32, 32, 32
-mainArrSize=(Nx,Ny,Nz)
-threads_CalculateFeatures=(8,4,8)
-blocks_CalculateFeatures = (cld(mainArrSize[1],threads_CalculateFeatures[1]), cld(mainArrSize[2],threads_CalculateFeatures[2])  , cld(mainArrSize[3],threads_CalculateFeatures[3]))
-image=CUDA.rand(mainArrSize[1],mainArrSize[2],mainArrSize[3])
-featuresNumb=2
-r=3
+# Nx, Ny, Nz = 32, 32, 32
+# mainArrSize=(Nx,Ny,Nz)
+# threads_CalculateFeatures=(8,4,8)
+# blocks_CalculateFeatures = (cld(mainArrSize[1],threads_CalculateFeatures[1]), cld(mainArrSize[2],threads_CalculateFeatures[2])  , cld(mainArrSize[3],threads_CalculateFeatures[3]))
+# image=CUDA.rand(mainArrSize[1],mainArrSize[2],mainArrSize[3])
+# featuresNumb=2
+# r=3
 
-output = call_calculateFeatures(image,mainArrSize,r,featuresNumb  ,threads_CalculateFeatures,blocks_CalculateFeatures )
-size(output)
+# output = call_calculateFeatures(image,mainArrSize,r,featuresNumb  ,threads_CalculateFeatures,blocks_CalculateFeatures )
+# size(output)
 
 
-ress=Zygote.jacobian(call_calculateFeatures,image,mainArrSize,r,featuresNumb  ,threads_CalculateFeatures,blocks_CalculateFeatures)
-typeof(ress)
-maximum(ress[1])
-maximum(ress[2])
+# ress=Zygote.jacobian(call_calculateFeatures,image,mainArrSize,r,featuresNumb  ,threads_CalculateFeatures,blocks_CalculateFeatures)
+# typeof(ress)
+# maximum(ress[1])
+# maximum(ress[2])
 
 
 # """

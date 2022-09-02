@@ -33,11 +33,21 @@ loss function will look for supervoxels in data
 
     # we can consider sth like relaxation labelling to strengthen the edges after all
 
+    for the begining we will get a setup like this
+        we have original image and 2 features mean of the neighberhood and variance of the neighberhood those will be channels 2,3,4 
+        channel 1 will be output of convolutional neural network
+        now 
+            1) we evaluate gaussians at the given point of cnn output and its neighbours
+            2) we care now only to check futher if the probability associated to those points is high enough 
+            3) if we have two high probabilities in a point and one of its neighbours we check weather features are simmilar
+            4) what we want is that given both points have high probability associated with given gaussian 
+                it should also have similar features so the diffrence between features should be small
     """
-function clusteringLoss()
+function clusteringLoss(model, ps, st, x)
+    y_pred, st = Lux.apply(model, x, ps, st)
+    print("   sizzzz $(size(y_pred))       ")
+    res= sum(y_pred)
+    return res, st, ()
 
-
-
-
-
-end#clusteringLoss
+    # return 1*(sum(y_pred)), st, ()
+end

@@ -47,4 +47,18 @@ given 2 numbers return sth like max
     return ((@myPowTwo((a / (a + b)) + 1, 5) / (@myPowTwo((a / (a + b)) + 1, 5) + @myPowTwo((b / (a + b)) + 1, 5))) * a)  + ((@myPowTwo((b / (a + b)) + 1, 5) / (@myPowTwo((a / (a + b)) + 1, 5) + @myPowTwo((b / (a + b)) + 1, 5))) * b)
 end#alaMax
 
+"""
+concatenate on 4th dimension - channel
+"""
+function myCatt(a,b)
+    cat(a,b;dims=4)
+end   
 
+
+"""
+perform soft threshold so values below 0.5 will get close to 0 and above 0.5 will 
+be far less affected
+"""
+function softThreshold_half(x)
+    return ((alaMax(Float32(x),Float32(0.5))-0.48)/0.52)
+end    
