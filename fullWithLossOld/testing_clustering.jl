@@ -13,12 +13,9 @@ data_dir = "/home/jakub/CTORGmini"
 
 #how many gaussians we will specify 
 const gauss_numb_top = 8
-r=3 #the radius for features calculations
-featuresNumb=2 #number of analyzed features (4th dimension ...)
 threads_apply_gauss = (8, 8, 8)
 blocks_apply_gauss = (4, 4, 4)
-threads_CalculateFeatures= (8, 8, 8)
-blocks_CalculateFeatures = (4, 4, 4)
+
 
 
 rng = Random.default_rng()
@@ -27,13 +24,13 @@ origArr,indArr=createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderW
 
 modelConv = getConvModel()
 gaussApplyLayer=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
-model=Lux.Chain(modelConv,
+model=Lux.Chain(
+                    modelConv,
                     gaussApplyLayer
                     )
 ps, st = Lux.setup(rng, model)
-# x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
-x= CuArray(origArr)
-x=call_calculateFeatures(x,size(x),r,featuresNumb,threads_CalculateFeatures,blocks_CalculateFeatures )
+x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
+x= CuArray(x)
 #y_pred, st =Lux.apply(model, x, ps, st) 
 
 opt = Optimisers.NAdam(0.003)
@@ -104,8 +101,8 @@ end
 # x = randn(rng, Float32, dim_x,dim_y,dim_z)
 # x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
 # tstate = main(tstate, vjp_rule, CuArray(x),1)
-tstate = main(tstate, vjp_rule, x,1)
-tstate = main(tstate, vjp_rule, x,1500)
+origArr=CuArray(x)
+tstate = main(tstate, vjp_rule, origArr,1500)
 
 
 ############################ visualization
@@ -122,7 +119,7 @@ function applyGaussKern_for_vis(means,stdGaus,origArr,out,meansLength)
     
     for i in 1:meansLength
        vall=univariate_normal(origArr[x,y,z,1,1], means[i], stdGaus[i]^2)
-       #CUDA.@cuprint "vall $(vall) i $(i)   " 
+       CUDA.@cuprint "vall $(vall) i $(i)   " 
        if(vall>maxx)
             maxx=vall
             index=i
