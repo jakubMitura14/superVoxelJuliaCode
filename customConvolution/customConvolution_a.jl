@@ -17,7 +17,7 @@
 
 
 using Revise
-# includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/includeAll.jl")
+includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/includeAll.jl")
 using ChainRulesCore,Zygote,CUDA,Enzyme
 using CUDAKernels
 using KernelAbstractions
@@ -27,22 +27,18 @@ using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
 using FillArrays
 
-# rng = Random.default_rng()
+rng = Random.default_rng()
 
-# Nx, Ny, Nz = 8, 8, 8
-# oneSidePad = 1
-# totalPad=oneSidePad*2
-# crossBorderWhere=4
-# origArr,indArr =createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
-
-
+Nx, Ny, Nz = 8, 8, 8
+oneSidePad = 1
+totalPad=oneSidePad*2
+crossBorderWhere=4
+origArr,indArr =createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
 
 
-#how many gaussians we will specify 
-# const gauss_numb_top = 8
 
-# threads_apply_cconv = (4, 4, 4)
-# blocks_apply_cconv = (2, 2, 2)
+threads_apply_cconv = (4, 4, 4)
+blocks_apply_cconv = (2, 2, 2)
 
 
 
@@ -78,7 +74,7 @@ end
 """
 
 """
-function applyGaussKern(means,stdGaus,origArr,out,meansLength)
+function apply_cconv(means,stdGaus,origArr,out,meansLength)
     #adding one becouse of padding
     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
@@ -97,7 +93,7 @@ end
 
 Enzyme definitions for calculating derivatives of applyGaussKern in back propagation
 """
-function applyGaussKern_Deff(means,d_means,stdGaus,d_stdGaus,origArr
+function apply_cconv_Deff(means,d_means,stdGaus,d_stdGaus,origArr
     ,d_origArr,out,d_out,meansLength)
     
     Enzyme.autodiff_deferred(applyGaussKern, Const
@@ -112,7 +108,7 @@ end
 """
 call function with out variable initialization
 """
-function callGaussApplyKern(means,stdGaus,origArr,meansLength,threads_apply_gauss,blocks_apply_gauss)
+function call_apply_cconv(means,stdGaus,origArr,meansLength,threads_apply_gauss,blocks_apply_gauss)
     out = CUDA.zeros(size(origArr)) 
     @cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern(means,stdGaus,origArr,out,meansLength)
     return out
@@ -146,6 +142,9 @@ function (l::Cconv_str)(origArr, ps, st::NamedTuple)
     ,st.threads_apply_gauss
     ,st.blocks_apply_gauss),st
 end
+
+
+device_reset!()
 
 
 we can test on our 8 block test cube 

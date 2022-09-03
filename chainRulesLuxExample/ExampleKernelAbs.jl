@@ -70,6 +70,8 @@ end
 struct CPUDeviceArray{T,N,A} end # Fake and unused
 testsuite(CPU, "CPU", Base, Array, CPUDeviceArray)
 
+testsuite(CUDADevice, "CUDA", CUDA, CuArray, CUDA.CuDeviceArray)
+
 
 
 

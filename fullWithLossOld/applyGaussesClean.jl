@@ -29,6 +29,40 @@ dp= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad )
 threads = (4, 4, 4)
 blocks = (2, 2, 2)
 
+"""
+1) if is paramater is true it is parameter otherwise state ; 
+2) initialize function function that will give initial values for the parameter it has two arguments rng and l where l is a struct with data
+3) Enzyme function that is used to wrap argument and guide the compiler what type of autodifferentiation is needed like Duplicated Active, const...
+4) isOutput - if true it will be marked as output and handled accordingly
+1) isParameter 2)initF 3) enzymeWrap 4) isOutput
+"""
+conff_params= (   )
+"""
+first param is a kernel function
+2 and 3 are 3-tuples marking number of required threads and blocks
+1) base_name 2)kernelFun 3)threads 4) blocks
+"""
+conf_not_params=( )
+
+
+"""
+using metaprogramming to automate layer creation with custom Enzyme autodifferentiation
+based on http://clynamen.github.io/blog/2019/06/16/julia_def_fun_macro/
+"""
+
+macro make_fn2(name, args...)
+    name_str = "$name"
+    argstup = Tuple(args)
+ 
+    quote
+        function $(esc(name))($(map(esc, argstup)...))
+            println($name_str)
+            map(println, [($(map(esc, argstup)...))])
+        end
+    end
+ end
+ 
+ @make_fn2(example_fun, a, b, c)
 
 
 #lux layers from http://lux.csail.mit.edu/dev/manual/interface/

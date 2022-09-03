@@ -8,6 +8,7 @@
 
 using Revise
 # includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/includeAll.jl")
+includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/createTestData.jl")
 using ChainRulesCore,Zygote,CUDA,Enzyme
 using CUDAKernels
 using KernelAbstractions
@@ -17,22 +18,22 @@ using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
 using FillArrays
 
-# rng = Random.default_rng()
+rng = Random.default_rng()
 
-# Nx, Ny, Nz = 8, 8, 8
-# oneSidePad = 1
-# totalPad=oneSidePad*2
-# crossBorderWhere=4
-# origArr,indArr =createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
+Nx, Ny, Nz = 8, 8, 8
+oneSidePad = 1
+totalPad=oneSidePad*2
+crossBorderWhere=4
+origArr,indArr =createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
 
 
 
 
 #how many gaussians we will specify 
-# const gauss_numb_top = 8
+const gauss_numb_top = 8
 
-# threads_apply_gauss = (4, 4, 4)
-# blocks_apply_gauss = (2, 2, 2)
+threads_apply_gauss = (4, 4, 4)
+blocks_apply_gauss = (2, 2, 2)
 
 
 
@@ -50,18 +51,19 @@ function Gauss_apply(gauss_numb::Int
 end
 
 
+
 """
 we will create a single variable for common stdGaus we will initialize it as a small value
     and secondly we will have the set of means for gaussians - we will set them uniformly from 0 to 1
 """
 function Lux.initialparameters(rng::AbstractRNG, l::Gauss_apply_str)
     return ( (stdGaus=CUDA.ones(l.gauss_numb ))
-    ,means =  CuArray(Float32.((collect(0:(l.gauss_numb-1)))./(l.gauss_numb-1) )))
+    ,means =  CuArray(Float32.((collect(0:(l.gauss_numb-1)))./(l.gauss_numb-1) )),)
 end
 function Lux.initialstates(::AbstractRNG, l::Gauss_apply_str)::NamedTuple
     return (meansLength=l.gauss_numb
                         ,threads_apply_gauss=l.threads_apply_gauss
-                        ,blocks_apply_gauss=l.blocks_apply_gauss)
+                        ,blocks_apply_gauss=l.blocks_apply_gauss,)
 
 end
 # l=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
@@ -139,52 +141,51 @@ function ChainRulesCore.rrule(::typeof(callGaussApplyKern),means,stdGaus,origArr
     return out, call_test_kernel1_pullback
 
 end
-
-
 function (l::Gauss_apply_str)(origArr, ps, st::NamedTuple)
     return callGaussApplyKern(ps.means,ps.stdGaus,origArr
     ,st.meansLength
     ,st.threads_apply_gauss
     ,st.blocks_apply_gauss),st
 end
+l = Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
+#l = Gauss_apply_str(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
 
-# l = Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
-# ps, st = Lux.setup(rng, l)
+ps, st = Lux.setup(rng, l)
 
-# println("Parameter Length: ", Lux.parameterlength(l), "; State Length: ",
-#         Lux.statelength(l))
+println("Parameter Length: ", Lux.parameterlength(l), "; State Length: ",
+        Lux.statelength(l))
 
-# y_pred, st =Lux.apply(l, CuArray(origArr), ps, st)
+y_pred, st =Lux.apply(l, CuArray(origArr), ps, st)
 
-# opt = Optimisers.NAdam()
-#opt = Optimisers.OptimiserChain(Optimisers.ClipGrad(1.0), Optimisers.NAdam());
+opt = Optimisers.NAdam()
+opt = Optimisers.OptimiserChain(Optimisers.ClipGrad(1.0), Optimisers.NAdam());
 
-# """
-# extremely simple loss function - that just wan to decrese sumof all inputs
-# """
-# function loss_function(model, ps, st, x)
-#     y_pred, st = Lux.apply(model, x, ps, st)
-#     return -1*(sum(y_pred)), st, ()
-# end
+"""
+extremely simple loss function - that just wan to decrese sumof all inputs
+"""
+function loss_function(model, ps, st, x)
+    y_pred, st = Lux.apply(model, x, ps, st)
+    return -1*(sum(y_pred)), st, ()
+end
 
-# tstate = Lux.Training.TrainState(rng, l, opt; transform_variables=Lux.gpu)
-# #tstate = Lux.Training.TrainState(rng, model, opt)
-# vjp_rule = Lux.Training.ZygoteVJP()
+tstate = Lux.Training.TrainState(rng, l, opt; transform_variables=Lux.gpu)
+#tstate = Lux.Training.TrainState(rng, model, opt)
+vjp_rule = Lux.Training.ZygoteVJP()
 
 
-# function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, data,
-#     epochs::Int)
-#    # data = data .|> Lux.gpu
-#     for epoch in 1:epochs
-#         grads, loss, stats, tstate = Lux.Training.compute_gradients(vjp, loss_function,
-#                                                                 data, tstate)
-#         @info epoch=epoch loss=loss
-#         tstate = Lux.Training.apply_gradients(tstate, grads)
-#     end
-#     return tstate
-# end
+function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, data,
+    epochs::Int)
+   # data = data .|> Lux.gpu
+    for epoch in 1:epochs
+        grads, loss, stats, tstate = Lux.Training.compute_gradients(vjp, loss_function,
+                                                                data, tstate)
+        @info epoch=epoch loss=loss
+        tstate = Lux.Training.apply_gradients(tstate, grads)
+    end
+    return tstate
+end
 
-# tstate = main(tstate, vjp_rule, CuArray(origArr),1)
+tstate = main(tstate, vjp_rule, CuArray(origArr),1)
 
 
 # tstate = main(tstate, vjp_rule,  CuArray(origArr),1000)
