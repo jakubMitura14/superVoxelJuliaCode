@@ -45,9 +45,8 @@ loss function will look for supervoxels in data
     """
 function clusteringLoss(model, ps, st, x)
     y_pred, st = Lux.apply(model, x, ps, st)
-    print("   sizzzz $(size(y_pred))       ")
-    res= sum(y_pred)
-    return res, st, ()
+    #print("   sizzzz $(size(y_pred))       ")
+    return sum(y_pred), st, ()
 
     # return 1*(sum(y_pred)), st, ()
 end

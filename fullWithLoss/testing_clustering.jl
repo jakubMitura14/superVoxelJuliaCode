@@ -26,7 +26,7 @@ origArr,indArr=createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderW
 
 
 modelConv = getConvModel()
-# gaussApplyLayer=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
+gaussApplyLayer=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
 
 """
 important skip connection here gets input and concatenate it with the output of the last layer
@@ -34,10 +34,10 @@ and the concatenated dimensions are last so for example if we have 3 channels in
     and we will concatenate
     we will have output of a model as a first channel and channels 2,3,4 will be input
 """
-model=Lux.SkipConnection( Lux.Chain(modelConv,
-                    # gaussApplyLayer
-                    ), myCatt)
-                    ps, st = Lux.setup(rng, model)
+model=Lux.Chain(
+    Lux.SkipConnection(modelConv, myCatt),gaussApplyLayer )
+
+ps, st = Lux.setup(rng, model)
 # x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
 x= CuArray(origArr)
 x=call_calculateFeatures(x,size(x),r,featuresNumb,threads_CalculateFeatures,blocks_CalculateFeatures )
@@ -49,12 +49,6 @@ varView=view(x,:,:,:,3,:)
 imageView[:,:,:,:,:]= imageView./maximum(imageView) 
 meanView[:,:,:,:,:]= meanView./maximum(meanView) 
 varView[:,:,:,:,:]= varView./maximum(varView) 
-
-
-
-output[x,y,z,1,1]= image[x,y,z] #original image
-output[x,y,z,2,1]= summ #mean
-output[x,y,z,3,1]= sumCentered #variance
 
 
 
@@ -97,6 +91,12 @@ tstate = main(tstate, vjp_rule, x,1)
 
 
 tstate = main(tstate, vjp_rule, x,1500)
+
+
+
+
+
+
 
 
 ############################ visualization

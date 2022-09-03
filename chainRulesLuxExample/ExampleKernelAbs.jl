@@ -11,7 +11,80 @@ using KernelGradients
 using Zygote, Lux
 using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
-using FillArrays
+using FillArrays,Test
+
+
+@kernel function matmul_kernel!(a, b, c)
+    i, j = @index(Global, NTuple)
+
+    # creating a temporary sum variable for matrix multiplication
+    tmp_sum = zero(eltype(c))
+    for k = 1:size(a)[2]
+        @inbounds tmp_sum += a[i,k] * b[k, j]
+    end
+
+    c[i,j] = tmp_sum
+end
+
+
+function matmul_testsuite(backend, ArrayT)
+
+    matmul = matmul_kernel!(backend(), (32, 32))
+    a = ArrayT(rand(32, 64))
+    b = ArrayT(rand(64, 32))
+    c = ArrayT(zeros(32, 32))
+    # a = ArrayT(rand(128, 256))
+    # b = ArrayT(rand(256, 128))
+    # c = ArrayT(zeros(128, 128))
+    wait(matmul(a, b, c, ndrange=size(c)))
+
+    @test c ≈ a*b
+
+    dmatmul = Enzyme.autodiff(matmul)
+    da = similar(a)
+    da .= 0
+    db = similar(b)
+    db .= 0
+    dc = similar(c)
+    dc .= 1
+    c .= 0
+
+    compare_dc = copy(dc)
+    wait(dmatmul(
+        Duplicated(a, da),
+        Duplicated(b, db),
+        Duplicated(c, dc), ndrange=size(c)))
+
+    @test da ≈ compare_dc * b'
+    @test db ≈ a' * compare_dc
+end
+
+
+function testsuite(backend, backend_str, backend_mod, AT, DAT)
+    @testset "Matmul" begin
+        matmul_testsuite(backend, AT)
+    end
+end
+
+
+struct CPUDeviceArray{T,N,A} end # Fake and unused
+testsuite(CPU, "CPU", Base, Array, CPUDeviceArray)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #### test data
 Nx, Ny, Nz = 8, 8, 8
@@ -159,3 +232,27 @@ tstate = main(tstate, vjp_rule, x,1000)
 
 # a=Fill(7.0f0, 3, 2)
 # collect(a)
+
+
+using ChainRulesCore,Zygote,CUDA,Enzyme
+using CUDAKernels
+using KernelAbstractions
+using KernelGradients
+using Zygote, Lux
+using Lux, Random
+import NNlib, Optimisers, Plots, Random, Statistics, Zygote
+using FillArrays
+
+mkpath("superVoxel_Julia")
+cd("my_image_name")
+
+pkgs = [
+    "Foo", # Replace Foo, Bar, Baz, etc. with the names of actual packages that you want to use
+    "Bar",
+    "Baz",
+]
+julia_version = v"1.4.0"
+
+SimpleContainerGenerator.create_dockerfile(pkgs;
+                                           julia_version = julia_version,
+                                           output_directory = pwd())

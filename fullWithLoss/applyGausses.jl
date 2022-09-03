@@ -68,6 +68,35 @@ end
 # ps, st = Lux.setup(rng, l)
 
 
+
+
+"""
+evaluate gaussians at 2 points, does soft thresholding and multiplies them
+then their product is used as a scaling factor 
+"""
+@inline function multThreshold(a,b,mean,std,fa1,fa2,fb1,fb2)
+    return (softThreshold_half(univariate_normal(a, mean, std^2)+univariate_normal(b, mean, std^2)))*
+    (((fa1-fa2)^2) + ((fb1-fb2)^2))
+end#multiply_and_threshold
+
+"""
+iterates around and executes multThreshold
+"""
+@inline function thresholdIter(arr,mean,std,f1Channel,f2channel,x,y,z,xChange,yChange,zChange)
+    return multThreshold(arr[x,y,z,1,1],arr[x+xChange,y+yChange,z+zChange,1,1],mean,std,arr[x,y,z,f1Channel,1]
+        ,arr[x+xChange,y+yChange,z+zChange,f1Channel,1],arr[x,y,z,f2channel,1],arr[x+xChange,y+yChange,z+zChange,f2channel,1])
+end    
+
+@inline function thresholdIterAround(arr,mean,std,f1Channel,f2channel,x,y,z)
+    return thresholdIter(arr,mean,std,f1Channel,f2channel,x,y,z,-1,0,0)
+            +thresholdIter(arr,mean,std,f1Channel,f2channel,x,y,z,1,0,0)
+            +thresholdIter(arr,mean,std,f1Channel,f2channel,x,y,z,0,1,0)
+            +thresholdIter(arr,mean,std,f1Channel,f2channel,x,y,z,0,-1,0)
+            +thresholdIter(arr,mean,std,f1Channel,f2channel,x,y,z,0,0,1)
+            +thresholdIter(arr,mean,std,f1Channel,f2channel,x,y,z,0,0,-1)
+end 
+
+
 """
 voxel wise apply of the gaussian distributions
 basically we want in the end to add multiple sums - hence in order to in
@@ -78,17 +107,35 @@ function applyGaussKern(means,stdGaus,origArr,out,meansLength)
     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
-    #iterate over all gauss parameters
-    out[x,y,z]=univariate_normal(origArr[x,y,z], means[1], stdGaus[1]^2)
-    for i in 2:meansLength
-        #we are saving alamax of two distributions previous and current one
-        #out[x,y,z]= alaMax(out[x,y,z],univariate_normal(origArr[x,y,z], means[i], stdGaus[i]^2))
-        out[x,y,z]= max(out[x,y,z],univariate_normal(origArr[x,y,z], means[i], stdGaus[i]^2))
-       # out[x,y,z]= max(univariate_normal(origArr[x,y,z], means[i-1], stdGaus[1])
-        # ,univariate_normal(origArr[x,y,z], means[i], stdGaus[1]))
-    end #for    
+    #iterate over all gauss parameters and check weather some evaluated to high value
+    currMax=univariate_normal(origArr[x,y,z,1,1], means[1], stdGaus[1]^2)
+    out[x,y,z]= thresholdIterAround(origArr,means[1],stdGaus[1],3,4,x,y,z)
+    for i in 1:meansLength
+        currMax = alaMax(currMax,univariate_normal(origArr[x,y,z,1,1], means[i], stdGaus[i]^2))
+        out[x,y,z]+= thresholdIterAround(origArr,means[i],stdGaus[i],3,4,x,y,z)
+    end #for
+    #we want to have large 
+    out[x,y,z]-= currMax
     return nothing
 end
+
+
+# function applyGaussKern(means,stdGaus,origArr,out,meansLength)
+#     #adding one becouse of padding
+#     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
+#     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
+#     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
+#     #iterate over all gauss parameters
+#     out[x,y,z]=univariate_normal(origArr[x,y,z], means[1], stdGaus[1]^2)
+#     for i in 2:meansLength
+#         #we are saving alamax of two distributions previous and current one
+#         #out[x,y,z]= alaMax(out[x,y,z],univariate_normal(origArr[x,y,z], means[i], stdGaus[i]^2))
+#         out[x,y,z]= max(out[x,y,z],univariate_normal(origArr[x,y,z], means[i], stdGaus[i]^2))
+#        # out[x,y,z]= max(univariate_normal(origArr[x,y,z], means[i-1], stdGaus[1])
+#         # ,univariate_normal(origArr[x,y,z], means[i], stdGaus[1]))
+#     end #for    
+#     return nothing
+# end
 
 
 
@@ -114,7 +161,7 @@ end
 call function with out variable initialization
 """
 function callGaussApplyKern(means,stdGaus,origArr,meansLength,threads_apply_gauss,blocks_apply_gauss)
-    out = CUDA.zeros(size(origArr)) 
+    out = CUDA.zeros(size(origArr)[1],size(origArr)[2],size(origArr)[3] ) 
     @cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern(means,stdGaus,origArr,out,meansLength)
     return out
 end

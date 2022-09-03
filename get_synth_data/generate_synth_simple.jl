@@ -242,7 +242,7 @@ function getRand_graph_andArr(numberOfNodes,maxDistToJoin, dim_x,dim_y,dim_z ,mi
             base_arr[x,y,z]= rand(distrib,1)[1]
         end#if
     end#for    
-    return (base_arr,randGG )
+    return (base_arr,randGG ,coords, gausses,edgeList)
 end#getRand_graph_andArr
 
 
@@ -302,7 +302,7 @@ function saveAndVisRandGraphNoAlgoOutPutSeen(base_arr,fid,patienGroupName,dim_x,
         name = "algoOutput",
         # we point out that we will supply multiple colors
         isContinuusMask=true,
-        isVisible=false,
+        #isVisible=false,
         colorSet = [getSomeColor(listOfColorUsed),getSomeColor(listOfColorUsed)]
         ,minAndMaxValue= Float32.([0,1])# values between 0 and 1 as this represent probabilities
         )   
