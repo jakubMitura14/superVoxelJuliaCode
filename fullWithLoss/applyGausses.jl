@@ -34,13 +34,14 @@ struct Gauss_apply_str<: Lux.AbstractExplicitLayer
     gauss_numb::Int
     threads_apply_gauss::Tuple{Int64, Int64, Int64}
     blocks_apply_gauss::Tuple{Int64, Int64, Int64}
+    currGaussIndex::Int
 
 end
 
 function Gauss_apply(gauss_numb::Int
     ,threads_apply_gauss::Tuple{Int64, Int64, Int64}
-    ,blocks_apply_gauss::Tuple{Int64, Int64, Int64})::Gauss_apply_str
-    return Gauss_apply_str(gauss_numb,threads_apply_gauss,blocks_apply_gauss)
+    ,blocks_apply_gauss::Tuple{Int64, Int64, Int64},currGaussIndex::Int)::Gauss_apply_str
+    return Gauss_apply_str(gauss_numb,threads_apply_gauss,blocks_apply_gauss,currGaussIndex)
 end
 
 
@@ -55,7 +56,10 @@ end
 function Lux.initialstates(::AbstractRNG, l::Gauss_apply_str)::NamedTuple
     return (meansLength=l.gauss_numb
                         ,threads_apply_gauss=l.threads_apply_gauss
-                        ,blocks_apply_gauss=l.blocks_apply_gauss)
+                        ,blocks_apply_gauss=l.blocks_apply_gauss
+                        ,currGaussIndex=l.currGaussIndex
+                        
+                        )
 
 end
 # l=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
@@ -95,21 +99,24 @@ end
 voxel wise apply of the gaussian distributions
 basically we want in the end to add multiple sums - hence in order to in
 """
-function applyGaussKern(means,stdGaus,origArr,out,meansLength)
+function applyGaussKern(means,stdGaus,origArr,out,meansLength,currGaussIndex)
     
     #adding one becouse of padding
     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
     #iterate over all gauss parameters and check weather some evaluated to high value
-    currMax=univariate_normal(origArr[x,y,z,1,1], means[1], stdGaus[1]^2)
-    out[x,y,z]= thresholdIterAround(origArr,means[1],stdGaus[1],3,4,x,y,z)
-    for i in 1:meansLength
-        currMax = alaMax(currMax,univariate_normal(origArr[x,y,z,1,1], means[i], stdGaus[i]^2))
-        out[x,y,z]+= thresholdIterAround(origArr,means[i],stdGaus[i],3,4,x,y,z)
-    end #for
-    #we want to have large 
-    out[x,y,z]-= currMax
+    out[x,y,z]-=(univariate_normal(origArr[x,y,z,1,1], means[currGaussIndex], stdGaus[1]^2))/100
+    out[x,y,z]+= thresholdIterAround(origArr,means[currGaussIndex],stdGaus[1],3,4,x,y,z)
+    # out[x,y,z]-=(univariate_normal(origArr[x,y,z,1,1], means[currGaussIndex], stdGaus[currGaussIndex]^2))/100
+    # out[x,y,z]+= thresholdIterAround(origArr,means[currGaussIndex],stdGaus[currGaussIndex],3,4,x,y,z)
+    # for i in 1:meansLength
+    # for i in 2:3
+    #     currMax = alaMax(currMax,univariate_normal(origArr[x,y,z,1,1], means[i], stdGaus[i]^2))
+    #     #out[x,y,z]+= thresholdIterAround(origArr,means[i],stdGaus[i],3,4,x,y,z)
+    # end #for
+    # #we want to have large values evrywhere
+    # out[x,y,z]-= currMax
 
 
     return nothing
@@ -142,23 +149,25 @@ end
 Enzyme definitions for calculating derivatives of applyGaussKern in back propagation
 """
 function applyGaussKern_Deff(means,d_means,stdGaus,d_stdGaus,origArr
-    ,d_origArr,out,d_out,meansLength)
+    ,d_origArr,out,d_out,meansLength,currGaussIndex)
     
     Enzyme.autodiff_deferred(applyGaussKern, Const
     ,Duplicated(means, d_means)
     ,Duplicated(stdGaus,d_stdGaus)
     ,Duplicated(origArr, d_origArr)
     ,Duplicated(out, d_out)
-    ,Const(meansLength)    )
+    ,Const(meansLength)  
+    ,Const(currGaussIndex)      
+    )
     return nothing
 end
 
 """
 call function with out variable initialization
 """
-function callGaussApplyKern(means,stdGaus,origArr,meansLength,threads_apply_gauss,blocks_apply_gauss)
+function callGaussApplyKern(means,stdGaus,origArr,meansLength,threads_apply_gauss,blocks_apply_gauss,currGaussIndex)
     out = CUDA.zeros(size(origArr)[1],size(origArr)[2],size(origArr)[3] ) 
-    @cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern(means,stdGaus,origArr,out,meansLength)
+    @cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern(means,stdGaus,origArr,out,meansLength,currGaussIndex)
     return out
 end
 
@@ -166,27 +175,78 @@ end
 # maximum(aa)
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(callGaussApplyKern),means,stdGaus,origArr,meansLength,threads_apply_gauss,blocks_apply_gauss)
-    out = callGaussApplyKern(means,stdGaus,origArr,meansLength,threads_apply_gauss,blocks_apply_gauss)
+function ChainRulesCore.rrule(::typeof(callGaussApplyKern),means,stdGaus,origArr,meansLength,threads_apply_gauss,blocks_apply_gauss,currGaussIndex)
+    out = callGaussApplyKern(means,stdGaus,origArr,meansLength,threads_apply_gauss,blocks_apply_gauss,currGaussIndex)
     function call_test_kernel1_pullback(d_out_prim)
         # Allocate shadow memory.
         d_means = CUDA.ones(size(means))
         d_stdGaus = CUDA.ones(size(stdGaus))
         d_origArr = CUDA.ones(size(origArr))
         d_out = CuArray(collect(d_out_prim))
-        @cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern_Deff(means,d_means,stdGaus,d_stdGaus,origArr,d_origArr,out,d_out,meansLength)
+        @cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern_Deff(means,d_means,stdGaus,d_stdGaus,origArr,d_origArr,out,d_out,meansLength,currGaussIndex)
         f̄ = NoTangent()
-        return f̄, d_means,d_stdGaus, d_origArr, NoTangent(), NoTangent(), NoTangent()
+        return f̄, d_means,d_stdGaus, d_origArr, NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end   
     return out, call_test_kernel1_pullback
 
 end
 
 function (l::Gauss_apply_str)(origArr, ps, st::NamedTuple)
-    return callGaussApplyKern(ps.means,ps.stdGaus,origArr
+    
+    imageView=view(origArr,:,:,:,1,:)
+    imageView.-minimum(imageView)
+    imageView./maximum(imageView)
+
+    out1=callGaussApplyKern(ps.means,ps.stdGaus,origArr
     ,st.meansLength
     ,st.threads_apply_gauss
-    ,st.blocks_apply_gauss),st
+    ,st.blocks_apply_gauss
+    ,1  )
+
+    out2=callGaussApplyKern(ps.means,ps.stdGaus,origArr
+    ,st.meansLength
+    ,st.threads_apply_gauss
+    ,st.blocks_apply_gauss
+    ,2 )
+    out3=callGaussApplyKern(ps.means,ps.stdGaus,origArr
+    ,st.meansLength
+    ,st.threads_apply_gauss
+    ,st.blocks_apply_gauss
+    ,3)
+    out4=callGaussApplyKern(ps.means,ps.stdGaus,origArr
+    ,st.meansLength
+    ,st.threads_apply_gauss
+    ,st.blocks_apply_gauss
+    ,4 )
+    out5=callGaussApplyKern(ps.means,ps.stdGaus,origArr
+    ,st.meansLength
+    ,st.threads_apply_gauss
+    ,st.blocks_apply_gauss
+    ,5 )
+    out6=callGaussApplyKern(ps.means,ps.stdGaus,origArr
+    ,st.meansLength
+    ,st.threads_apply_gauss
+    ,st.blocks_apply_gauss
+    ,6)
+    out7=callGaussApplyKern(ps.means,ps.stdGaus,origArr
+    ,st.meansLength
+    ,st.threads_apply_gauss
+    ,st.blocks_apply_gauss
+    ,7)
+    out8=callGaussApplyKern(ps.means,ps.stdGaus,origArr
+    ,st.meansLength
+    ,st.threads_apply_gauss
+    ,st.blocks_apply_gauss
+    ,8)
+
+
+    return (out1+out3+out4+out5+out6+out7+out8),st
+    # return callGaussApplyKern(ps.means,ps.stdGaus,origArr
+    # ,st.meansLength
+    # ,st.threads_apply_gauss
+    # ,st.blocks_apply_gauss
+    # ,st.currGaussIndex
+    # ),st
 end
 
 # l = Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)

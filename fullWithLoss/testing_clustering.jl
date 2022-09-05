@@ -26,7 +26,7 @@ origArr,indArr=createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderW
 
 
 modelConv = getConvModel()
-gaussApplyLayer=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
+gaussApplyLayer=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss,1)
 
 """
 important skip connection here gets input and concatenate it with the output of the last layer
@@ -86,8 +86,9 @@ function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, da
 end
 
 tstate = main(tstate, vjp_rule, x,1)
+tstate = main(tstate, vjp_rule, x,3000)
 
-tstate = main(tstate, vjp_rule, x,1500)
+# tstate = main(tstate, vjp_rule, x,1500)
 
 
 
@@ -116,14 +117,14 @@ function applyGaussKern_for_vis(means,stdGaus,origArr,out,meansLength)
     return nothing
 end
 psss=tstate.parameters
-l1,l2,l3,l4,l5,l6=psss
-stdGaus,means=l6
+a,b=psss
+stdGaus,means=b
 out = CUDA.zeros(size(origArr))
 
-pss= Lux.gpu(psss)
-stt= Lux.gpu(st)
-y_pred, st = Lux.apply(model, origArr, pss, stt)
-@cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern_for_vis(means,stdGaus,origArr,out,gauss_numb_top)
+# pss= Lux.gpu(psss)
+# stt= Lux.gpu(st)
+# y_pred, st = Lux.apply(model, origArr, pss, stt)
+@cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern_for_vis(means,stdGaus,x,out,gauss_numb_top)
 
 outCpu= Array(out)
 
