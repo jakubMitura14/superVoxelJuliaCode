@@ -49,18 +49,17 @@ varView=view(x,:,:,:,3,:)
 imageView[:,:,:,:,:]= imageView./maximum(imageView) 
 meanView[:,:,:,:,:]= meanView./maximum(meanView) 
 varView[:,:,:,:,:]= varView./maximum(varView) 
+# ps=ps.|> Lux.gpu
 
-
-
-#y_pred, st =Lux.apply(model, x, ps, st) 
+# y_pred, st =Lux.apply(model, x, ps, st) 
 
 opt = Optimisers.NAdam(0.003)
 #opt = Optimisers.Adam(0.003)
 #opt = Optimisers.OptimiserChain(Optimisers.ClipGrad(1.0), Optimisers.NAdam());
 
-function clusteringLoss(model, ps, st, x)
+function clusteringLossA(model, ps, st, x)
     y_pred, st = Lux.apply(model, x, ps, st)
-    print("   sizzzz $(size(y_pred))       ")
+    # print("   sizzzz $(size(y_pred))       ")
     res= sum(y_pred)
     return res, st, ()
 
@@ -78,7 +77,7 @@ function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, da
     epochs::Int)
    # data = data .|> Lux.gpu
     for epoch in 1:epochs
-        grads, loss, stats, tstate = Lux.Training.compute_gradients(vjp, clusteringLoss,
+        grads, loss, stats, tstate = Lux.Training.compute_gradients(vjp, clusteringLossA,
                                                                 data, tstate)
         @info epoch=epoch loss=loss
         tstate = Lux.Training.apply_gradients(tstate, grads)
@@ -86,16 +85,9 @@ function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, da
     return tstate
 end
 
-
 tstate = main(tstate, vjp_rule, x,1)
 
-
 tstate = main(tstate, vjp_rule, x,1500)
-
-
-
-
-
 
 
 

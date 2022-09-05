@@ -4,8 +4,6 @@
 #     supervoxels
 # """
 
-
-
 using Revise
 # includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/includeAll.jl")
 using ChainRulesCore,Zygote,CUDA,Enzyme
@@ -18,15 +16,11 @@ import NNlib, Optimisers, Plots, Random, Statistics, Zygote
 using FillArrays
 
 # rng = Random.default_rng()
-
 # Nx, Ny, Nz = 8, 8, 8
 # oneSidePad = 1
 # totalPad=oneSidePad*2
 # crossBorderWhere=4
 # origArr,indArr =createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
-
-
-
 
 #how many gaussians we will specify 
 # const gauss_numb_top = 8
@@ -100,9 +94,9 @@ end
 """
 voxel wise apply of the gaussian distributions
 basically we want in the end to add multiple sums - hence in order to in
-
 """
 function applyGaussKern(means,stdGaus,origArr,out,meansLength)
+    
     #adding one becouse of padding
     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
@@ -116,6 +110,8 @@ function applyGaussKern(means,stdGaus,origArr,out,meansLength)
     end #for
     #we want to have large 
     out[x,y,z]-= currMax
+
+
     return nothing
 end
 
@@ -180,13 +176,11 @@ function ChainRulesCore.rrule(::typeof(callGaussApplyKern),means,stdGaus,origArr
         d_out = CuArray(collect(d_out_prim))
         @cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern_Deff(means,d_means,stdGaus,d_stdGaus,origArr,d_origArr,out,d_out,meansLength)
         f̄ = NoTangent()
-
         return f̄, d_means,d_stdGaus, d_origArr, NoTangent(), NoTangent(), NoTangent()
     end   
     return out, call_test_kernel1_pullback
 
 end
-
 
 function (l::Gauss_apply_str)(origArr, ps, st::NamedTuple)
     return callGaussApplyKern(ps.means,ps.stdGaus,origArr

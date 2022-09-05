@@ -29,50 +29,6 @@ dp= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad )
 threads = (4, 4, 4)
 blocks = (2, 2, 2)
 
-"""
-1) if is paramater is true it is parameter otherwise state ; 
-2) initialize function function that will give initial values for the parameter it has two arguments rng and l where l is a struct with data
-3) Enzyme function that is used to wrap argument and guide the compiler what type of autodifferentiation is needed like Duplicated Active, const...
-4) isOutput - if true it will be marked as output and handled accordingly
-1) isParameter 2)initF 3) enzymeWrap 4) isOutput
-"""
-conff_params= (   )
-"""
-first param is a kernel function
-2 and 3 are 3-tuples marking number of required threads and blocks
-1) base_name 2)kernelFun 3)threads 4) blocks
-"""
-conf_not_params=( )
-
-
-"""
-using metaprogramming to automate layer creation with custom Enzyme autodifferentiation
-based on http://clynamen.github.io/blog/2019/06/16/julia_def_fun_macro/
-"""
-
-macro make_fn2(name, args...)
-    name_str = "$name"
-    argstup = Tuple(args)
- 
-    quote
-        function $(esc(name))($(map(esc, argstup)...))
-            println($name_str)
-            map(println, [($(map(esc, argstup)...))])
-        end
-    end
- end
- 
- @make_fn2(example_fun, a, b, c)
-
-
-#lux layers from http://lux.csail.mit.edu/dev/manual/interface/
-struct KernelAstr<: Lux.AbstractExplicitLayer
-    confA::Int
-    Nxa::Int
-    Nya::Int
-    Nza::Int
-end
-
 
 function testKern(A, p, Aout,Nxa,Nya,Nza)
     #adding one bewcouse of padding
@@ -84,12 +40,118 @@ function testKern(A, p, Aout,Nxa,Nya,Nza)
     return nothing
 end
 
-function testKernDeff( A, dA, p
-    , dp, Aout
-    , dAout,Nxa,Nya,Nza)
-    Enzyme.autodiff_deferred(testKern, Const, Duplicated(A, dA), Duplicated(p, dp), Duplicated(Aout, dAout),Const(Nxa),Const(Nya),Const(Nza))
-    return nothing
+@enum paramType Eparameter=1 Estate Einput Eoutput
+
+"""
+1) paramType  enum marking it as parameter/state/input or output; 
+2) initialize function function that will give initial values for the parameter it has two arguments rng and l where l is a struct with data
+3) Enzyme function that is used to wrap argument and guide the compiler what type of autodifferentiation is needed like Duplicated Active, const...
+1) paramType 2)initF 3) enzymeWrap
+"""
+conff_params= Dict(
+                "A"=>(Einput
+                    ,(rng,l)->()  
+                    ,Duplicated
+                     )
+                ,"p"=>(Eparameter
+                ,(rng,l)->CuArray(rand(rng,Float32, l.confA, l.confA, l.confA))
+                ,Duplicated
+                )
+                ,"Aout"=>(Eoutput
+                    ,(rng,l)->()  
+                    ,Duplicated
+                    )
+                ,"Nxa"=>(
+                    Estate
+                    ,(rng,l)->Nx
+                    ,Const
+                    )
+                ,"confA"=>(
+                    Estate
+                    ,(rng,l)->Nx
+                    ,Const
+                    )
+                ,"Nya"=>(
+                    Estate
+                    ,(rng,l)->Ny
+                    ,Const
+                    )
+                ,"Nza"=>(
+                    Estate
+                    ,(rng,l)->Nz
+                    ,Const
+                    )
+                )
+"""
+first param is a kernel function
+2 and 3 are 3-tuples marking number of required threads and blocks
+1) base_name 2)kernelFun 3)threads 4) blocks
+"""
+conf_not_params=("test_for_macr",testKern,threads,blocks)
+
+
+# """
+# first param is a kernel function
+# 2 and 3 are 3-tuples marking number of required threads and blocks
+# 1) base_name 2) struct name 3) struct itself 4)kernelFun 5)threads 6) blocks
+# """
+# conf_not_params=("test_for_macr", "test_for_macr_str",test_for_macr_str,testKern,threads,blocks)
+
+
+
+keyss=keys(conff_params)
+structName="$(conf_not_params[1])_str"
+
+"""
+using metaprogramming to automate layer creation with custom Enzyme autodifferentiation
+based on http://clynamen.github.io/blog/2019/06/16/julia_def_fun_macro/
+https://discourse.julialang.org/t/trouble-understanding-macros-creating-a-struct-on-the-fly/4576
+https://discourse.julialang.org/t/macro-to-create-struct-problem/86737
+"""
+
+
+struct_name="KernelAstr"
+fields=["confA","Nxa","Nya","Nza"]
+@eval begin
+    struct $(Symbol(struct_name))<:Lux.AbstractExplicitLayer
+        $(Symbol.(fields)...)
+    end
 end
+
+
+
+
+#  struct KernelAstr<: Lux.AbstractExplicitLayer
+#     confA::Int
+#     Nxa::Int
+#     Nya::Int
+#     Nza::Int
+# end
+
+
+#lux layers from http://lux.csail.mit.edu/dev/manual/interface/
+
+
+
+# function testKernDeff( A, dA, p
+#     , dp, Aout
+#     , dAout,Nxa,Nya,Nza)
+#     Enzyme.autodiff_deferred(testKern, Const, Duplicated(A, dA), Duplicated(p, dp), Duplicated(Aout, dAout),Const(Nxa),Const(Nya),Const(Nza))
+#     return nothing
+# end
+
+defFunctionName="testKernDeff"
+fieldsdefFunction=["A", "dA", "p"
+, "dp", "Aout", "dAout","Nxa","Nya","Nza"] 
+
+@eval begin
+    function $(Symbol(defFunctionName))
+        $(Symbol.(fields)...)
+        Enzyme.autodiff_deferred(testKern, Const, Duplicated(A, dA), Duplicated(p, dp), Duplicated(Aout, dAout),Const(Nxa),Const(Nya),Const(Nza))
+        return nothing
+    end
+end
+
 
 function calltestKern(A, p,Nxa,Nya,Nza)
     Aout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 

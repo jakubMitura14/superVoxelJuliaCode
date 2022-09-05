@@ -70,19 +70,60 @@ end
 # l=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
 # ps, st = Lux.setup(rng, l)
 
-
+"""
+NEW idea 
+I)for each voxel define paths of length for example 5 in all 6 or 9 directions
+    for each point in a path save the Statistics
+    1) value at this point
+    2) distance from origin point - taking spacing into account
+    3) mean around given point in path
+    4) variance of neighberhood of given point in a path 
+    5) strength of edge in given point measured as a variance of intensity in the line 
+        perpendicular to the path
+II) we will get 6 or 9 matricies in step I all of them should be stored in shared memory 
+    given path of length 6 5 features as above and 9 directions we will get 
+    5x6x9 3 dimensional array in shared memory on which we will perform operations with parameters
+    similar to those in neural networks
+    as the output of this phase given dimensions as stated we should get 9 numbers that will describe
+    the strength of the flux in given direction
+    operations with parameters should include both operations like dense and strided conv 
+III) when the step 2 will be ready we will have a trainable way - although computationally intensve
+    way to define the optimal diffusion flow we need to apply this multiple times, optimally number of iterations
+    should be trainable parameter itself
+    also to be considered is repretition of step 2 as it will give more elasticity to underlying diffusion processes        
+    alternatively to reduce the number of called kernels we could try sth like random walk
+    where probability of getting in given direction is set by the probabilities from step 2
+IV) after set of diffusions that will be applied on the indicies array we need loss function -
+    in case given gaussian will give high probability to two spots close to the features should also be similar
+    in case presence of strong edge the diffrence in probabilities should be high
+    optimally one should also define centroid for each gaussian and penalize situation when the distance
+    from points to centroid is high
 """
 
+
+
+
+
+"""
+idea is to get some dose of rotation invariance - so algorithm should look a bit like a lidar - so 
+with the cone like area in two directions at once - so algorithm in principle should compare the areas 
+we can be even more explicit we want to modify indicies arr so when we have small diffrence in features in original array
+    we want to have even smaller diffrence in ind array; and in case of big diffrence in features even bigger diffrences in ind array
+    now what constitutes diffrence in features need to be specified in separate similarity function 
+    what constitute big or small diffrence in parameters needs to be learned
+    so we want function with learnable parameters where arguments will be   
+        similarity between this voxel and next ones in given direction and opposite direction
+        idea as previosly stated to compare those two directions now 
+        simplest idea is to look in all directions and save the alamax of the voxel in direction with highest similarity
+        this can be executed multiple times even without autodifferentiation as a pereprocessing step
 """
 function apply_cconv(means,stdGaus,origArr,out,meansLength)
     #adding one becouse of padding
     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
-    #idea is to get some dose of rotation invariance - so algorithm should look a bit like a lidar - so 
-    #with the cone like area in two directions at once - so algorithm in principle should compare the areas 
-    # and spit out the    
- 
+
+
     return nothing
 end
 
