@@ -1,3 +1,4 @@
+using Revise,Random
 includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/includeAll.jl")
 using Distributions
 
@@ -24,7 +25,7 @@ blocks_CalculateFeatures = (4, 4, 4)
 rng = Random.default_rng()
 origArr,indArr=createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
 
-
+ 
 modelConv = getConvModel()
 gaussApplyLayer=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss,1)
 

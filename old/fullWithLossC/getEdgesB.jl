@@ -21,8 +21,11 @@ function getConvModel()
 end#getConvModel
 
 # modelConv=Lux.Chain(conv1(featureNumb,4),conv1(4,16),conv1(16,4),conv1(4,3))
+using Pkg
+Pkg.add("MedPipe3D")
 
 
+1+1
 
 # Nx, Ny, Nz = 4, 4, 4
 # oneSidePad = 1
