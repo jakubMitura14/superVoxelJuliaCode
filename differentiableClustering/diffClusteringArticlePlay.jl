@@ -4,3 +4,6 @@ and adaptation from https://github.com/kanezaki/pytorch-unsupervised-segmentatio
 summarizing article as far as I get It 
 
 """
+
+git config --global user.email "jakub.mitura14@gmail.com"
+git config --global user.name "Jakub Mitura"
