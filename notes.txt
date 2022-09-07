@@ -24,4 +24,7 @@ Towards robust partially supervised multi-structure medical image segmentation o
 https://www.sciencedirect.com/science/article/pii/S1568494621009789
  
 
+ Veryyyy good source 
+ http://pengxi.me/publications/
+
  
