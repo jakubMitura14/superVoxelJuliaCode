@@ -1,0 +1,12 @@
+So in this split and merge architecture critical idea seem that we get set of neural networks the size of this set is the same as number of supervoxels And we play with kl divergence to check weather if I get it the functions represented by those neural nets are similar or not ...
+I suppose that in order to make it possible to keep in memory we could share the parameters of most layers and keep disjoint parameters for last layers or sth like that now it would generate map for each supervoxel we can then look for location of maximal value and establish weather sum of the probabilities is mostly in the vicinity of maximum 
+Futher we will keep the sum of maps of all the supervoxels and we will add penalty if current map has high  values where any other map had high values - this summation may be tricky as it requires array mutation
+However it could be just kept as  application of layer by layer so classically input of one would be output of other with two channels one would be related yo addition second to soft max or maybe just one soft max layer ...
+Important  are also normalizations basically if we will normalize and a lot of probabilities will be concentrated in one spot it will give small sum in the end ...
+We can also take the parameters of those single supervoxels layer and try to maximize the entropy of them or add the entropy of parameters to cost function - maybe hard to tell if it will work 
+Other problem is that some supervoxels will have identical characteristics so just convolution filters may be not sufficient  it needs also information about location 
+Possibly best would be unet with dense layer in the center - so in the spot of the reduced dimensionality and possibly deconvolutions as the maybe will not have so many parameters 
+In the final loss function we need to dig this article about pointwise  mutual information or sth like that to check weather clusters are really measuring sth
+
+futher we should probably change the order ofparameters - shuffle them for those parameters that are responsible for creating probability mapsfor each 
+supervoxel
