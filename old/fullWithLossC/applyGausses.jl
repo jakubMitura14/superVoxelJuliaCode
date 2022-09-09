@@ -19,7 +19,6 @@ import NNlib, Optimisers, Plots, Random, Statistics, Zygote
 using FillArrays
 
 
-Revise ChainRulesCore Zygote CUDA Enzyme KernelAbstractions KernelGradients Lux Random NNlib Optimisers Plots Statistics FillArrays
 # rng = Random.default_rng()
 # Nx, Ny, Nz = 8, 8, 8
 # oneSidePad = 1
