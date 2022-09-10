@@ -29,9 +29,20 @@ function (l::SelectTupl_str)(origTupl, ps, st::NamedTuple)
 end
 
 
+
+
+
 """
 concatenate on 4th (channel) dimension
 """
 function myCatt4(a,b)
    return cat(a,b;dims=4)
+end  
+
+
+"""
+get 2 entries and create tuple from them
+"""
+function myGetTuple(a,b)
+   return Tuple(a,b)
 end  

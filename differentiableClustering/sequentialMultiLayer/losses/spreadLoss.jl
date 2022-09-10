@@ -85,14 +85,10 @@ function spreadKern_layer(Nx,Ny,Nz,threads_spreadKern,blocks_spreadKern)
     return spreadKern_str(Nx,Ny,Nz,threads_spreadKern,blocks_spreadKern)
 end
 
-function Lux.initialparameters(rng::AbstractRNG, l::spreadKern_str)
-    return (p=CuArray(rand(rng,Float32, l.Nx, l.Ny, l.Nz,1,1)),)
+Lux.initialparameters(rng::AbstractRNG, l::spreadKern_str)=NamedTuple()
 
-end
-"""
-https://stackoverflow.com/questions/52035775/in-julia-1-0-how-to-set-a-named-tuple-with-only-one-key-value-pair
-in order to get named tuple with single element put comma after
-"""
+
+
 function Lux.initialstates(::AbstractRNG, l::spreadKern_str)::NamedTuple
     return (Nx=l.Nx,Ny=l.Ny,Nz=l.Nz,threads_spreadKern=l.threads_spreadKern,blocks_spreadKern=l.blocks_spreadKern )
 end

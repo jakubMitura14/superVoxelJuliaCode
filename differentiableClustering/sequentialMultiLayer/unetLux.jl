@@ -68,15 +68,15 @@ end#getPerSVLayer
 
 
 
-# """
-# concatenate on 4th (channel) plus scalar 
-# so a is a probability map for given supervoxel and second entry is a spread loss
-# b is just original image with its features as channels 
-# concatenetes probabilities with original input and adds to tuple the spread loss
-# """
-# function catTupleAfterSpread_loss(a,b)
-#    return (cat(a[1],b;dims=4),a[2],)
-# end  
+"""
+concatenate on 4th (channel) plus scalar 
+so a is reduced representation
+b is just original image with its features as channels 
+concatenetes probabilities with original input and adds to tuple the spread loss
+"""
+function catTupleAfterSpread_loss(a,b)
+   return (cat(a[1],b;dims=4),a[2],)
+end  
 
 
 """
@@ -104,9 +104,11 @@ function getModelParts(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_
     # output will be tuple where first entry in reduced representation
     #second entry is the input - feature array
     contr=Lux.SkipConnection(getContractModel(featureNumb+1,2),get_tuple)
+    layers= Vector{Lux.AbstractExplicitLayer}(undef,supervoxel_numb)
 
     # for first supervoxel layer the workflow will be slightly diffrent as we need to concatenate it
-    sc_param_1= Parallel(myCatt4#concatenetion of Outputs
+    sc_param_1= Parallel(myGetTuple,    
+                    Parallel(myCatt4#concatenetion of Outputs
                     #first we need to process 
                     ,Lux.Chain(SelectTupl(1), # here we get just the reduced representation 
                     ,getPerSVLayer(2,1,rdim_x,rdim_y,rdim_z ) # it holds trainable parameters for this first supervoxel  output will the same first 3 dimensions as primar imput(orig array with features)
@@ -114,23 +116,52 @@ function getModelParts(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_
                     #we are just passing the input to be concatenated to output
                     ,NoOpLayer()
                         )
-    sc_layer_1= Lux.Chain(sc_param_1
+                    # this select tupl enable us pass the reduced representation down the model
+                    ,SelectTupl(1)
+
+                )
+    #so sc_param_1 will give tuple where first entry is an array with concateneted first voxel probability map and original array
+    #and second tuple entry is the reduced representation
+    layers[1]= Parallel(myGetTuple,
+                        Lux.Chain(
+                        SelectTupl(1), # here we get just the concatenated original input and supervoxel probability map     
+                        sc_param_1
                         ,spreadKern_layer(dim_xdim_y,dim_z,threads_spreadKern,blocks_spreadKern)# it return both its input and scalar loss as tuple
-                        ,
-                             )
+                        ,featureLoss_kern__layer(Nx,Ny,Nz,threads_featureLoss_kern_,blocks_featureLoss_kern_,featureNumb))
+                        
+                        SelectTupl(2), # here we get just the reduced representation 
+                        )
+
+    #we start iterating over all supervoxels with exception of the first one 
+    for superVoxelIndex in 2:supervoxel_numb
+        #input is the tuple 
+        sc_param= Parallel(myGetTuple,    
+                        Parallel(myCatt4#concatenetion of Outputs
+                        #first we need to process 
+                        ,Lux.Chain(SelectTupl(1), # here we get just the reduced representation 
+                        ,getPerSVLayer(2,1,rdim_x,rdim_y,rdim_z ) # it holds trainable parameters for this first supervoxel  output will the same first 3 dimensions as primar imput(orig array with features)
+                            )
+                        #we are just passing the input to be concatenated to output
+                        ,NoOpLayer()
+                            )
+                        # this select tupl enable us pass the reduced representation down the model
+                        ,SelectTupl(1)
+
+                    )
+        #so sc_param_1 will give tuple where first entry is an array with concateneted first voxel probability map and original array
+        #and second tuple entry is the reduced representation
+        layers[superVoxelIndex]= Parallel(myGetTuple,
+                            Lux.Chain(
+                            SelectTupl(1), # here we get just the concatenated original input and supervoxel probability map     
+                            sc_param
+                            ,spreadKern_layer(dim_xdim_y,dim_z,threads_spreadKern,blocks_spreadKern)# it return both its input and scalar loss as tuple
+                            ,featureLoss_kern__layer(Nx,Ny,Nz,threads_featureLoss_kern_,blocks_featureLoss_kern_,featureNumb))
+                            
+                            SelectTupl(2), # here we get just the reduced representation 
+                            )
+    end# for supervoxel_numb    
 
 
-
-
-
-    SelectTupl(1)
-
-    
-    
-    PairwiseFusion
-
-
-    model=Lux.Chain(contr,sv1 )
 end #getModelParts
 
 
