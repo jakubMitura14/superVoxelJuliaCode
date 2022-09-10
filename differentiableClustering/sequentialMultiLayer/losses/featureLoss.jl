@@ -56,7 +56,7 @@ function featureLoss_kern_(probArr, Aout,Nx,Ny,Nz)
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z()))
     #first we need to calculate variance of p
     # additionally we multiply by local value to reduce the importance of low probability regions
-    Aout[x,y,z]=getLocalvar(probArr,Nx,Ny,Nz,x,y,z, getLocalMean(fullArr,Nx,Ny,Nz,x,y,z))*probArr[x,y,z,1,1]
+    Aout[x,y,z,1,1]=getLocalvar(probArr,Nx,Ny,Nz,x,y,z, getLocalMean(fullArr,Nx,Ny,Nz,x,y,z))*probArr[x,y,z,1,1]
   
     return nothing
 end
@@ -102,13 +102,15 @@ struct featureLoss_kern__str<: Lux.AbstractExplicitLayer
     Nx::Int
     Ny::Int
     Nz::Int
+    probMapChannel::Int
+    featuresStartChannel::Int
     featureNumb::Int
     threads_featureLoss_kern_::Tuple{Int,Int,Int}
     blocks_featureLoss_kern_::Tuple{Int,Int,Int}
 end
 
-function featureLoss_kern__layer(Nx,Ny,Nz,threads_featureLoss_kern_,blocks_featureLoss_kern_,featureNumb)
-    return featureLoss_kern__str(Nx,Ny,Nz,threads_featureLoss_kern_,blocks_featureLoss_kern_,featureNumb)
+function featureLoss_kern__layer(Nx,Ny,Nz,probMapChannel,featuresStartChannel,threads_featureLoss_kern_,blocks_featureLoss_kern_,featureNumb)
+    return featureLoss_kern__str(Nx,Ny,Nz,probMapChannel,featuresStartChannel,threads_featureLoss_kern_,blocks_featureLoss_kern_,featureNumb)
 end
 
 Lux.initialparameters(rng::AbstractRNG, l::featureLoss_kern__str)=NamedTuple()
@@ -117,18 +119,19 @@ https://stackoverflow.com/questions/52035775/in-julia-1-0-how-to-set-a-named-tup
 in order to get named tuple with single element put comma after
 """
 function Lux.initialstates(::AbstractRNG, l::featureLoss_kern__str)::NamedTuple
-    return (Nx=l.Nx,Ny=l.Ny,Nz=l.Nz,threads_featureLoss_kern_=l.threads_featureLoss_kern_
+    return (Nx=l.Nx,Ny=l.Ny,Nz=l.Nz,probMapChannel=l.probMapChannel,featuresStartChannel=l.featuresStartChannel
+    threads_featureLoss_kern_=l.threads_featureLoss_kern_
     ,blocks_featureLoss_kern_=l.blocks_featureLoss_kern_,featureNumb=l.featureNumb )
 end
 
 function (l::featureLoss_kern__str)(x, ps, st::NamedTuple)
     #below we just get the local variance of probabilities now we need to compare it with features variance
-    calculated_variances=call_featureLoss_kern_(x[1][:,:,:,1,:],ps.p,l.Nx,l.Ny,l.Nz,l.threads_featureLoss_kern_,l.blocks_featureLoss_kern_ )
-    #we initialize with the value from spread loss
+    calculated_variances=call_featureLoss_kern_(x[1][:,:,:,l.probMapChannel,:],ps.p,l.Nx,l.Ny,l.Nz,l.threads_featureLoss_kern_,l.blocks_featureLoss_kern_ )
+    #we initialize with the value from spread loss and previous losses
     feature_lossTotal=x[2]
     #we iterate over all features and compares them 
     for featurIndex in l:featureNumb
-        feature_lossTotal+=Flux.binary_focal_loss(x[:,:,:,2+featurIndex,:],calculated_variances)
+        feature_lossTotal+=Flux.binary_focal_loss(x[:,:,:,l.featuresStartChannel+featurIndex,:],calculated_variances)
     end for
 
     return (x,feature_lossTotal) ,st

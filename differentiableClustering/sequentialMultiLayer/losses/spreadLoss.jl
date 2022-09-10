@@ -77,27 +77,29 @@ struct spreadKern_str<: Lux.AbstractExplicitLayer
     Nx::Int
     Ny::Int
     Nz::Int
+    probMapChannel::Int
+    featuresStartChannel::Int
     threads_spreadKern::Tuple{Int,Int,Int}
     blocks_spreadKern::Tuple{Int,Int,Int}
 end
 
-function spreadKern_layer(Nx,Ny,Nz,threads_spreadKern,blocks_spreadKern)
-    return spreadKern_str(Nx,Ny,Nz,threads_spreadKern,blocks_spreadKern)
+function spreadKern_layer(Nx,Ny,Nz,,probMapChannel,featuresStartChannel,threads_spreadKern,blocks_spreadKern)
+    return spreadKern_str(Nx,Ny,Nz,,probMapChannel,featuresStartChannel,threads_spreadKern,blocks_spreadKern)
 end
 
 Lux.initialparameters(rng::AbstractRNG, l::spreadKern_str)=NamedTuple()
 
-
-
 function Lux.initialstates(::AbstractRNG, l::spreadKern_str)::NamedTuple
-    return (Nx=l.Nx,Ny=l.Ny,Nz=l.Nz,threads_spreadKern=l.threads_spreadKern,blocks_spreadKern=l.blocks_spreadKern )
+    return (Nx=l.Nx,Ny=l.Ny,Nz=l.Nz,probMapChannel=l.probMapChannel,featuresStartChannel=l.featuresStartChannel,
+    threads_spreadKern=l.threads_spreadKern,blocks_spreadKern=l.blocks_spreadKern )
 end
 
 function (l::spreadKern_str)(x, ps, st::NamedTuple)
-    calculated=call_spreadKern(x[:,:,:,1,:],ps.p,l.Nx,l.Ny,l.Nz,l.threads_spreadKern,l.blocks_spreadKern )
-    spreadLoss=var(calculated[:,:,:,1,1])+var(calculated[:,:,:,2,1])+var(calculated[:,:,:,3,1])
+    calculated=call_spreadKern(x[1][:,:,:,l.probMapChannel,:],ps.p,l.Nx,l.Ny,l.Nz,l.threads_spreadKern,l.blocks_spreadKern )
+    # so using triangulation we add variance in position relative to 3 corners x[2] is the loss that is already accumulated from previous supervoxels
+    spreadLoss=var(calculated[:,:,:,1,1])+var(calculated[:,:,:,2,1])+var(calculated[:,:,:,3,1])+x[2]
      
-     return (x,spreadLoss) ,st
+     return (x[1],spreadLoss) ,st
 end
 
 
