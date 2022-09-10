@@ -94,10 +94,11 @@ what is important each supervoxel layer will end with loss calculations for whic
     dim_x,dim_y,dim_z - main input arr dimensions
     featureNumb - how many features we analyze   
     supervoxel_numb - how many supervoxels we want
-    threads_spreadKern,blocks_spreadKern - needed to run optimally cuda kernel
-    
+    threads_blocks_struct - struct holding specifications of threads and blocks required for kernels used in the model
+    model output is output is ((a,l ),r  ) a - concatenated array where first channel is probability map of last supervoxel layer second is added contributions from supervoxels probability maps third original array and futher channels a features variance
+                                            l - is accumulated scalar loss and r is reduced representation of the array
 """
-function getModelParts(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_numb,threads_spreadKern,blocks_spreadKern )
+function getModel(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_numb,threads_blocks::threads_blocks_struct )
     reductionFactor=2^numberOfConv2
     rdim_x,rdim_y,rdim_z=Int(round(dim_x/reductionFactor )),Int(round(dim_y/reductionFactor )),Int(round(dim_z/reductionFactor ))
     #featureNumb+1 becouse we also get original image as channel 1
@@ -166,12 +167,13 @@ function getModelParts(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_
                              # spreadKern_layer expects tupl  (a,l ) where a is big concateneted array and l is scalar loss that is acumulated as going through layers      
                             ,spreadKern_layer(dim_x,dim_y,dim_z,probMapChannel,featuresStartChannel,threads_spreadKern,blocks_spreadKern)# it return both its input and scalar loss as tuple
                             ,featureLoss_kern__layer(dim_x,dim_y,dim_z,probMapChannel,featuresStartChannel,threads_featureLoss_kern_,blocks_featureLoss_kern_,featureNumb)
-                            ,
+                            ,disagreeKern_layer(dim_x,dim_y,dim_z,threads_disagreeKern,blocks_disagreeKern)
                             )
                             SelectTupl(2), # here we get just the reduced representation to pass on
                             )
-    end# for supervoxel_numb    
+    end# for supervoxel_numb  
 
+    return Lux.Chain(layers...)
 
 end #getModelParts
 

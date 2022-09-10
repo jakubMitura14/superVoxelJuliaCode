@@ -30,6 +30,8 @@ function disagreeKern(previous_prob_maps,current_probMap, Aout,Nx,Ny,Nz)
     if(x<Nx && y<Ny && z<Nz) 
         #checking diffrence squared and multiply by multiplied values - as we care basically only about places where we have hihgh on high
         Aout[x, y, z,1,1]= ((previous_prob_maps[x, y, z,1,1]-current_probMap[x, y, z,1,1])^2)*previous_prob_maps[x, y, z,1,1]*current_probMap[x, y, z,1,1]
+        Aout[x, y, z,2,1]= ((previous_prob_maps[x, y, z,1,1]+current_probMap[x, y, z,1,1]))#for futher iterations
+
     end    
     return nothing
 end
@@ -49,7 +51,7 @@ function disagreeKern_Deff( previous_prob_maps,d_previous_prob_maps
 end
 
 function call_disagreeKern(previous_prob_maps,current_probMap,d_current_probMap,Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)
-    Aout = CUDA.zeros(Nx, Ny, Nz,1,1 ) 
+    Aout = CUDA.zeros(Nx, Ny, Nz,2,1 ) 
     @cuda threads = threads_disagreeKern blocks = blocks_disagreeKern disagreeKern(previous_prob_maps,current_probMap,Aout,Nx,Ny,Nz)
     return Aout
 end
@@ -80,28 +82,26 @@ struct disagreeKern_str<: Lux.AbstractExplicitLayer
     Nx::Int
     Ny::Int
     Nz::Int
-    probMapChannel::Int
-    featuresStartChannel::Int
     threads_disagreeKern::Tuple{Int,Int,Int}
     blocks_disagreeKern::Tuple{Int,Int,Int}
 end
 
-function disagreeKern_layer(Nx,Ny,Nz,,probMapChannel,featuresStartChannel,threads_disagreeKern,blocks_disagreeKern)
-    return disagreeKern_str(Nx,Ny,Nz,,probMapChannel,featuresStartChannel,threads_disagreeKern,blocks_disagreeKern)
+function disagreeKern_layer(Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)
+    return disagreeKern_str(Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)
 end
 
 Lux.initialparameters(rng::AbstractRNG, l::disagreeKern_str)=NamedTuple()
 
 function Lux.initialstates(::AbstractRNG, l::disagreeKern_str)::NamedTuple
-    return (Nx=l.Nx,Ny=l.Ny,Nz=l.Nz,probMapChannel=l.probMapChannel,featuresStartChannel=l.featuresStartChannel,
+    return (Nx=l.Nx,Ny=l.Ny,Nz=l.Nz,
     threads_disagreeKern=l.threads_disagreeKern,blocks_disagreeKern=l.blocks_disagreeKern )
 end
 
 function (l::disagreeKern_str)(x, ps, st::NamedTuple)
-    calculated=call_disagreeKern(x[1][:,:,:,l.probMapChannel,:],ps.p,l.Nx,l.Ny,l.Nz,l.threads_disagreeKern,l.blocks_disagreeKern )
-    # so using triangulation we add variance in position relative to 3 corners x[2] is the loss that is already accumulated from previous supervoxels
-    spreadLoss=var(calculated[:,:,:,1,1])+var(calculated[:,:,:,2,1])+var(calculated[:,:,:,3,1])+x[2]
-     
-     return (x[1],spreadLoss) ,st
+    channelsNum= size(x)[4]
+    concated=call_disagreeKern(x[1][:,:,:,1,:],x[1][:,:,:,2,:],l.Nx,l.Ny,l.Nz,l.threads_disagreeKern,l.blocks_disagreeKern )
+    #we just sum elementwise scaled diffrence
+    lossVal=sum(concated[:,:,:,1,:])
+    return (myCatt4(concated[:,:,:,2,:], x[:,:,:,3:channelsNum,:] ) ,lossVal) ,st
 end
 

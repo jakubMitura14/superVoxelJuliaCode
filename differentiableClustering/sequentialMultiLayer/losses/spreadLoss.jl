@@ -83,8 +83,8 @@ struct spreadKern_str<: Lux.AbstractExplicitLayer
     blocks_spreadKern::Tuple{Int,Int,Int}
 end
 
-function spreadKern_layer(Nx,Ny,Nz,,probMapChannel,featuresStartChannel,threads_spreadKern,blocks_spreadKern)
-    return spreadKern_str(Nx,Ny,Nz,,probMapChannel,featuresStartChannel,threads_spreadKern,blocks_spreadKern)
+function spreadKern_layer(Nx,Ny,Nz,probMapChannel,featuresStartChannel,threads_spreadKern,blocks_spreadKern)
+    return spreadKern_str(Nx,Ny,Nz,probMapChannel,featuresStartChannel,threads_spreadKern,blocks_spreadKern)
 end
 
 Lux.initialparameters(rng::AbstractRNG, l::spreadKern_str)=NamedTuple()
