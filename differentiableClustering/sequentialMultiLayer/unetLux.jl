@@ -1,6 +1,6 @@
 
 using Flux,Lux, Random,Optimisers
-
+include("C:\\projects\\superVoxelJuliaCode\\differentiableClustering\\sequentialMultiLayer\\utils_sequential.jl")
 
 """
 get transposed convolution from flux to Lux
@@ -31,6 +31,109 @@ conv2 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.relu, stride=2, pad=Lu
 tran = ( in, out) -> Flux.ConvTranspose((3, 3, 3), in=>out, relu, stride=2, pad=Flux.SamePad())
 
 tran2(in_chan,out_chan) = FluxCompatLayer(tran(in_chan,out_chan))
+
+
+
+"""
+first we want to reduce the size of the image so to encode in a smaller space all required data 
+atleastby assumption 
+Later good to experiment with redefining it as a unet just with shared convolutions
+"""
+function getContractModel(inChan,outChan)
+
+    return Lux.Chain(conv2(inChan, 4)
+                        ,conv2(4, 8)
+                        ,conv2(8, 8)
+                        ,conv2(8, outChan)
+                        )
+
+end #getContractModel
+
+"""
+idea is to get as much layers of this type as possible maximum arbitrary number of supervoxels
+becouse of possibly large quatity one needs to be cautious of the umber of parameters required - by tis layer
+-there should befew parameters
+still we will start with dese layer to enable taking location into consideration
+and then do transposed convolutions to regain original dimensions
+"""
+function getPerSVLayer(inChan,outChan,InDimX,inDimY,iDimZ)
+    
+    return Lux.Chain(MultLayer((InDimX,inDimY,iDimZ,inChan,1)),
+                        tran2(inChan, 1)
+                        ,tran2(1, 1)
+                        ,tran2(1, 1)
+                        ,tran2(1, outChan)
+                        )
+end#getPerSVLayer
+
+
+
+# """
+# concatenate on 4th (channel) plus scalar 
+# so a is a probability map for given supervoxel and second entry is a spread loss
+# b is just original image with its features as channels 
+# concatenetes probabilities with original input and adds to tuple the spread loss
+# """
+# function catTupleAfterSpread_loss(a,b)
+#    return (cat(a[1],b;dims=4),a[2],)
+# end  
+
+
+"""
+creates parts of the model in order to later compose it 
+we get the series of strided convolutions that are contracting part
+then point wise 3d array multiplication that is simplified dense leyer
+then series of transposed convolutions to recreate original dimensions
+semidense and transposed convolutions will be trained separately for each supervoxels
+hence those layers will be instantiated as many times as is planned maximum supervoxel number
+what is important each supervoxel layer will end with loss calculations for which the features 
+    taht are input for whole model will be needed 
+    becouse of it we will branch the model and concatenete resultto pass the input on
+
+    numberOfConv2 - how many times we executet convolutions with stride 2 - we need then to do basically the same with transposed convolution
+    dim_x,dim_y,dim_z - input dimensions
+    featureNumb - how many features we analyze   
+    supervoxel_numb - how many supervoxels we want
+    threads_spreadKern,blocks_spreadKern - needed to run optimally cuda kernel
+"""
+function getModelParts(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_numb,threads_spreadKern,blocks_spreadKern )
+    reductionFactor=2^numberOfConv2
+    rdim_x,rdim_y,rdim_z=Int(round(dim_x/reductionFactor )),Int(round(dim_y/reductionFactor )),Int(round(dim_z/reductionFactor ))
+    #featureNumb+1 becouse we also get original image as channel 1
+    # we pass to the output input so
+    # output will be tuple where first entry in reduced representation
+    #second entry is the input - feature array
+    contr=Lux.SkipConnection(getContractModel(featureNumb+1,2),get_tuple)
+
+    # for first supervoxel layer the workflow will be slightly diffrent as we need to concatenate it
+    sc_param_1= Parallel(myCatt4#concatenetion of Outputs
+                    #first we need to process 
+                    ,Lux.Chain(SelectTupl(1), # here we get just the reduced representation 
+                    ,getPerSVLayer(2,1,rdim_x,rdim_y,rdim_z ) # it holds trainable parameters for this first supervoxel  output will the same first 3 dimensions as primar imput(orig array with features)
+                        )
+                    #we are just passing the input to be concatenated to output
+                    ,NoOpLayer()
+                        )
+    sc_layer_1= Lux.Chain(sc_param_1
+                        ,spreadKern_layer(dim_xdim_y,dim_z,threads_spreadKern,blocks_spreadKern)# it return both its input and scalar loss as tuple
+                        ,
+                             )
+
+
+
+
+
+    SelectTupl(1)
+
+    
+    
+    PairwiseFusion
+
+
+    model=Lux.Chain(contr,sv1 )
+end #getModelParts
+
+
 
 # dim_x,dim_y,dim_z=32,32,32
 # base_arr=rand(dim_x,dim_y,dim_z )

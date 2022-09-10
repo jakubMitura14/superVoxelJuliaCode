@@ -13,6 +13,7 @@ rng = Random.default_rng()
 function myCatt(a,b)
     cat(a,b;dims=4)
 end    
+
 modelConv=Lux.Chain(conv1(featureNumb,4),conv1(4,16),conv1(16,4),conv1(4,3))
 modelConv=Lux.SkipConnection(modelConv,myCatt)
 # modelConv=Lux.BranchLayer(modelConv,Lux.NoOpLayer)
