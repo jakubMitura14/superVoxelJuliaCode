@@ -119,7 +119,8 @@ function getModelParts(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_
                     # this select tupl enable us pass the reduced representation down the model
                     ,SelectTupl(1)
 
-                )
+                )#output is tuple (a,b) a- probability map of first supervoxel b- reduced representation of image 
+
     #so sc_param_1 will give tuple where first entry is an array with concateneted first voxel probability map and original array
     #and second tuple entry is the reduced representation
     layers[1]= Parallel(myGetTuple,
@@ -128,13 +129,13 @@ function getModelParts(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_
                         sc_param_1
                         ,spreadKern_layer(dim_xdim_y,dim_z,threads_spreadKern,blocks_spreadKern)# it return both its input and scalar loss as tuple
                         ,featureLoss_kern__layer(Nx,Ny,Nz,threads_featureLoss_kern_,blocks_featureLoss_kern_,featureNumb))
-                        
                         SelectTupl(2), # here we get just the reduced representation 
-                        )
+                        )# output is ((a,l ),r  ) a- concateneted probability map of first supervoxel and input, l - scalar loss r - scalar accumulated loss of first supervoxel
 
-    #we start iterating over all supervoxels with exception of the first one 
+    #we start iterating over all supervoxels with exception of the first one as this is already done
+
     for superVoxelIndex in 2:supervoxel_numb
-        #input is the tuple 
+        #input is the nested tupleis ((a,l ),r  ) a- concateneted probability map of first supervoxel and input, l - scalar loss r - scalar accumulated loss
         sc_param= Parallel(myGetTuple,    
                         Parallel(myCatt4#concatenetion of Outputs
                         #first we need to process 
