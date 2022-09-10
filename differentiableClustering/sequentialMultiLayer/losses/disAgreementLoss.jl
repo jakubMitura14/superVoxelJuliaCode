@@ -48,26 +48,30 @@ function disagreeKern_Deff( previous_prob_maps,d_previous_prob_maps
     return nothing
 end
 
-function call_disagreeKern(current_probMap,d_current_probMap,Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)
+function call_disagreeKern(previous_prob_maps,current_probMap,d_current_probMap,Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)
     Aout = CUDA.zeros(Nx, Ny, Nz,1,1 ) 
-    @cuda threads = threads_disagreeKern blocks = blocks_disagreeKern disagreeKern(current_probMap,d_current_probMap,Aout,Nx,Ny,Nz)
+    @cuda threads = threads_disagreeKern blocks = blocks_disagreeKern disagreeKern(previous_prob_maps,current_probMap,Aout,Nx,Ny,Nz)
     return Aout
 end
 
 
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(call_disagreeKern), A, p,Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)
+function ChainRulesCore.rrule(::typeof(call_disagreeKern), previous_prob_maps,current_probMap,Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)
     
-    Aout = call_disagreeKern( p,Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)#CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad )
-    function call_test_kernel1_pullback(dAout)
-        dp = CUDA.ones(size(p))
+    Aout = call_disagreeKern( previous_prob_maps,current_probMap,Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)#CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad )
+    function disagreeKern_pullback(dAout)
+
+        d_previous_prob_maps= CUDA.ones(size(previous_prob_maps))
+        d_current_probMap= CUDA.ones(size(current_probMap))
         #@device_code_warntype @cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, CuArray(collect(dAout)),Nx)
-        @cuda threads = threads_disagreeKern blocks = blocks_disagreeKern disagreeKern_Deff(p, dp, Aout, CuArray(collect(dAout)),Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)
+        @cuda threads = threads_disagreeKern blocks = blocks_disagreeKern disagreeKern_Deff(
+            previous_prob_maps,d_previous_prob_maps,current_probMap,d_current_probMap
+            ,Aout,CuArray(collect(dAout)),Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)
        
-        return NoTangent(), dp,NoTangent(),NoTangent(),NoTangent(),NoTangent(),NoTangent()
+        return NoTangent(), d_previous_prob_maps,d_current_probMap ,NoTangent(),NoTangent(),NoTangent(),NoTangent(),NoTangent()
     end   
-    return Aout, call_test_kernel1_pullback
+    return Aout, disagreeKern_pullback
 
 end
 
