@@ -8,16 +8,16 @@ rng = Random.MersenneTwister()
 dim_x,dim_y,dim_z=64,64,64
 base_arr=rand(dim_x,dim_y,dim_z )
 base_arr=Float32.(reshape(base_arr, (dim_x,dim_y,dim_z,1,1)))
-
-
-
-
-ps, st = Lux.setup(rng, model)
-out = Lux.apply(model, base_arr, ps, st)
-size(out[1])
+threads_CalculateFeatures=(8,8,8) 
+blocks_CalculateFeatures=(8,8,8)
+threads_CalculateFeatures_variance=(8,8,8)
+blocks_CalculateFeatures_variance=(8,8,8)
+# ps, st = Lux.setup(rng, model)
+# out = Lux.apply(model, base_arr, ps, st)
+# size(out[1])
 
 ######## define features array
-image=base_arr
+image=CuArray(base_arr)
 r_features=2
 r_feature_variance=1
 featuresNumb=2

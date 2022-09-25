@@ -1,6 +1,6 @@
 using Flux,Lux, Random,Optimisers,Revise, CUDA
-include("C:\\projects\\superVoxelJuliaCode\\differentiableClustering\\sequentialMultiLayer\\unetLux.jl")
-include("C:\\projects\\superVoxelJuliaCode\\differentiableClustering\\sequentialMultiLayer\\multLayer.jl")
+# include("C:\\projects\\superVoxelJuliaCode\\differentiableClustering\\sequentialMultiLayer\\unetLux.jl")
+# include("C:\\projects\\superVoxelJuliaCode\\differentiableClustering\\sequentialMultiLayer\\multLayer.jl")
 
 
 
@@ -25,9 +25,9 @@ function prepareFeatures( image
     featuresArrSize=(mainArrSize...,featuresNumb+1,1 )
      image_features=call_calculateFeatures(image,mainArrSize,r_features,featuresNumb,threads_CalculateFeatures,blocks_CalculateFeatures )
 
-    return call_calculateFeatures_varianvce(image_features,featuresArrSize,r,featuresNumb
+    return call_calculateFeatures_varianvce(image_features,featuresArrSize,r_feature_variance,featuresNumb
     ,threads_CalculateFeatures_variance,blocks_CalculateFeatures_variance )
-
+end#prepareFeatures
 
 
 

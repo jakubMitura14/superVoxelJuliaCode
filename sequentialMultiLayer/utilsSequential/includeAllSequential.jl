@@ -9,3 +9,4 @@ includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLay
 includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/losses/spreadLoss.jl")
 includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/losses/perLayerCost.jl")
 includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/losses/disAgreementLoss.jl")
+includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/superVoxelMultilayer.jl")
