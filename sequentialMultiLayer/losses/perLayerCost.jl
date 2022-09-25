@@ -28,7 +28,6 @@ in feature space
 
 
 
-Flux.Losses.logitbinarycrossentropy(a,b)
 
 
 

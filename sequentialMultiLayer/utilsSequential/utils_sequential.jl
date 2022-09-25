@@ -2,8 +2,9 @@
 """
 given two inputs return given entry
 """
-using Revise
 
+
+using Revise
 using Zygote, Lux,Enzyme,Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
 
@@ -19,7 +20,7 @@ end
 Lux.initialparameters(rng::AbstractRNG, l::SelectTupl_str)=NamedTuple()
 
 function Lux.initialstates(::AbstractRNG, l::SelectTupl_str)
-    return(to_select=l,to_select, )
+    return(to_select=l.to_select, )
 end #initialstates    
 
 
@@ -27,7 +28,6 @@ end #initialstates
 function (l::SelectTupl_str)(origTupl, ps, st::NamedTuple)
       return origTupl[l.to_select],st
 end
-
 
 
 

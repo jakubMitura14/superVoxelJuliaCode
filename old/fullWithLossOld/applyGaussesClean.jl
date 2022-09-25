@@ -7,7 +7,7 @@
 using ChainRulesCore,Zygote,CUDA,Enzyme
 using CUDAKernels
 using KernelAbstractions
-using KernelGradients
+# using KernelGradients
 using Zygote, Lux
 using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote

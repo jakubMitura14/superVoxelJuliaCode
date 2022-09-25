@@ -21,7 +21,6 @@ includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/includeAll.j
 using ChainRulesCore,Zygote,CUDA,Enzyme
 using CUDAKernels
 using KernelAbstractions
-using KernelGradients
 using Zygote, Lux
 using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote

@@ -2,8 +2,7 @@
 here we need to compare the last supervoxel map with accumulated previous ones
 main idea is that we want to achieve maximum disagreement in places where one probMap gives high value
 other should give small - places where both array have small values are ok 
-"""
-"""
+
 we can calculate the variance of current position relative to 3
     corners (triangulation)
     so we get euclidean distance to corner a times p we save then the same relative to corner b and C
@@ -41,7 +40,7 @@ function disagreeKern_Deff( previous_prob_maps,d_previous_prob_maps
     , dAout,Nx,Ny,Nz)
     Enzyme.autodiff_deferred(disagreeKern, Const,
      Duplicated(previous_prob_maps,d_previous_prob_maps)
-     Duplicated(current_probMap,d_current_probMap)
+     ,Duplicated(current_probMap,d_current_probMap)
      , Duplicated(Aout, dAout)
      ,Const(Nx)
      ,Const(Ny)

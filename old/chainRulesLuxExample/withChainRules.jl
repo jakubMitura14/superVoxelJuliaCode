@@ -8,7 +8,7 @@ using CUDA
 using CUDAKernels
 using Enzyme
 using KernelAbstractions
-using KernelGradients
+# using KernelGradients
 using Zygote, Lux
 using Lux, Random
 

@@ -1,6 +1,5 @@
 
 using Flux,Lux, Random,Optimisers
-include("C:\\projects\\superVoxelJuliaCode\\differentiableClustering\\sequentialMultiLayer\\utils_sequential.jl")
 
 """
 get transposed convolution from flux to Lux
@@ -112,7 +111,7 @@ function getModel(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_numb,
     sc_param_1= Parallel(myGetTuple,    
                     Parallel(myCatt4#concatenetion of Outputs
                     #first we need to process 
-                    ,Lux.Chain(SelectTupl(1), # here we get just the reduced representation 
+                    ,Lux.Chain(SelectTupl(1) # here we get just the reduced representation 
                     ,getPerSVLayer(2,1,rdim_x,rdim_y,rdim_z ) # it holds trainable parameters for this first supervoxel  output will the same first 3 dimensions as primar imput(orig array with features)
                         )
                     #we are just passing the input to be concatenated to output
@@ -143,7 +142,7 @@ function getModel(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_numb,
         sc_param= Parallel(myGetTuple,    
                         Parallel(myCatt4#concatenetion of Outputs
                         #first we need to process 
-                        ,Lux.Chain(SelectTupl(2), # here we get r
+                        ,Lux.Chain(SelectTupl(2) # here we get r
                         ,getPerSVLayer(2,1,rdim_x,rdim_y,rdim_z ) # it holds trainable parameters for this first supervoxel  output will the same first 3 dimensions as primar imput(orig array with features)
                             )
                         #we are just passing the input to be concatenated to output
@@ -225,27 +224,3 @@ end #getModelParts
 
 
 
-
-
-# function (s::Siamese)(x1::AbstractArray{T, 2},x2::AbstractArray{T, 2},
-#     ps::NamedTuple,
-#     st::NamedTuple) where {T}
-# # Euclidean distance col-wise
-# eucl_dist(x1,x2)=colwise(Euclidean(), x1,x2)
-
-# # function that will pass each x through the embedding network
-# # and join them via Euclidean distance (col-wise applied)
-# two_towers_to_eucl=Parallel(eucl_dist,s.emb,s.emb)
-
-# dist, st_emb = two_towers_to_eucl((x1, x2), 
-# (layer_1=ps.emb, layer_2=ps.emb), 
-# (layer_1=st.emb, layer_2=st.emb))
-
-# # After running through the sequence we will pass the output through the classifier
-# y, st_classifier = s.classifier(reshape(dist,1,:), ps.classifier, st.classifier)
-
-# # Finally remember to create the updated state
-# st = merge(st, (classifier=st_classifier, emb=st_emb))
-
-# return vec(y), st
-# end

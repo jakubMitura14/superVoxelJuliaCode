@@ -5,8 +5,6 @@ generate simple data for experiments with the differentiable supervoxel framewor
 module generate_synth_simple
 
 export saveAndVisRandGraphNoAlgoOutPutSeen,getRand_graph_andArr
-
-
 using EmbeddedGraphs
 using Distances
 using Graphs
@@ -19,7 +17,8 @@ using Flux
 using Lux
 using ForwardDiff
 using Pkg
-#Pkg.add(url="https://github.com/jakubMitura14/MedEye3d.jl.git")
+Pkg.add(url="https://github.com/jakubMitura14/MedEye3d.jl.git")
+Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
 import MedEye3d
 import MedEye3d.ForDisplayStructs
 import MedEye3d.ForDisplayStructs.TextureSpec
