@@ -46,13 +46,13 @@ RUN apt-get update -q -y && \
         python-dev\
         bzip2\
         cmake\
-        cuda-command-line-tools-11.3 \
-        libcublas-11.3 \
-        cuda-nvrtc-11.3\
-        libcufft-11.3 \
-        libcurand-11.3 \
-        libcusolver-11.3 \
-        libcusparse-11.3 \
+        cuda-command-line-tools-11.7 \
+        libcublas-11.7 \
+        cuda-nvrtc-11.7\
+        libcufft-11.7 \
+        libcurand-11.7 \
+        libcusolver-11.7 \
+        libcusparse-11.7 \
         libfreetype6-dev \
         curl\
         libzmq3-dev \
@@ -85,21 +85,30 @@ RUN apt-get update -q -y && \
         apt-get install -q -y --reinstall ca-certificates
 
 
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
+RUN mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
+RUN wget https://developer.download.nvidia.com/compute/cuda/11.7.0/local_installers/cuda-repo-ubuntu2004-11-7-local_11.7.0-465.19.01-1_amd64.deb
+RUN dpkg -i cuda-repo-ubuntu2004-11-7-local_11.7.0-465.19.01-1_amd64.deb
+RUN apt-key add /var/cuda-repo-ubuntu2004-11-7-local/7fa2af80.pub
+RUN apt-get update
+RUN apt-get -y install cuda-11.7
+RUN apt-key add /var/cuda-repo-ubuntu2004-11-7-local/7fa2af80.pub
+RUN echo 'APT::Install-Recommends "0" ; APT::Install-Suggests "0" ;' >> /etc/apt/apt.conf && \
+    echo 'Dir::Cache::pkgcache "";\nDir::Cache::srcpkgcache "";' | tee /etc/apt/apt.conf.d/00_disable-cache-files
+
+
+
 #from https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#package-manager-ubuntu-install
-# wget https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/cuda-${OS}.pin 
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin 
 
-# sudo mv cuda-${OS}.pin /etc/apt/preferences.d/cuda-repository-pin-600
-# sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/3bf863cc.pub
-# sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/ /"
-# sudo apt-get update
-# Where ${OS} is ubuntu1804, ubuntu2004, or ubuntu2204.
+RUN  mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
+RUN  apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
+RUN  add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
+RUN  apt-get update
 
-# Install the cuDNN library:
-# sudo apt-get install libcudnn8=${cudnn_version}-1+${cuda_version}
-# sudo apt-get install libcudnn8-dev=${cudnn_version}-1+${cuda_version}
-# Where:
-# ${cudnn_version} is 8.5.0.*
-# ${cuda_version} is cuda10.2 or cuda11.7
+RUN  apt-get install libcudnn8=8.5.0.1-1+cuda11.7
+RUN  apt-get install libcudnn8-dev=8.5.0.1-1+cuda11.7
+
 
 
 ###############3from https://github.com/jrottenberg/ffmpeg/blob/main/docker-images/5.1/ubuntu2004/Dockerfile
