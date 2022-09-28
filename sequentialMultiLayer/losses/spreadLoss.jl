@@ -27,35 +27,34 @@ function spreadKern(p, Aout,Nx,Ny,Nz)
     #check if we are in range
     if(x<Nx && y<Ny && z<Nz) 
         #dist to top left posterior corner
-        Aout[x, y, z,1]= (((x-1)^2)+((y-1)^2) +((z-1)^2))*(p[x,y,z])^2
+        Aout[x, y, z,1]= x#(((x))+((y)) +((z)))#*(p[x,y,z])^2
         #dist to bottom right anterior corner
-        Aout[x, y, z,2]= (((x-Nx)^2)+((y-Ny)^2) +((z-Nz)^2))*(p[x,y,z])^2
+        Aout[x, y, z,2]= y#(((x-Nx))+((y-Ny)) +((z-Nz)))#*(p[x,y,z])^2
         #dist to top right anterior corner
-        Aout[x, y, z,3]= (((x-1)^2)+((y-Ny)^2) +((z-Nz)^2))*(p[x,y,z])^2       
+        Aout[x, y, z,3]= z#(((x))+((y-Ny)) +((z-Nz)))#*(p[x,y,z])^2       
     end    
     return nothing
 end
 
 function spreadKern_Deff( p
     , dp, Aout
-    , dAout,Nx,Ny,Nz)
+    , dAout,Nx,Ny,Nz,threads_spreadKern,blocks_spreadKern)
     Enzyme.autodiff_deferred(spreadKern, Const,
      Duplicated(p, dp)
      , Duplicated(Aout, dAout)
      ,Const(Nx)
      ,Const(Ny)
      ,Const(Nz)
+     ,Const(threads_spreadKern),Const(blocks_spreadKern)
     )
     return nothing
 end
 
-function call_spreadKern(A, p,Nx,Ny,Nz,threads_spreadKern,blocks_spreadKern)
+function call_spreadKern(p,Nx,Ny,Nz,threads_spreadKern,blocks_spreadKern)
     Aout = CUDA.zeros(Nx, Ny, Nz,3,1 ) 
     @cuda threads = threads_spreadKern blocks = blocks_spreadKern spreadKern(p,  Aout,Nx,Ny,Nz)
     return Aout
 end
-
-
 
 # rrule for ChainRules.
 function ChainRulesCore.rrule(::typeof(call_spreadKern), A, p,Nx,Ny,Nz,threads_spreadKern,blocks_spreadKern)
@@ -95,9 +94,11 @@ function Lux.initialstates(::AbstractRNG, l::spreadKern_str)::NamedTuple
 end
 
 function (l::spreadKern_str)(x, ps, st::NamedTuple)
-    calculated=call_spreadKern(x[1][:,:,:,l.probMapChannel,:],ps.p,l.Nx,l.Ny,l.Nz,l.threads_spreadKern,l.blocks_spreadKern )
+    
+    thresholdedProb=softThreshold_half.(x[1][:,:,:,l.probMapChannel,:])
+    calculated=call_spreadKern(x[1][:,:,:,l.probMapChannel,:],l.Nx,l.Ny,l.Nz,l.threads_spreadKern,l.blocks_spreadKern )
     # so using triangulation we add variance in position relative to 3 corners x[2] is the loss that is already accumulated from previous supervoxels
-    spreadLoss=var(calculated[:,:,:,1,1])+var(calculated[:,:,:,2,1])+var(calculated[:,:,:,3,1])+x[2]
+    spreadLoss=var(calculated[:,:,:,1,1]*thresholdedProb)+var(calculated[:,:,:,2,1]*thresholdedProb)+var(calculated[:,:,:,3,1]*thresholdedProb)+x[2]
      
      return (x[1],spreadLoss) ,st
 end

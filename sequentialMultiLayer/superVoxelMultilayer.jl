@@ -25,8 +25,11 @@ function prepareFeatures( image
     featuresArrSize=(mainArrSize...,featuresNumb+1,1 )
      image_features=call_calculateFeatures(image,mainArrSize,r_features,featuresNumb,threads_CalculateFeatures,blocks_CalculateFeatures )
 
-    return call_calculateFeatures_varianvce(image_features,featuresArrSize,r_feature_variance,featuresNumb
-    ,threads_CalculateFeatures_variance,blocks_CalculateFeatures_variance )
+    # return call_calculateFeatures_varianvce(image_features,featuresArrSize,r_feature_variance,featuresNumb
+    # ,threads_CalculateFeatures_variance,blocks_CalculateFeatures_variance )
+    return image_features
+
+
 end#prepareFeatures
 
 

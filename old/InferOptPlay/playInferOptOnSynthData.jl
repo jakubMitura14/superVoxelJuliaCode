@@ -28,8 +28,8 @@ import MedEye3d.OpenGLDisplayUtils
 import MedEye3d.DisplayWords.textLinesFromStrings
 import MedEye3d.StructsManag.getThreeDims
 import MedEye3d.DisplayWords.textLinesFromStrings
-using HDF5,Colors
-using MedPipe3D.LoadFromMonai, MedPipe3D.HDF5saveUtils,MedEye3d.visualizationFromHdf5, MedEye3d.distinctColorsSaved
+using HDF5, Colors
+using MedPipe3D.LoadFromMonai, MedPipe3D.HDF5saveUtils, MedEye3d.visualizationFromHdf5, MedEye3d.distinctColorsSaved
 using Logging
 using Main.generate_synth_simple
 using Lux, NNlib, Random, Optimisers
@@ -38,30 +38,30 @@ using Lux, NNlib, Random, Optimisers
 
 ##some constants defining possible discrepancies between distributions defined in termes of js divergence
 #for two connected distributions
-minConnectedDiff=5.0
-maxConnectedDiff=5.5
+minConnectedDiff = 5.0
+maxConnectedDiff = 5.5
 
 ###parameters
 #how many nodes will create a random graph
-numberOfNodes=25
+numberOfNodes = 25
 #maximum distance between 2 verticies that will lead to creation of the edge between them
-maxDistToJoin=0.35
+maxDistToJoin = 0.35
 #dimensions of the array in which the image will be EmbeddedGraphs
-dim_x,dim_y,dim_z =128,128,128
+dim_x, dim_y, dim_z = 128, 128, 128
 #minimum allowed distance between two nodes must be number between 0 and 1 
-minDist=0.2
+minDist = 0.2
 #minimum number of edges
-minEdges=13
+minEdges = 13
 #set how big at the maximum should be spheres occupied by a node
-number_iters = Int(round(minDist*minimum([dim_x,dim_y,dim_z])))
+number_iters = Int(round(minDist * minimum([dim_x, dim_y, dim_z])))
 
 
-base_arr,randGG=getRand_graph_andArr(numberOfNodes,maxDistToJoin, dim_x,dim_y,dim_z ,minConnectedDiff,maxConnectedDiff,minDist,minEdges,number_iters)
-pathToHDF5="/home/jakub/projects/hdf5Data/forGraphDataSet.hdf5"
+base_arr, randGG = getRand_graph_andArr(numberOfNodes, maxDistToJoin, dim_x, dim_y, dim_z, minConnectedDiff, maxConnectedDiff, minDist, minEdges, number_iters)
+pathToHDF5 = "/home/jakub/projects/hdf5Data/forGraphDataSet.hdf5"
 
-patienGroupName="3"
+patienGroupName = "3"
 fid = h5open(pathToHDF5, "w")
-mainScrollDat,algoOutput=saveAndVisRandGraphNoAlgoOutPutSeen(base_arr,fid,patienGroupName,dim_x,dim_y,dim_z)
+mainScrollDat, algoOutput = saveAndVisRandGraphNoAlgoOutPutSeen(base_arr, fid, patienGroupName, dim_x, dim_y, dim_z)
 
 gplot(randGG)
 
@@ -106,23 +106,23 @@ Lux.initialparameters(rng::AbstractRNG, l::FluxCompatLayer) = (p=l.init_paramete
 # some example for convolution https://github.com/avik-pal/Lux.jl/blob/main/lib/Boltz/src/vision/vgg.jl
 # 3D layer utilities from https://github.com/Dale-Black/MedicalModels.jl/blob/master/src/utils.jl
 
-tran = ( in, out) -> Flux.ConvTranspose((3, 3, 3), in=>out, stride=2, pad=Flux.SamePad())
+tran = (in, out) -> Flux.ConvTranspose((3, 3, 3), in => out, stride=2, pad=Flux.SamePad())
 
-conv1 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.tanh, stride=1)
-conv2 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.tanh, stride=2)
+conv1 = (in, out) -> Lux.Conv((3, 3, 3), in => out, NNlib.tanh, stride=1)
+conv2 = (in, out) -> Lux.Conv((3, 3, 3), in => out, NNlib.tanh, stride=2)
 
-tran2(in_chan,out_chan) = FluxCompatLayer(tran(in_chan,out_chan))
+tran2(in_chan, out_chan) = FluxCompatLayer(tran(in_chan, out_chan))
 
 
 
 using Lux
 # vggModel=vgg_block(1,1,2)
 rng = Random.MersenneTwister()
-base_arr=reshape(base_arr, (dim_x,dim_y,dim_z,1,1))
+base_arr = reshape(base_arr, (dim_x, dim_y, dim_z, 1, 1))
 #model = Lux.Chain(Lux.Dense(100, 13200, NNlib.tanh),  )
 
-in_chs=1
-lbl_chs=1
+in_chs = 1
+lbl_chs = 1
 # Contracting layers
 # l1 = Lux.Chain(conv1(in_chs, 4))
 # l2 = Lux.Chain(l1, conv1(4, 4), conv2(4, 16))
@@ -139,8 +139,8 @@ lbl_chs=1
 
 
 l1 = Lux.Chain(conv2(1, 1))
-l2=tran2(1, 1)
-mm=Lux.Chain(l1,l2)
+l2 = tran2(1, 1)
+mm = Lux.Chain(l1, l2)
 
 
 model = Lux.Chain(
@@ -148,14 +148,14 @@ model = Lux.Chain(
     #,Lux.Parallel(+, l1, l2)
     # tran2(lbl_chs, lbl_chs)
     # ,Lux.Conv((3,3,3),  1 => 1 , NNlib.tanh, stride=1,pad=2)
-     )
+)
 #model = Lux.Parallel(+, mm, l1)
 
 #model = Lux.Chain(l1, tran2(4, lbl_chs))
 
 
 rng = Random.MersenneTwister()
-base_arr=reshape(base_arr, (dim_x,dim_y,dim_z,1,1))
+base_arr = reshape(base_arr, (dim_x, dim_y, dim_z, 1, 1))
 
 ps, st = Lux.setup(rng, model)
 out = Lux.apply(model, base_arr, ps, st)
@@ -165,19 +165,11 @@ size(out[1]) # we gat smaller
 using Lux
 # vggModel=vgg_block(1,1,2)
 rng = Random.MersenneTwister()
-base_arr=reshape(base_arr, (dim_x,dim_y,dim_z,1,1))
+base_arr = reshape(base_arr, (dim_x, dim_y, dim_z, 1, 1))
 #model = Lux.Chain(Lux.Dense(100, 13200, NNlib.tanh),  )
 model = Lux.Chain(
-    Lux.Conv((3,3,3),  1 => 2 , NNlib.tanh, stride=2)
-    ,Lux.Conv((3,3,3),  2 => 2 , NNlib.tanh, stride=2)
-    ,Lux.Conv((3,3,3),  2 => 2 , NNlib.tanh, stride=2)
-    ,Lux.Conv((3,3,3),  2 => 2 , NNlib.tanh, stride=2)
-    ,tranConvLux(2,2)
-    ,tranConvLux(2,2)
-    ,tranConvLux(2,2)
-    ,tranConvLux(2,2)
-    ,Lux.Conv((3,3,3),  2 => 1 , NNlib.tanh, stride=1, pad=1)
-    )
+    Lux.Conv((3, 3, 3), 1 => 2, NNlib.tanh, stride=2), Lux.Conv((3, 3, 3), 2 => 2, NNlib.tanh, stride=2), Lux.Conv((3, 3, 3), 2 => 2, NNlib.tanh, stride=2), Lux.Conv((3, 3, 3), 2 => 2, NNlib.tanh, stride=2), tranConvLux(2, 2), tranConvLux(2, 2), tranConvLux(2, 2), tranConvLux(2, 2), Lux.Conv((3, 3, 3), 2 => 1, NNlib.tanh, stride=1, pad=1)
+)
 ps, st = Lux.setup(rng, model)
 out = Lux.apply(model, base_arr, ps, st)
 size(out[1]) # we gat smaller 
@@ -187,13 +179,13 @@ size(out[1]) # we gat smaller
 
 
 
-arr= ones(5,5,5)
-isToContinue=true
+arr = ones(5, 5, 5)
+isToContinue = true
 while (true)
     for i in 2:4, j in 2:4, k in 2:4
-        arr[i,j,j]=arr[i+1,j,k]+arr[i,j+1,k]+arr[i,j,k+1] 
+        arr[i, j, j] = arr[i+1, j, k] + arr[i, j+1, k] + arr[i, j, k+1]
     end#for
-    sum(arr)>5*5*5*2 || break
+    sum(arr) > 5 * 5 * 5 * 2 || break
 end#while
 
 arr[1]
@@ -230,7 +222,7 @@ end
 
 
 
-model = Lux.Chain(Lux.BatchNorm((dim_x,dim_y,dim_z)), Lux.Dense((dim_x,dim_y,dim_z), (dim_x,dim_y,dim_z,256), NNlib.tanh))
+model = Lux.Chain(Lux.BatchNorm((dim_x, dim_y, dim_z)), Lux.Dense((dim_x, dim_y, dim_z), (dim_x, dim_y, dim_z, 256), NNlib.tanh))
 
 
 # model = Chain(BatchNorm((dim_x,dim_y,dim_z)), Dense((dim_x,dim_y,dim_z), (dim_x,dim_y,dim_z,256), NNlib.tanh)

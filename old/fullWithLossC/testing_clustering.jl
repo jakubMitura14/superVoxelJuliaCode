@@ -1,33 +1,33 @@
-using Revise,Random
+using Revise, Random
 includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/includeAll.jl")
 using Distributions
 
 Nx, Ny, Nz = 32, 32, 32
 oneSidePad = 1
-totalPad = oneSidePad*2
-dim_x,dim_y,dim_z= Nx+totalPad, Ny+totalPad, Nz+totalPad
+totalPad = oneSidePad * 2
+dim_x, dim_y, dim_z = Nx + totalPad, Ny + totalPad, Nz + totalPad
 
 crossBorderWhere = 16
 # sitk=MedPipe3D.LoadFromMonai.getSimpleItkObject()
-pathToHDF5="/home/jakub/CTORGmini/smallDataSet.hdf5"
+pathToHDF5 = "/home/jakub/CTORGmini/smallDataSet.hdf5"
 data_dir = "/home/jakub/CTORGmini"
 
 #how many gaussians we will specify 
 const gauss_numb_top = 8
-r=3 #the radius for features calculations
-featuresNumb=2 #number of analyzed features (4th dimension ...)
+r = 3 #the radius for features calculations
+featuresNumb = 2 #number of analyzed features (4th dimension ...)
 threads_apply_gauss = (8, 8, 8)
 blocks_apply_gauss = (4, 4, 4)
-threads_CalculateFeatures= (8, 8, 8)
+threads_CalculateFeatures = (8, 8, 8)
 blocks_CalculateFeatures = (4, 4, 4)
 
 
 rng = Random.default_rng()
-origArr,indArr=createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
+origArr, indArr = createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
 
- 
+
 modelConv = getConvModel()
-gaussApplyLayer=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss,1)
+gaussApplyLayer = Gauss_apply(gauss_numb_top, threads_apply_gauss, blocks_apply_gauss, 1)
 
 """
 important skip connection here gets input and concatenate it with the output of the last layer
@@ -35,21 +35,21 @@ and the concatenated dimensions are last so for example if we have 3 channels in
     and we will concatenate
     we will have output of a model as a first channel and channels 2,3,4 will be input
 """
-model=Lux.Chain(
-    Lux.SkipConnection(modelConv, myCatt),gaussApplyLayer )
+model = Lux.Chain(
+    Lux.SkipConnection(modelConv, myCatt), gaussApplyLayer)
 
 ps, st = Lux.setup(rng, model)
 # x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
-x= CuArray(origArr)
-x=call_calculateFeatures(x,size(x),r,featuresNumb,threads_CalculateFeatures,blocks_CalculateFeatures )
+x = CuArray(origArr)
+x = call_calculateFeatures(x, size(x), r, featuresNumb, threads_CalculateFeatures, blocks_CalculateFeatures)
 #additionally we want to normalize the input in each layer separately
-imageView=view(x,:,:,:,1,:)
-meanView=view(x,:,:,:,2,:)
-varView=view(x,:,:,:,3,:)
+imageView = view(x, :, :, :, 1, :)
+meanView = view(x, :, :, :, 2, :)
+varView = view(x, :, :, :, 3, :)
 #normalization
-imageView[:,:,:,:,:]= imageView./maximum(imageView) 
-meanView[:,:,:,:,:]= meanView./maximum(meanView) 
-varView[:,:,:,:,:]= varView./maximum(varView) 
+imageView[:, :, :, :, :] = imageView ./ maximum(imageView)
+meanView[:, :, :, :, :] = meanView ./ maximum(meanView)
+varView[:, :, :, :, :] = varView ./ maximum(varView)
 # ps=ps.|> Lux.gpu
 
 # y_pred, st =Lux.apply(model, x, ps, st) 
@@ -61,7 +61,7 @@ opt = Optimisers.NAdam(0.003)
 function clusteringLossA(model, ps, st, x)
     y_pred, st = Lux.apply(model, x, ps, st)
     # print("   sizzzz $(size(y_pred))       ")
-    res= sum(y_pred)
+    res = sum(y_pred)
     return res, st, ()
 
     # return 1*(sum(y_pred)), st, ()
@@ -76,18 +76,18 @@ vjp_rule = Lux.Training.ZygoteVJP()
 
 function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, data,
     epochs::Int)
-   # data = data .|> Lux.gpu
+    # data = data .|> Lux.gpu
     for epoch in 1:epochs
         grads, loss, stats, tstate = Lux.Training.compute_gradients(vjp, clusteringLossA,
-                                                                data, tstate)
-        @info epoch=epoch loss=loss
+            data, tstate)
+        @info epoch = epoch loss = loss
         tstate = Lux.Training.apply_gradients(tstate, grads)
     end
     return tstate
 end
 
-tstate = main(tstate, vjp_rule, x,1)
-tstate = main(tstate, vjp_rule, x,3000)
+tstate = main(tstate, vjp_rule, x, 1)
+tstate = main(tstate, vjp_rule, x, 3000)
 
 # tstate = main(tstate, vjp_rule, x,1500)
 
@@ -96,53 +96,53 @@ tstate = main(tstate, vjp_rule, x,3000)
 ############################ visualization
 
 
-function applyGaussKern_for_vis(means,stdGaus,origArr,out,meansLength)
+function applyGaussKern_for_vis(means, stdGaus, origArr, out, meansLength)
     #adding one becouse of padding
     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
     #iterate over all gauss parameters
     maxx = 0.0
-    index=0
-    
+    index = 0
+
     for i in 1:meansLength
-       vall=univariate_normal(origArr[x,y,z,1,1], means[i], stdGaus[i]^2)
-       #CUDA.@cuprint "vall $(vall) i $(i)   " 
-       if(vall>maxx)
-            maxx=vall
-            index=i
+        vall = univariate_normal(origArr[x, y, z, 1, 1], means[i], stdGaus[i]^2)
+        #CUDA.@cuprint "vall $(vall) i $(i)   " 
+        if (vall > maxx)
+            maxx = vall
+            index = i
         end #if     
     end #for
 
-    out[x,y,z,1,1]=float(index)    
+    out[x, y, z, 1, 1] = float(index)
     return nothing
 end
-psss=tstate.parameters
-a,b=psss
-stdGaus,means=b
+psss = tstate.parameters
+a, b = psss
+stdGaus, means = b
 out = CUDA.zeros(size(origArr))
 
 # pss= Lux.gpu(psss)
 # stt= Lux.gpu(st)
 # y_pred, st = Lux.apply(model, origArr, pss, stt)
-@cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern_for_vis(means,stdGaus,x,out,gauss_numb_top)
+@cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern_for_vis(means, stdGaus, x, out, gauss_numb_top)
 
-outCpu= Array(out)
+outCpu = Array(out)
 
 maximum(outCpu)
 minimum(outCpu)
 
-p1 = heatmap(outCpu[:,:,8]) 
-p2 = heatmap(outCpu[:,19,:])
-p3 = heatmap(outCpu[2,:,:])
-p4 = heatmap(outCpu[30,:,:])
+p1 = heatmap(outCpu[:, :, 8])
+p2 = heatmap(outCpu[:, 19, :])
+p3 = heatmap(outCpu[2, :, :])
+p4 = heatmap(outCpu[30, :, :])
 
-plot(p1, p2, p3, p4, layout = (2, 2), legend = false)
+plot(p1, p2, p3, p4, layout=(2, 2), legend=false)
 
 
 
 l6
-1+1
+1 + 1
 # using Pkg
 # Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
 # 1+1
@@ -311,20 +311,20 @@ l6
 
 #     top_left_post =view(y_pred,tops:tope,lefts:lefte, posteriors:posteriore )
 #     top_right_post =view(y_pred,tops:tope,rights:righte, posteriors:posteriore)
-    
+
 #     top_left_ant =view(y_pred,tops:tope,lefts:lefte, anteriors:anteriore )
 #     top_right_ant =view(y_pred,tops:tope,rights:righte, anteriors:anteriore ) 
-    
+
 #     bottom_left_post =view(y_pred,bottoms:bottome,lefts:lefte, posteriors:posteriore ) 
 #     bottom_right_post =view(y_pred,bottoms:bottome,rights:righte, posteriors:posteriore ) 
-    
+
 #     bottom_left_ant =view(y_pred,bottoms:bottome,lefts:lefte, anteriors:anteriore )
 #     bottom_right_ant =view(y_pred,bottoms:bottome,rights:righte, anteriors:anteriore ) 
-    
+
 #     varss= map(var  ,[top_left_post,top_right_post, top_left_ant,top_right_ant,bottom_left_post,bottom_right_post,bottom_left_ant, bottom_right_ant ])
 #     means= map(mean  ,[top_left_post,top_right_post, top_left_ant,top_right_ant,bottom_left_post,bottom_right_post,bottom_left_ant, bottom_right_ant ])
-    
-    
+
+
 #     # so we want maximize the ypred values so evrywhere we will have high prob in some gaussian
 #     # minimize variance inside the regions
 #     # maximize variance between regions

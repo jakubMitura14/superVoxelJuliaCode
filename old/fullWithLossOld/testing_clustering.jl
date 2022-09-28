@@ -3,12 +3,12 @@ using Distributions
 
 Nx, Ny, Nz = 32, 32, 32
 oneSidePad = 1
-totalPad = oneSidePad*2
-dim_x,dim_y,dim_z= Nx+totalPad, Ny+totalPad, Nz+totalPad
+totalPad = oneSidePad * 2
+dim_x, dim_y, dim_z = Nx + totalPad, Ny + totalPad, Nz + totalPad
 
 crossBorderWhere = 16
 # sitk=MedPipe3D.LoadFromMonai.getSimpleItkObject()
-pathToHDF5="/home/jakub/CTORGmini/smallDataSet.hdf5"
+pathToHDF5 = "/home/jakub/CTORGmini/smallDataSet.hdf5"
 data_dir = "/home/jakub/CTORGmini"
 
 #how many gaussians we will specify 
@@ -19,61 +19,61 @@ blocks_apply_gauss = (4, 4, 4)
 
 
 rng = Random.default_rng()
-origArr,indArr=createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
+origArr, indArr = createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
 
 
 modelConv = getConvModel()
-gaussApplyLayer=Gauss_apply(gauss_numb_top,threads_apply_gauss,blocks_apply_gauss)
-model=Lux.Chain(
-                    modelConv,
-                    gaussApplyLayer
-                    )
+gaussApplyLayer = Gauss_apply(gauss_numb_top, threads_apply_gauss, blocks_apply_gauss)
+model = Lux.Chain(
+    modelConv,
+    gaussApplyLayer
+)
 ps, st = Lux.setup(rng, model)
-x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
-x= CuArray(x)
+x = reshape(origArr, (dim_x, dim_y, dim_z, 1, 1))
+x = CuArray(x)
 #y_pred, st =Lux.apply(model, x, ps, st) 
 
 opt = Optimisers.NAdam(0.003)
 #opt = Optimisers.Adam(0.003)
 #opt = Optimisers.OptimiserChain(Optimisers.ClipGrad(1.0), Optimisers.NAdam());
 
-const tops=1+Int(oneSidePad)
-const tope=Int(crossBorderWhere)+ Int(oneSidePad)
-const bottoms=crossBorderWhere
-const bottome=Nz+ oneSidePad
-const lefts=1+oneSidePad
-const lefte=crossBorderWhere+ oneSidePad
-const rights=crossBorderWhere+ oneSidePad+1
-const righte=Nx+ oneSidePad
-const anteriors=crossBorderWhere+ oneSidePad+1
-const anteriore=Ny+ oneSidePad
-const posteriors=1+oneSidePad
-const posteriore=crossBorderWhere+ oneSidePad
+const tops = 1 + Int(oneSidePad)
+const tope = Int(crossBorderWhere) + Int(oneSidePad)
+const bottoms = crossBorderWhere
+const bottome = Nz + oneSidePad
+const lefts = 1 + oneSidePad
+const lefte = crossBorderWhere + oneSidePad
+const rights = crossBorderWhere + oneSidePad + 1
+const righte = Nx + oneSidePad
+const anteriors = crossBorderWhere + oneSidePad + 1
+const anteriore = Ny + oneSidePad
+const posteriors = 1 + oneSidePad
+const posteriore = crossBorderWhere + oneSidePad
 
 
 function loss_function(model, ps, st, x)
     y_pred, st = Lux.apply(model, x, ps, st)
 
-    top_left_post =view(y_pred,tops:tope,lefts:lefte, posteriors:posteriore )
-    top_right_post =view(y_pred,tops:tope,rights:righte, posteriors:posteriore)
-    
-    top_left_ant =view(y_pred,tops:tope,lefts:lefte, anteriors:anteriore )
-    top_right_ant =view(y_pred,tops:tope,rights:righte, anteriors:anteriore ) 
-    
-    bottom_left_post =view(y_pred,bottoms:bottome,lefts:lefte, posteriors:posteriore ) 
-    bottom_right_post =view(y_pred,bottoms:bottome,rights:righte, posteriors:posteriore ) 
-    
-    bottom_left_ant =view(y_pred,bottoms:bottome,lefts:lefte, anteriors:anteriore )
-    bottom_right_ant =view(y_pred,bottoms:bottome,rights:righte, anteriors:anteriore ) 
-    
-    varss= map(var  ,[top_left_post,top_right_post, top_left_ant,top_right_ant,bottom_left_post,bottom_right_post,bottom_left_ant, bottom_right_ant ])
-    means= map(mean  ,[top_left_post,top_right_post, top_left_ant,top_right_ant,bottom_left_post,bottom_right_post,bottom_left_ant, bottom_right_ant ])
-    
-    
+    top_left_post = view(y_pred, tops:tope, lefts:lefte, posteriors:posteriore)
+    top_right_post = view(y_pred, tops:tope, rights:righte, posteriors:posteriore)
+
+    top_left_ant = view(y_pred, tops:tope, lefts:lefte, anteriors:anteriore)
+    top_right_ant = view(y_pred, tops:tope, rights:righte, anteriors:anteriore)
+
+    bottom_left_post = view(y_pred, bottoms:bottome, lefts:lefte, posteriors:posteriore)
+    bottom_right_post = view(y_pred, bottoms:bottome, rights:righte, posteriors:posteriore)
+
+    bottom_left_ant = view(y_pred, bottoms:bottome, lefts:lefte, anteriors:anteriore)
+    bottom_right_ant = view(y_pred, bottoms:bottome, rights:righte, anteriors:anteriore)
+
+    varss = map(var, [top_left_post, top_right_post, top_left_ant, top_right_ant, bottom_left_post, bottom_right_post, bottom_left_ant, bottom_right_ant])
+    means = map(mean, [top_left_post, top_right_post, top_left_ant, top_right_ant, bottom_left_post, bottom_right_post, bottom_left_ant, bottom_right_ant])
+
+
     # so we want maximize the ypred values so evrywhere we will have high prob in some gaussian
     # minimize variance inside the regions
     # maximize variance between regions
-    res= sum(varss)-sum(y_pred) -var(means)
+    res = sum(varss) - sum(y_pred) - var(means)
     return res, st, ()
 
     # return 1*(sum(y_pred)), st, ()
@@ -88,11 +88,11 @@ vjp_rule = Lux.Training.ZygoteVJP()
 
 function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, data,
     epochs::Int)
-   # data = data .|> Lux.gpu
+    # data = data .|> Lux.gpu
     for epoch in 1:epochs
         grads, loss, stats, tstate = Lux.Training.compute_gradients(vjp, loss_function,
-                                                                data, tstate)
-        @info epoch=epoch loss=loss
+            data, tstate)
+        @info epoch = epoch loss = loss
         tstate = Lux.Training.apply_gradients(tstate, grads)
     end
     return tstate
@@ -101,60 +101,60 @@ end
 # x = randn(rng, Float32, dim_x,dim_y,dim_z)
 # x =reshape(origArr, (dim_x,dim_y,dim_z,1,1))
 # tstate = main(tstate, vjp_rule, CuArray(x),1)
-origArr=CuArray(x)
-tstate = main(tstate, vjp_rule, origArr,1500)
+origArr = CuArray(x)
+tstate = main(tstate, vjp_rule, origArr, 1500)
 
 
 ############################ visualization
 
 
-function applyGaussKern_for_vis(means,stdGaus,origArr,out,meansLength)
+function applyGaussKern_for_vis(means, stdGaus, origArr, out, meansLength)
     #adding one becouse of padding
     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
     #iterate over all gauss parameters
     maxx = 0.0
-    index=0
-    
+    index = 0
+
     for i in 1:meansLength
-       vall=univariate_normal(origArr[x,y,z,1,1], means[i], stdGaus[i]^2)
-       CUDA.@cuprint "vall $(vall) i $(i)   " 
-       if(vall>maxx)
-            maxx=vall
-            index=i
+        vall = univariate_normal(origArr[x, y, z, 1, 1], means[i], stdGaus[i]^2)
+        CUDA.@cuprint "vall $(vall) i $(i)   "
+        if (vall > maxx)
+            maxx = vall
+            index = i
         end #if     
     end #for
 
-    out[x,y,z,1,1]=float(index)    
+    out[x, y, z, 1, 1] = float(index)
     return nothing
 end
-psss=tstate.parameters
-l1,l2,l3,l4,l5,l6=psss
-stdGaus,means=l6
+psss = tstate.parameters
+l1, l2, l3, l4, l5, l6 = psss
+stdGaus, means = l6
 out = CUDA.zeros(size(origArr))
 
-pss= Lux.gpu(psss)
-stt= Lux.gpu(st)
+pss = Lux.gpu(psss)
+stt = Lux.gpu(st)
 y_pred, st = Lux.apply(model, origArr, pss, stt)
-@cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern_for_vis(means,stdGaus,origArr,out,gauss_numb_top)
+@cuda threads = threads_apply_gauss blocks = blocks_apply_gauss applyGaussKern_for_vis(means, stdGaus, origArr, out, gauss_numb_top)
 
-outCpu= Array(out)
+outCpu = Array(out)
 
 maximum(outCpu)
 minimum(outCpu)
 
-p1 = heatmap(outCpu[:,:,8]) 
-p2 = heatmap(outCpu[:,19,:])
-p3 = heatmap(outCpu[2,:,:])
-p4 = heatmap(outCpu[30,:,:])
+p1 = heatmap(outCpu[:, :, 8])
+p2 = heatmap(outCpu[:, 19, :])
+p3 = heatmap(outCpu[2, :, :])
+p4 = heatmap(outCpu[30, :, :])
 
-plot(p1, p2, p3, p4, layout = (2, 2), legend = false)
+plot(p1, p2, p3, p4, layout=(2, 2), legend=false)
 
 
 
 l6
-1+1
+1 + 1
 # using Pkg
 # Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
 # 1+1

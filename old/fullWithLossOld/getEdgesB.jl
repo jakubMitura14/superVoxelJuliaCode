@@ -6,11 +6,11 @@ using Distributions
 using Clustering
 using IrrationalConstants
 using ParallelStencil
-using MedPipe3D.LoadFromMonai, MedPipe3D.HDF5saveUtils,MedEye3d.visualizationFromHdf5, MedEye3d.distinctColorsSaved
+using MedPipe3D.LoadFromMonai, MedPipe3D.HDF5saveUtils, MedEye3d.visualizationFromHdf5, MedEye3d.distinctColorsSaved
 # using MedPipe3D.LoadFromMonai, MedPipe3D.HDF5saveUtils,MedPipe3D.visualizationFromHdf5, MedPipe3D.distinctColorsSaved
-using CUDA,HDF5,Colors,ParallelStencil, ParallelStencil.FiniteDifferences3D
+using CUDA, HDF5, Colors, ParallelStencil, ParallelStencil.FiniteDifferences3D
 using MedEval3D, MedEval3D.BasicStructs, MedEval3D.MainAbstractions
-using MedEval3D, MedEval3D.BasicStructs, MedEval3D.MainAbstractions,Hyperopt,Plots
+using MedEval3D, MedEval3D.BasicStructs, MedEval3D.MainAbstractions, Hyperopt, Plots
 using MedPipe3D.LoadFromMonai
 import Lux
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote, HDF5
@@ -23,10 +23,10 @@ using PythonCall
 
 
 # rng = Random.default_rng()
-conv1 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.tanh, stride=1, pad=Lux.SamePad())
+conv1 = (in, out) -> Lux.Conv((3, 3, 3), in => out, NNlib.tanh, stride=1, pad=Lux.SamePad())
 
 function getConvModel()
-    return Lux.Chain(conv1(1,4),conv1(4,8),conv1(8,16),conv1(16,8),conv1(8,4),conv1(4,2),conv1(2,1))
+    return Lux.Chain(conv1(1, 4), conv1(4, 8), conv1(8, 16), conv1(16, 8), conv1(8, 4), conv1(4, 2), conv1(2, 1))
 end#getConvModel
 
 
@@ -99,20 +99,20 @@ end#getConvModel
 
 #     top_left_post =view(y_pred,tops:tope,lefts:lefte, posteriors:posteriore )
 #     top_right_post =view(y_pred,tops:tope,rights:righte, posteriors:posteriore)
-    
+
 #     top_left_ant =view(y_pred,tops:tope,lefts:lefte, anteriors:anteriore )
 #     top_right_ant =view(y_pred,tops:tope,rights:righte, anteriors:anteriore ) 
-    
+
 #     bottom_left_post =view(y_pred,bottoms:bottome,lefts:lefte, posteriors:posteriore ) 
 #     bottom_right_post =view(y_pred,bottoms:bottome,rights:righte, posteriors:posteriore ) 
-    
+
 #     bottom_left_ant =view(y_pred,bottoms:bottome,lefts:lefte, anteriors:anteriore )
 #     bottom_right_ant =view(y_pred,bottoms:bottome,rights:righte, anteriors:anteriore ) 
-    
+
 #     varss= map(var  ,[top_left_post,top_right_post, top_left_ant,top_right_ant,bottom_left_post,bottom_right_post,bottom_left_ant, bottom_right_ant ])
 #     means= map(mean  ,[top_left_post,top_right_post, top_left_ant,top_right_ant,bottom_left_post,bottom_right_post,bottom_left_ant, bottom_right_ant ])
-    
-    
+
+
 #     # so we want maximize the ypred values so evrywhere we will have high prob in some gaussian
 #     # minimize variance inside the regions
 #     # maximize variance between regions
@@ -159,7 +159,7 @@ end#getConvModel
 #     #iterate over all gauss parameters
 #     maxx = 0.0
 #     index=0
-    
+
 #     for i in 1:meansLength
 #        vall=univariate_normal(origArr[x,y,z,1,1], means[i], stdGaus[i]^2)
 #        CUDA.@cuprint "vall $(vall) i $(i)   " 

@@ -82,7 +82,7 @@ function createTestDataFor_Clustering(Nx, Ny, Nz, oneSidePad, crossBorderWhere)
         indexxx=indexxx+1
         sizz=size(vieww)
         # vieww[:,:,:]=rand(Normal(meanDiff*indexxx,10.0), sizz)
-        vieww[:,:,:]=rand(Normal(rand(1)[1],rand(1)[1]), sizz)
+        vieww[:,:,:]=rand(Normal(rand(0.0:10.0,1)[1],rand(0.0:10.0,1)[1]), sizz)
     end
     
     setRandValues(top_left_post)

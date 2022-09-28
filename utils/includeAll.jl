@@ -11,5 +11,5 @@ includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/getEd
 includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/applyGausses.jl")
 
 
- 
+
 

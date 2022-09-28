@@ -24,14 +24,11 @@ end
 Lux.initialparameters(rng::AbstractRNG, l::FluxCompatLayer) = (p=l.init_parameters(),)
 (f::FluxCompatLayer)(x, ps, st) = f.layer(ps.p)(x), st
 
-
 conv1 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.relu, stride=1, pad=Lux.SamePad())
 conv2 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.relu, stride=2, pad=Lux.SamePad())
 tran = ( in, out) -> Flux.ConvTranspose((3, 3, 3), in=>out, relu, stride=2, pad=Flux.SamePad())
 
 tran2(in_chan,out_chan) = FluxCompatLayer(tran(in_chan,out_chan))
-
-
 
 """
 first we want to reduce the size of the image so to encode in a smaller space all required data 
@@ -41,9 +38,13 @@ Later good to experiment with redefining it as a unet just with shared convoluti
 function getContractModel(inChan,outChan)
 
     return Lux.Chain(conv2(inChan, 4)
+                        ,Lux.BatchNorm(4)
                         ,conv2(4, 8)
+                        ,Lux.BatchNorm(4)
                         ,conv2(8, 8)
+                        ,Lux.BatchNorm(4)
                         ,conv2(8, outChan)
+                        ,Lux.BatchNorm(4)
                         )
 
 end #getContractModel
@@ -59,9 +60,13 @@ function getPerSVLayer(inChan,outChan,InDimX,inDimY,iDimZ)
     
     return Lux.Chain(MultLayer((InDimX,inDimY,iDimZ,inChan,1)),
                         tran2(inChan, 1)
+                        ,Lux.BatchNorm(4)
                         ,tran2(1, 1)
+                        ,Lux.BatchNorm(4)
                         ,tran2(1, 1)
+                        ,Lux.BatchNorm(4)
                         ,tran2(1, outChan)
+                        ,Lux.BatchNorm(4)
                         )
 end#getPerSVLayer
 
@@ -76,6 +81,7 @@ concatenetes probabilities with original input and adds to tuple the spread loss
 function catTupleAfterSpread_loss(a,b)
    return (cat(a[1],b;dims=4),a[2],)
 end  
+
 
 
 """
@@ -97,19 +103,20 @@ what is important each supervoxel layer will end with loss calculations for whic
     model output is output is ((a,l ),r  ) a - concatenated array where first channel is probability map of last supervoxel layer second is added contributions from supervoxels probability maps third original array and futher channels a features variance
                                             l - is accumulated scalar loss and r is reduced representation of the array
 """
-function getModel(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_numb,threads_blocks::threads_blocks_struct )
+function getModel(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_numb,threads_blockss::threads_blocks_struct )
     reductionFactor=2^numberOfConv2
     rdim_x,rdim_y,rdim_z=Int(round(dim_x/reductionFactor )),Int(round(dim_y/reductionFactor )),Int(round(dim_z/reductionFactor ))
     #featureNumb+1 becouse we also get original image as channel 1
     # we pass to the output input so
     # output will be tuple where first entry in reduced representation
     #second entry is the input - feature array
-    contr=Lux.SkipConnection(getContractModel(featureNumb+1,2),get_tuple)
+    ocntr=Lux.SkipConnection(getContractModel(featureNumb+1,2),myGetTuple)
     layers= Vector{Lux.AbstractExplicitLayer}(undef,supervoxel_numb)
 
+    
     # for first supervoxel layer the workflow will be slightly diffrent as we need to concatenate it
-    sc_param_1= Parallel(myGetTuple,    
-                    Parallel(myCatt4#concatenetion of Outputs
+    sc_param_1= Lux.Parallel(myGetTuple,    
+                    Lux.Parallel(myCatt4#concatenetion of Outputs
                     #first we need to process 
                     ,Lux.Chain(SelectTupl(1) # here we get just the reduced representation 
                     ,getPerSVLayer(2,1,rdim_x,rdim_y,rdim_z ) # it holds trainable parameters for this first supervoxel  output will the same first 3 dimensions as primar imput(orig array with features)
@@ -124,23 +131,28 @@ function getModel(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_numb,
 
     #so sc_param_1 will give tuple where first entry is an array with concateneted first voxel probability map and original array
     #and second tuple entry is the reduced representation
-    layers[1]= Parallel(myGetTuple,
-                        Parallel(myGetTuple,Lux.Chain(
+    probMapChannel=1
+    featuresStartChannel=2
+    layers[1]= Lux.Parallel(myGetTuple,
+                        Lux.Parallel(myGetTuple,Lux.Chain(
                         SelectTupl(1), # here we get just the concatenated original input and supervoxel probability map     
                         sc_param_1),
                         0.0 # initializing scalar loss                        
                         )
-                        ,spreadKern_layer(dim_x,dim_y,dim_z,probMapChannel,featuresStartChannel,threads_spreadKern,blocks_spreadKern)# it return both its input and scalar loss as tuple
-                        ,featureLoss_kern__layer(dim_x,dim_y,dim_z,probMapChannel,featuresStartChannel,threads_featureLoss_kern_,blocks_featureLoss_kern_,featureNumb)
-                        SelectTupl(2) # here we get just the reduced representation 
+                        ,spreadKern_layer(dim_x,dim_y,dim_z,probMapChannel,featuresStartChannel,threads_blockss.threads_spreadKern,blocks_spreadKern)# it return both its input and scalar loss as tuple
+                        ,featureLoss_kern__layer(dim_x,dim_y,dim_z,probMapChannel,featuresStartChannel,threads_blockss.threads_featureLoss_kern_,threads_blockss.blocks_featureLoss_kern_,featureNumb)
+                        ,SelectTupl(2) # here we get just the reduced representation 
                         )# output is ((a,l ),r  ) a- concateneted probability map of first supervoxel and input, l - scalar loss r - scalar accumulated loss of first supervoxel
 
     #we start iterating over all supervoxels with exception of the first one as this is already done
 
+    probMapChannel=2
+    featuresStartChannel=3
+
     for superVoxelIndex in 2:supervoxel_numb
         #input is the nested tupleis ((a,l ),r  ) a- concateneted probability map of first supervoxel and input, l - scalar loss r - scalar accumulated loss
-        sc_param= Parallel(myGetTuple,    
-                        Parallel(myCatt4#concatenetion of Outputs
+        sc_param= Lux.Parallel(myGetTuple,    
+                        Lux.Parallel(myCatt4#concatenetion of Outputs
                         #first we need to process 
                         ,Lux.Chain(SelectTupl(2) # here we get r
                         ,getPerSVLayer(2,1,rdim_x,rdim_y,rdim_z ) # it holds trainable parameters for this first supervoxel  output will the same first 3 dimensions as primar imput(orig array with features)
@@ -155,8 +167,8 @@ function getModel(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_numb,
 
         #so sc_param_1 will give tuple where first entry is an array with concateneted first voxel probability map and original array
         #and second tuple entry is the reduced representation
-        layers[superVoxelIndex]= Parallel(myGetTuple,
-                            Parallel(myGetTuple,Lux.Chain(
+        layers[superVoxelIndex]= Lux.Parallel(myGetTuple,
+                            Lux.Parallel(myGetTuple,Lux.Chain(
                                 SelectTupl(1),  
                                 SelectTupl(1), # here we get just the concatenated original input and supervoxel probability map     
                                 sc_param), Lux.Chain(
@@ -164,10 +176,10 @@ function getModel(numberOfConv2,dim_x,dim_y,dim_z, featureNumb, supervoxel_numb,
                                     SelectTupl(2) # here we get previous loss
                                     )
                              # spreadKern_layer expects tupl  (a,l ) where a is big concateneted array and l is scalar loss that is acumulated as going through layers      
-                            ,spreadKern_layer(dim_x,dim_y,dim_z,probMapChannel,featuresStartChannel,threads_spreadKern,blocks_spreadKern)# it return both its input and scalar loss as tuple
-                            ,featureLoss_kern__layer(dim_x,dim_y,dim_z,probMapChannel,featuresStartChannel,threads_featureLoss_kern_,blocks_featureLoss_kern_,featureNumb)
-                            ,disagreeKern_layer(dim_x,dim_y,dim_z,threads_disagreeKern,blocks_disagreeKern)
-                            )
+                            ,spreadKern_layer(dim_x,dim_y,dim_z,probMapChannel,featuresStartChannel,threads_blockss.threads_spreadKern,threads_blockss.blocks_spreadKern)# it return both its input and scalar loss as tuple
+                            ,featureLoss_kern__layer(dim_x,dim_y,dim_z,probMapChannel,featuresStartChannel,threads_blockss.threads_featureLoss_kern_,threads_blockss.blocks_featureLoss_kern_,featureNumb)
+                            ,disagreeKern_layer(dim_x,dim_y,dim_z,threads_blockss.threads_disagreeKern,threads_blockss.blocks_disagreeKern)
+                            ),
                             SelectTupl(2), # here we get just the reduced representation to pass on
                             )
     end# for supervoxel_numb  
@@ -196,9 +208,9 @@ end #getModelParts
 
 # # # Expanding layers
 # # l6 = Chain(l5, tran2(128, 64), conv1(64, 64))
-# # l7 = Chain(Parallel(+, l6, l4), tran2(64, 32), conv1(32, 32))       # Residual connection between l6 & l4
-# # l8 = Chain(Parallel(+, l7, l3), tran2(32, 16), conv1(16, 16))       # Residual connection between l7 & l3
-# # l9 = Chain(Parallel(+, l8, l2), tran2(16, 4), conv1(4, 4))          # Residual connection between l8 & l2
+# # l7 = Chain(Lux.Parallel(+, l6, l4), tran2(64, 32), conv1(32, 32))       # Residual connection between l6 & l4
+# # l8 = Chain(Lux.Parallel(+, l7, l3), tran2(32, 16), conv1(16, 16))       # Residual connection between l7 & l3
+# # l9 = Chain(Lux.Parallel(+, l8, l2), tran2(16, 4), conv1(4, 4))          # Residual connection between l8 & l2
 # # l10 = Chain(l9, conv1(4, lbl_chs))
 
 
@@ -211,7 +223,7 @@ end #getModelParts
 # l4=tran2(1, 1)
 # l5=tran2(1, 1)
 
-# model = Lux.Parallel(+, Lux.Chain(ll1,l3), l2)
+# model = Lux.Lux.Parallel(+, Lux.Chain(ll1,l3), l2)
 
 # rng = Random.MersenneTwister()
 # base_arr=reshape(base_arr, (dim_x,dim_y,dim_z,1,1))

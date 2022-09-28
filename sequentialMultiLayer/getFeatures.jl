@@ -1,6 +1,6 @@
 using Revise
 # includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/includeAll.jl")
-using ChainRulesCore,Zygote,CUDA,Enzyme
+using ChainRulesCore, Zygote, CUDA, Enzyme
 using CUDAKernels
 using KernelAbstractions
 # using KernelGradients
@@ -11,26 +11,26 @@ using FillArrays
 """
 utility macro to iterate in given range around given voxel
 """
-macro iterAround(ex   )
+macro iterAround(ex)
     return esc(quote
         for xAdd in -r:r
-            x= (threadIdx().x+ ((blockIdx().x -1)*CUDA.blockDim_x()))+xAdd
-            if(x>0 && x<=mainArrSize[1])
+            x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + xAdd
+            if (x > 0 && x <= mainArrSize[1])
                 for yAdd in -r:r
-                    y= (threadIdx().y+ ((blockIdx().y -1)*CUDA.blockDim_y()))+yAdd
-                    if(y>0 && y<=mainArrSize[2])
+                    y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + yAdd
+                    if (y > 0 && y <= mainArrSize[2])
                         for zAdd in -r:r
-                            z= (threadIdx().z+ ((blockIdx().z -1)*CUDA.blockDim_z()))+zAdd
-                            if(z>0 && z<=mainArrSize[3])
-                                if((abs(xAdd)+abs(yAdd)+abs(zAdd)) <=r)
+                            z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + zAdd
+                            if (z > 0 && z <= mainArrSize[3])
+                                if ((abs(xAdd) + abs(yAdd) + abs(zAdd)) <= r)
                                     $ex
-                                end 
+                                end
                             end
                         end
-                    end    
-                end    
+                    end
+                end
             end
-        end    
+        end
     end)
 end
 
@@ -49,28 +49,28 @@ features and their location in 4th dimension
     3) variances
 
 """
-function calculateFeaturesExec(image,mainArrSize,output,r::Int,featuresNumb::Int)
-    summ=0.0
-    sumCentered=0.0
-    lenn= UInt8(0)
+function calculateFeaturesExec(image, mainArrSize, output, r::Int, featuresNumb::Int)
+    summ = 0.0
+    sumCentered = 0.0
+    lenn = UInt8(0)
     #get mean
-    @iterAround begin 
-        lenn=lenn+1
-        summ+=image[x,y,z]    
+    @iterAround begin
+        lenn = lenn + 1
+        summ += image[x, y, z]
     end
-    summ=summ/lenn#now summ acts as a mean
+    summ = summ / lenn#now summ acts as a mean
     #get standard deviation
-    @iterAround sumCentered+= ((image[x,y,z]-summ )^2)
+    @iterAround sumCentered += ((image[x, y, z] - summ)^2)
 
     #saving output
-    x= (threadIdx().x+ ((blockIdx().x -1)*CUDA.blockDim_x()))
-    y= (threadIdx().y+ ((blockIdx().y -1)*CUDA.blockDim_y()))
-    z= (threadIdx().z+ ((blockIdx().z -1)*CUDA.blockDim_z()))
-    
-    if(x>0 && x<=mainArrSize[1] && y>0 && y<=mainArrSize[2] &&z>0 && z<=mainArrSize[3] )
-        output[x,y,z,1,1]= image[x,y,z] #original image
-        output[x,y,z,2,1]= summ #mean
-        output[x,y,z,3,1]= sumCentered #variance
+    x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
+    y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y()))
+    z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z()))
+
+    if (x > 0 && x <= mainArrSize[1] && y > 0 && y <= mainArrSize[2] && z > 0 && z <= mainArrSize[3])
+        output[x, y, z, 1, 1] = image[x, y, z] #original image
+        output[x, y, z, 2, 1] = summ #mean
+        output[x, y, z, 3, 1] = sumCentered #variance
     end#if
 
     return
@@ -82,10 +82,9 @@ end#calculateFeatures
 """
 call function with out variable initialization
 """
-function call_calculateFeatures(image,mainArrSize,r,featuresNumb
-    ,threads_CalculateFeatures,blocks_CalculateFeatures )
-    output = CUDA.zeros(mainArrSize[1],mainArrSize[2],mainArrSize[3],(featuresNumb+1),1 ) 
-    @cuda threads = threads_CalculateFeatures blocks = blocks_CalculateFeatures calculateFeaturesExec(image,mainArrSize,output,r,featuresNumb)
+function call_calculateFeatures(image, mainArrSize, r, featuresNumb, threads_CalculateFeatures, blocks_CalculateFeatures)
+    output = CUDA.zeros(mainArrSize[1], mainArrSize[2], mainArrSize[3], (featuresNumb + 1), 1)
+    @cuda threads = threads_CalculateFeatures blocks = blocks_CalculateFeatures calculateFeaturesExec(image, mainArrSize, output, r, featuresNumb)
     return output
 end
 
@@ -95,42 +94,48 @@ end
 """
 given feature calculates its local variance 
 """
-function calculateFeatures_variance_Exec(image_features,mainArrSize,output,r::Int,featuresNumb::Int)
+function calculateFeatures_variance_Exec(image_features, mainArrSize, output, r::Int, featuresNumb::Int)
 
     #we start from 2 becouse the first channel is original image
     for featureIndex in 2:featuresNumb+1
-        summ=0.0
-        sumCentered=0.0
-        lenn= UInt8(0)
+        summ = 0.0
+        sumCentered = 0.0
+        lenn = UInt8(0)
         #get mean
-        @iterAround begin 
-            lenn=lenn+1
-            summ+=image_features[x,y,z,featureIndex,1]    
+        @iterAround begin
+            lenn = lenn + 1
+            summ += image_features[x, y, z, featureIndex, 1]
         end
-        summ=summ/lenn#now summ acts as a mean
+        summ = summ / lenn#now summ acts as a mean
         #get variance
-        @iterAround sumCentered+= ((image[x,y,z]-summ )^2)
+        @iterAround sumCentered += ((image_features[x, y, z, featureIndex, 1] - summ)^2)
 
         #saving output
-        x= (threadIdx().x+ ((blockIdx().x -1)*CUDA.blockDim_x()))
-        y= (threadIdx().y+ ((blockIdx().y -1)*CUDA.blockDim_y()))
-        z= (threadIdx().z+ ((blockIdx().z -1)*CUDA.blockDim_z()))
-        
-        if(x>0 && x<=mainArrSize[1] && y>0 && y<=mainArrSize[2] &&z>0 && z<=mainArrSize[3] )
-            output[x,y,z,featureIndex,1] = sumCentered #saving variance of each feature
+        x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
+        y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y()))
+        z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z()))
+
+        if (x > 0 && x <= mainArrSize[1] && y > 0 && y <= mainArrSize[2] && z > 0 && z <= mainArrSize[3])
+            output[x, y, z, featureIndex, 1] = sumCentered #saving variance of each feature
         end#if
     end#forfeaturesNumb
 
+
+    x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
+    y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y()))
+    z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z()))
+
+    #saving original image
+    output[x, y, z, 1, 1] = image_features[x, y, z, 1, 1]
     return
 end#calculateFeatures
 
 """
 call function calculating local variance of features
 """
-function call_calculateFeatures_varianvce(image_features,featuresArrSize,r,featuresNumb
-    ,threads_CalculateFeatures_variance,blocks_CalculateFeatures_variance )
-    output = CUDA.zeros(featuresArrSize[1],featuresArrSize[2],featuresArrSize[3],(featuresNumb+1),1 ) 
-    @cuda threads = threads_CalculateFeatures_variance blocks = blocks_CalculateFeatures_variance calculateFeatures_variance_Exec(image_features,featuresArrSize,output,r,featuresNumb)
+function call_calculateFeatures_varianvce(image_features, featuresArrSize, r, featuresNumb, threads_CalculateFeatures_variance, blocks_CalculateFeatures_variance)
+    output = CUDA.zeros(featuresArrSize[1], featuresArrSize[2], featuresArrSize[3], (featuresNumb + 1), 1)
+    @cuda threads = threads_CalculateFeatures_variance blocks = blocks_CalculateFeatures_variance calculateFeatures_variance_Exec(image_features, featuresArrSize, output, r, featuresNumb)
     return output
 end
 
@@ -139,14 +144,9 @@ end
 """
 Enzyme definitions
 """
-function calculateFeatures_Deff(image,d_image
-    ,mainArrSize,output,d_output,r,featuresNumb)
-    
-    Enzyme.autodiff_deferred(calculateFeaturesExec, Const
-    ,Duplicated(image, d_image)
-    ,Const(mainArrSize)
-    ,Duplicated(output,d_output)
-    ,Const(r),Const(featuresNumb)    )
+function calculateFeatures_Deff(image, d_image, mainArrSize, output, d_output, r, featuresNumb)
+
+    Enzyme.autodiff_deferred(calculateFeaturesExec, Const, Duplicated(image, d_image), Const(mainArrSize), Duplicated(output, d_output), Const(r), Const(featuresNumb))
     return nothing
 end
 
@@ -154,44 +154,40 @@ end
 
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(call_calculateFeatures),image,mainArrSize,r,featuresNumb
-                                ,threads_CalculateFeatures,blocks_CalculateFeatures)
-    
-    output = call_calculateFeatures(image,mainArrSize,r,featuresNumb ,threads_CalculateFeatures,blocks_CalculateFeatures )
-    
+function ChainRulesCore.rrule(::typeof(call_calculateFeatures), image, mainArrSize, r, featuresNumb, threads_CalculateFeatures, blocks_CalculateFeatures)
+
+    output = call_calculateFeatures(image, mainArrSize, r, featuresNumb, threads_CalculateFeatures, blocks_CalculateFeatures)
+
     function call_calculateFeatures_pullback(d_out_prim)
         # Allocate shadow memory.
         d_image = CUDA.ones(size(image))
         d_output = CuArray(collect(d_out_prim))
-        @cuda threads = threads_CalculateFeatures blocks = blocks_CalculateFeatures calculateFeatures_Deff(image,d_image,mainArrSize,output,d_output,r,featuresNumb)
+        @cuda threads = threads_CalculateFeatures blocks = blocks_CalculateFeatures calculateFeatures_Deff(image, d_image, mainArrSize, output, d_output, r, featuresNumb)
         f̄ = NoTangent()
-        return f̄,d_image, NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent()
-    end   
+        return f̄, d_image, NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent()
+    end
     return output, call_calculateFeatures_pullback
 
 end
 
 #### LUX definietions
-struct CalculateFeatures_str<: Lux.AbstractExplicitLayer
+struct CalculateFeatures_str <: Lux.AbstractExplicitLayer
     r::Int
     featuresNumb::Int
     mainArrSize
-    threads_CalculateFeatures::Tuple{Int64, Int64, Int64}
-    blocks_CalculateFeatures::Tuple{Int64, Int64, Int64}
+    threads_CalculateFeatures::Tuple{Int64,Int64,Int64}
+    blocks_CalculateFeatures::Tuple{Int64,Int64,Int64}
 end
 
-function calculateFeatures(r::Int,featuresNumb::Int,mainArrSize ,threads_CalculateFeatures,blocks_CalculateFeatures)
-    return CalculateFeatures_str(r,featuresNumb,mainArrSize,threads_CalculateFeatures, blocks_CalculateFeatures)
+function calculateFeatures(r::Int, featuresNumb::Int, mainArrSize, threads_CalculateFeatures, blocks_CalculateFeatures)
+    return CalculateFeatures_str(r, featuresNumb, mainArrSize, threads_CalculateFeatures, blocks_CalculateFeatures)
 end
 
 #no parameters for now
-Lux.initialparameters(rng::AbstractRNG, l::CalculateFeatures_str)=NamedTuple()
+Lux.initialparameters(rng::AbstractRNG, l::CalculateFeatures_str) = NamedTuple()
 
 function Lux.initialstates(::AbstractRNG, l::CalculateFeatures_str)::NamedTuple
-    return (r=l.r
-            ,threads_CalculateFeatures=l.threads_CalculateFeatures
-            ,blocks_CalculateFeatures= l.blocks_CalculateFeatures 
-            ,featuresNumb=l.featuresNumb)
+    return (r=l.r, threads_CalculateFeatures=l.threads_CalculateFeatures, blocks_CalculateFeatures=l.blocks_CalculateFeatures, featuresNumb=l.featuresNumb)
 end
 
 
@@ -200,8 +196,7 @@ end
 defining what the layer does when called
 """
 function (l::CalculateFeatures_str)(origArr, ps, st::NamedTuple)
-    return call_calculateFeatures(origArr,st.mainArrSize,st.r,st.featuresNumb 
-        ,st.threads_CalculateFeatures,st.blocks_CalculateFeatures ),st
+    return call_calculateFeatures(origArr, st.mainArrSize, st.r, st.featuresNumb, st.threads_CalculateFeatures, st.blocks_CalculateFeatures), st
 end
 
 

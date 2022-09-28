@@ -37,7 +37,7 @@ end
 
 function disagreeKern_Deff( previous_prob_maps,d_previous_prob_maps
     ,current_probMap,d_current_probMap, Aout
-    , dAout,Nx,Ny,Nz)
+    , dAout,Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)
     Enzyme.autodiff_deferred(disagreeKern, Const,
      Duplicated(previous_prob_maps,d_previous_prob_maps)
      ,Duplicated(current_probMap,d_current_probMap)
@@ -45,11 +45,12 @@ function disagreeKern_Deff( previous_prob_maps,d_previous_prob_maps
      ,Const(Nx)
      ,Const(Ny)
      ,Const(Nz)
+     ,Const(threads_disagreeKern),Const(blocks_disagreeKern)
     )
     return nothing
 end
 
-function call_disagreeKern(previous_prob_maps,current_probMap,d_current_probMap,Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)
+function call_disagreeKern(previous_prob_maps,current_probMap,Nx,Ny,Nz,threads_disagreeKern,blocks_disagreeKern)
     Aout = CUDA.zeros(Nx, Ny, Nz,2,1 ) 
     @cuda threads = threads_disagreeKern blocks = blocks_disagreeKern disagreeKern(previous_prob_maps,current_probMap,Aout,Nx,Ny,Nz)
     return Aout
@@ -100,7 +101,7 @@ function (l::disagreeKern_str)(x, ps, st::NamedTuple)
     channelsNum= size(x)[4]
     concated=call_disagreeKern(x[1][:,:,:,1,:],x[1][:,:,:,2,:],l.Nx,l.Ny,l.Nz,l.threads_disagreeKern,l.blocks_disagreeKern )
     #we just sum elementwise scaled diffrence
-    lossVal=sum(concated[:,:,:,1,:])
+    lossVal=sum(concated[:,:,:,1,:])+x[2]
     return (myCatt4(concated[:,:,:,2,:], x[:,:,:,3:channelsNum,:] ) ,lossVal) ,st
 end
 
