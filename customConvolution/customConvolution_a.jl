@@ -17,7 +17,7 @@
 
 
 using Revise
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/includeAll.jl")
+includet("/workspaces/superVoxelJuliaCode/utils/includeAll.jl")
 using ChainRulesCore,Zygote,CUDA,Enzyme
 using CUDAKernels
 using KernelAbstractions

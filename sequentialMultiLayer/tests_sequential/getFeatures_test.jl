@@ -1,5 +1,5 @@
 using Revise, Test, Plots
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/utilsSequential/includeAllSequential.jl")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/utilsSequential/includeAllSequential.jl")
 using Main.generate_synth_simple
 #testing the model whheather it compiles
 

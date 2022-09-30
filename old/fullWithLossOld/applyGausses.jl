@@ -7,8 +7,8 @@
 
 
 using Revise
-# includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/includeAll.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/createTestData.jl")
+# includet("/workspaces/superVoxelJuliaCode/utils/includeAll.jl")
+includet("/workspaces/superVoxelJuliaCode/fullWithLoss/createTestData.jl")
 using ChainRulesCore, Zygote, CUDA, Enzyme
 using CUDAKernels
 using KernelAbstractions

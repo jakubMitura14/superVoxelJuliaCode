@@ -7,7 +7,7 @@ we will define here just the loss function that will detect basically edges
 """
 
 using Revise
-# includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/includeAll.jl")
+# includet("/workspaces/superVoxelJuliaCode/utils/includeAll.jl")
 using ChainRulesCore, Zygote, CUDA, Enzyme
 using CUDAKernels
 using KernelAbstractions

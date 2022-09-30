@@ -4,7 +4,7 @@ given two inputs return given entry
 """
 
 
-using Revise
+using Revise,Logging
 using Zygote, Lux,Enzyme,Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
 
@@ -44,5 +44,42 @@ end
 get 2 entries and create tuple from them
 """
 function myGetTuple(a,b)
-   return Tuple(a,b)
+   return (a,b)
 end  
+
+
+############## for printing shapes
+
+
+
+struct Print_debug_str<: Lux.AbstractExplicitLayer
+    name
+end
+
+function Print_debug(name)::Print_debug_str
+    return Print_debug_str(name)
+end
+
+Lux.initialparameters(rng::AbstractRNG, l::Print_debug_str)=NamedTuple()
+
+function Lux.initialstates(::AbstractRNG, l::Print_debug_str)
+    return(name=l.name, )
+end #initialstates    
+
+
+
+flat(arr::Tuple) = mapreduce(x -> isa(x, Tuple) ? flat(x) : x, append!, arr,init=[])
+
+function (l::Print_debug_str)(x, ps, st::NamedTuple)
+    @info " nam $(l.name) type  $(typeof(x)) "
+    flattened= flat((x,))
+    indexx=0
+    for entry in flattened
+        indexx+=1
+        if(isa(x, Array))
+            @info " indexx $(indexx) size  $(size(entry)) "
+        end#if isa    
+    end#for    
+
+    return x,st
+end

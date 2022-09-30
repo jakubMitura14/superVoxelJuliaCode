@@ -12,8 +12,8 @@ V) optionally based on features similarity add feature similarity value as a fea
 using Revise
 using CUDA, Enzyme, Test, Plots, HDF5
 
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/utils.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/get_synth_data/generate_synth_simple.jl")
+includet("/workspaces/superVoxelJuliaCode/fullWithLoss/utils.jl")
+includet("/workspaces/superVoxelJuliaCode/get_synth_data/generate_synth_simple.jl")
 using Main.generate_synth_simple
 
 

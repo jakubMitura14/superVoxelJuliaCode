@@ -35,7 +35,7 @@ end#getConvModel
 # # """
 # # good tutorial below
 # # https://gowrishankar.info/blog/calculus-gradient-descent-optimization-through-jacobian-matrix-for-a-gaussian-distribution/
-# # generally estimating mean and variance of gaussian distributions needs to be part of the bincludet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/includeAll.jl")
+# # generally estimating mean and variance of gaussian distributions needs to be part of the bincludet("/workspaces/superVoxelJuliaCode/utils/includeAll.jl")
 # using Distributions
 
 # Nx, Ny, Nz = 32, 32, 32

@@ -1,14 +1,14 @@
 using Revise
 using CUDA, Enzyme, Test, Plots
 
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/utils.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/get_synth_data/generate_synth_simple.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/createTestData.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/getFeatures.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/clusterKernels.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/clusteringLoss.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/getEdgesB.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/fullWithLoss/applyGausses.jl")
+includet("/workspaces/superVoxelJuliaCode/fullWithLoss/utils.jl")
+includet("/workspaces/superVoxelJuliaCode/get_synth_data/generate_synth_simple.jl")
+includet("/workspaces/superVoxelJuliaCode/fullWithLoss/createTestData.jl")
+includet("/workspaces/superVoxelJuliaCode/fullWithLoss/getFeatures.jl")
+includet("/workspaces/superVoxelJuliaCode/fullWithLoss/clusterKernels.jl")
+includet("/workspaces/superVoxelJuliaCode/fullWithLoss/clusteringLoss.jl")
+includet("/workspaces/superVoxelJuliaCode/fullWithLoss/getEdgesB.jl")
+includet("/workspaces/superVoxelJuliaCode/fullWithLoss/applyGausses.jl")
 
 
 

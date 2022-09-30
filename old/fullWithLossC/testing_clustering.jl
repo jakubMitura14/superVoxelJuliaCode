@@ -1,5 +1,5 @@
 using Revise, Random
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/includeAll.jl")
+includet("/workspaces/superVoxelJuliaCode/utils/includeAll.jl")
 using Distributions
 
 Nx, Ny, Nz = 32, 32, 32

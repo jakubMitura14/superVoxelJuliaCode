@@ -230,7 +230,7 @@ print("topLeft $(topLeft) topRight $(topRight) bottomLeft $(bottomLeft)  bottomR
 # asc=(ass*10)+5
 
 
-# # /home/jakub/julia-1.7.3-linux-x86_64/julia-1.7.3/bin/julia /media/jakub/NewVolume/projects/superVoxelJuliaCode/ODE_pde_play/enzymePlayE.jl
-# #/media/jakub/NewVolume/projects/superVoxelJuliaCode/ODE_pde_play/enzymePlayE.jl
+# # /home/jakub/julia-1.7.3-linux-x86_64/julia-1.7.3/bin/julia /workspaces/superVoxelJuliaCode/ODE_pde_play/enzymePlayE.jl
+# #/workspaces/superVoxelJuliaCode/ODE_pde_play/enzymePlayE.jl
 
-/home/jakub/julia-1.7.3-linux-x86_64/julia-1.7.3/bin/julia /media/jakub/NewVolume/projects/superVoxelJuliaCode/ODE_pde_play/enzymePlayF.jl
+/home/jakub/julia-1.7.3-linux-x86_64/julia-1.7.3/bin/julia /workspaces/superVoxelJuliaCode/ODE_pde_play/enzymePlayF.jl

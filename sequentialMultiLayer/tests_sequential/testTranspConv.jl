@@ -1,10 +1,10 @@
 using Revise, Test, Plots, Random
 includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/utilsSequential/includeAllSequential.jl")
 using Pkg
-Pkg.add(url="https://github.com/EnzymeAD/Enzyme.jl.git")
-"""
-testing the model whheather it compiles
-"""
+# Pkg.add(url="https://github.com/EnzymeAD/Enzyme.jl.git")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/pureEnzyme/customTransConv.jl")
+
+
 
 rng = Random.MersenneTwister()
 Nx, Ny, Nz=64,64,64
@@ -28,41 +28,41 @@ image_withFeatures=prepareFeatures( CuArray(image)
     ,threads_CalculateFeatures,blocks_CalculateFeatures
     ,threads_CalculateFeatures_variance,blocks_CalculateFeatures_variance )
 
-### define model layers
-numberOfConv2=4
+
+featureNumb=2
+contractPart = getContractModel(featureNumb+1,2)
+
+blocks_transConv_kernel=(8,8,8)
+threads_transConv_kernel=(8,8,8)
+numParams=2
 
 
-threads_spreadKern=(8,8,8)
-blocks_spreadKern=(8,8,8)
-threads_featureLoss_kern_=(8,8,8)
-blocks_featureLoss_kern_=(8,8,8)
-threads_disagreeKern=(8,8,8)
-blocks_disagreeKern=(8,8,8)
-threads_blockss=threads_blocks_struct(threads_spreadKern,blocks_spreadKern,threads_featureLoss_kern_, blocks_featureLoss_kern_,threads_disagreeKern,blocks_disagreeKern)
+model=Lux.Chain(contractPart
+,transConv_layer(numParams,threads_transConv_kernel,blocks_transConv_kernel )
+,transConv_layer(numParams,threads_transConv_kernel,blocks_transConv_kernel )
+,transConv_layer(numParams,threads_transConv_kernel,blocks_transConv_kernel )
+,transConv_layer(numParams,threads_transConv_kernel,blocks_transConv_kernel )
+)
 
-supervoxel_numb=8
 
-dim_x,dim_y,dim_z=Nx, Ny, Nz
-
-model = getModel(numberOfConv2,Nx, Ny, Nz, featuresNumb, supervoxel_numb,threads_blockss::threads_blocks_struct )
 ps, st = Lux.setup(rng, model)
 opt = Optimisers.NAdam(0.003)
 
 
 function clusteringLossA(model, ps, st, x)
     y_pred, st = Lux.apply(model, x, ps, st)
-    # print("   sizzzz $(size(y_pred))       ")
-    res= y_pred[1][2]
-    return res, st, ()
+    print(" gettting losss y_pred $(size(y_pred[:,:,:,1,1]))  x $(size(x[:,:,:,1,1]))  ")
+    # return 0.1
+    res= sum((y_pred[:,:,:,1,1]-x[:,:,:,1,1]).^2)
+    print(" resss $(res) ")
+    return res,st, ()
 
-    # return 1*(sum(y_pred)), st, ()
 end
 
 
-# tstate = Lux.Training.TrainState(rng, model, opt; transform_variables=Lux.gpu)
 tstate = Lux.Training.TrainState(rng, model, opt; transform_variables=Lux.gpu)
-#tstate = Lux.Training.TrainState(rng, model, opt)
 vjp_rule = Lux.Training.ZygoteVJP()
+
 
 function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, data,
     epochs::Int)
@@ -76,12 +76,11 @@ function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, da
     return tstate
 end
 
-tstate = main(tstate, vjp_rule, image_withFeatures,1)
+tstate = main(tstate  , vjp_rule, image_withFeatures,1)
 
 
+Lux.gpu(ps)
 
+res=model(image_withFeatures,Lux.gpu(ps), Lux.gpu(st))
 
-
-
-# reductionFactor=2^numberOfConv2
-# rdim_x,rdim_y,rdim_z=Int(round(dim_x/reductionFactor )),Int(round(dim_y/reductionFactor )),Int(round(dim_z/reductionFactor ))
+ps['layer_12']

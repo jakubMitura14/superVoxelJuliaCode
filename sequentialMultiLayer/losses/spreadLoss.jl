@@ -8,7 +8,7 @@ we can calculate the variance of current position relative to 3
 using ChainRulesCore,Zygote,CUDA,Enzyme
 using Zygote, Lux,CUDA
 using Lux, Random
-import NNlib, Optimisers, Plots, Random, Statistics, Zygote
+import NNlib, Optimisers, Plots, Random, Statistics,  Zygote, Lux,CUDA
 
 #### test data
 

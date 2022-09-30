@@ -1,19 +1,21 @@
 using Revise
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/utilsSequential/structs.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/utils/utils.jl")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/utilsSequential/structs.jl")
+includet("/workspaces/superVoxelJuliaCode/utils/utils.jl")
 
 
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/get_synth_data/createTestData.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/get_synth_data/generate_synth_simple.jl")
+includet("/workspaces/superVoxelJuliaCode/get_synth_data/createTestData.jl")
+includet("/workspaces/superVoxelJuliaCode/get_synth_data/generate_synth_simple.jl")
 
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/utilsSequential/utils_sequential.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/multLayer.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/getFeatures.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/losses/spreadLoss.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/losses/perLayerCost.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/losses/featureLoss.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/losses/disAgreementLoss.jl")
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/unetLux.jl")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/utilsSequential/utils_sequential.jl")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/multLayer.jl")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/getFeatures.jl")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/pureEnzyme/pureEnzymeSuperVoxelLayers.jl")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/pureEnzyme/customTransConv.jl")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/losses/spreadLoss.jl")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/losses/perLayerCost.jl")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/losses/featureLoss.jl")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/losses/disAgreementLoss.jl")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/unetLux.jl")
 
 
-includet("/media/jakub/NewVolume/projects/superVoxelJuliaCode/sequentialMultiLayer/superVoxelMultilayer.jl")
+includet("/workspaces/superVoxelJuliaCode/sequentialMultiLayer/superVoxelMultilayer.jl")

@@ -17,9 +17,9 @@ using Flux
 using Lux
 using ForwardDiff
 using Pkg
-Pkg.add(url="https://github.com/jakubMitura14/MedEye3d.jl.git")
-Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
-import MedEye3d
+# Pkg.add(url="https://github.com/jakubMitura14/MedEye3d.jl.git")
+# Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
+import MedEye3d,MedPipe3D
 import MedEye3d.ForDisplayStructs
 import MedEye3d.ForDisplayStructs.TextureSpec
 using ColorTypes

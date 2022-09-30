@@ -85,16 +85,25 @@ RUN apt-get update -q -y && \
         apt-get install -q -y --reinstall ca-certificates
 
 
-RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
-RUN mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
-RUN wget https://developer.download.nvidia.com/compute/cuda/11.7.0/local_installers/cuda-repo-ubuntu2004-11-7-local_11.7.0-465.19.01-1_amd64.deb
-RUN dpkg -i cuda-repo-ubuntu2004-11-7-local_11.7.0-465.19.01-1_amd64.deb
-RUN apt-key add /var/cuda-repo-ubuntu2004-11-7-local/7fa2af80.pub
-RUN apt-get update
-RUN apt-get -y install cuda-11.7
-RUN apt-key add /var/cuda-repo-ubuntu2004-11-7-local/7fa2af80.pub
-RUN echo 'APT::Install-Recommends "0" ; APT::Install-Suggests "0" ;' >> /etc/apt/apt.conf && \
-    echo 'Dir::Cache::pkgcache "";\nDir::Cache::srcpkgcache "";' | tee /etc/apt/apt.conf.d/00_disable-cache-files
+
+RUN  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
+RUN  mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
+RUN  wget https://developer.download.nvidia.com/compute/cuda/11.7.1/local_installers/cuda-repo-ubuntu2004-11-7-local_11.7.1-515.65.01-1_amd64.deb
+RUN  dpkg -i cuda-repo-ubuntu2004-11-7-local_11.7.1-515.65.01-1_amd64.deb
+RUN  cp /var/cuda-repo-ubuntu2004-11-7-local/cuda-*-keyring.gpg /usr/share/keyrings/
+RUN  apt-get update
+RUN  apt-get -y install cuda
+
+# RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
+# RUN mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
+# RUN wget https://developer.download.nvidia.com/compute/cuda/11.7.0/local_installers/cuda-repo-ubuntu2004-11-7-local_11.7.0-465.19.01-1_amd64.deb
+# RUN dpkg -i cuda-repo-ubuntu2004-11-7-local_11.7.0-465.19.01-1_amd64.deb
+# RUN apt-key add /var/cuda-repo-ubuntu2004-11-7-local/7fa2af80.pub
+# RUN apt-get update
+# RUN apt-get -y install cuda-11.7
+# RUN apt-key add /var/cuda-repo-ubuntu2004-11-7-local/7fa2af80.pub
+# RUN echo 'APT::Install-Recommends "0" ; APT::Install-Suggests "0" ;' >> /etc/apt/apt.conf && \
+#     echo 'Dir::Cache::pkgcache "";\nDir::Cache::srcpkgcache "";' | tee /etc/apt/apt.conf.d/00_disable-cache-files
 
 
 
@@ -106,8 +115,8 @@ RUN  apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda
 RUN  add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
 RUN  apt-get update
 
-RUN  apt-get install libcudnn8=8.5.0.1-1+cuda11.7
-RUN  apt-get install libcudnn8-dev=8.5.0.1-1+cuda11.7
+RUN  apt-get install libcudnn8=8.5.0.96-1+cuda11.7
+RUN  apt-get install libcudnn8-dev=8.5.0.96-1+cuda11.7
 
 
 

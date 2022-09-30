@@ -18,7 +18,7 @@
 	// Set *default* container specific settings.json values on container create.
 	"settings": { 
 		"julia.executablePath" : "/usr/local/bin/julia",
-		"julia.environmentPath": "/usr/local/share/julia/environments/v1.8"
+		//"julia.environmentPath": "/usr/local/share/julia/environments/v1.8"
 		//"python.defaultInterpreterPath": "/usr/lib/python3.8"
 		// "python.linting.enabled": true,
 		// "python.linting.pylintEnabled": true,
