@@ -32,8 +32,8 @@ image_withFeatures=prepareFeatures( CuArray(image)
 featureNumb=2
 contractPart = getContractModel(featureNumb+1,2)
 
-blocks_transConv_kernel=(8,8,8)
-threads_transConv_kernel=(8,8,8)
+blocks_transConv_kernel=(16,16,16)
+threads_transConv_kernel=(4,4,4)
 numParams=2
 
 
@@ -84,3 +84,6 @@ Lux.gpu(ps)
 res=model(image_withFeatures,Lux.gpu(ps), Lux.gpu(st))
 
 ps['layer_12']
+
+
+

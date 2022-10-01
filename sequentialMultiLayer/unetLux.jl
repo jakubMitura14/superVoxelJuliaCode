@@ -44,7 +44,7 @@ function getContractModel(inChan,outChan)
                         ,conv2(8, 8)
                         ,Lux.BatchNorm(4)
                         ,conv2(8, outChan)
-                        ,Lux.BatchNorm(4)
+                        #,Lux.BatchNorm(4)
                         )
 
 end #getContractModel
