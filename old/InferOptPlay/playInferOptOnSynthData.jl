@@ -65,16 +65,6 @@ mainScrollDat, algoOutput = saveAndVisRandGraphNoAlgoOutPutSeen(base_arr, fid, p
 
 gplot(randGG)
 
-# algoOutput= getArrByName("algoOutput" ,mainScrollDat)
-# algoOutput[:,:,:]=algoOutputB
-
-
-########## play Flux
-# some example for convolution https://github.com/avik-pal/Lux.jl/blob/main/lib/Boltz/src/vision/vgg.jl
-# 3D layer utilities from https://github.com/Dale-Black/MedicalModels.jl/blob/master/src/utils.jl
-
-# Construct the layer
-
 
 
 
@@ -224,10 +214,6 @@ end
 
 model = Lux.Chain(Lux.BatchNorm((dim_x, dim_y, dim_z)), Lux.Dense((dim_x, dim_y, dim_z), (dim_x, dim_y, dim_z, 256), NNlib.tanh))
 
-
-# model = Chain(BatchNorm((dim_x,dim_y,dim_z)), Dense((dim_x,dim_y,dim_z), (dim_x,dim_y,dim_z,256), NNlib.tanh)
-# , BatchNorm(256),
-#             Chain(Dense(256, 1, tanh), Dense(1, 10)))
 
 # Parameter and State Variables
 ps, st = Lux.setup(rng, model) .|> gpu
