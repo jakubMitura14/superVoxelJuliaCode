@@ -1,7 +1,7 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.245.2/containers/jupyter-datascience-notebooks
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.234.0/containers/python-3
 {
-	"name": "JuliaSuperVoxel",
+	"name": "forPicaiDocker",
 	"build": {
 		"dockerfile": "Dockerfile",
 		"context": "",
@@ -17,8 +17,6 @@
 
 	// Set *default* container specific settings.json values on container create.
 	"settings": { 
-		"julia.executablePath" : "/usr/local/bin/julia",
-		//"julia.environmentPath": "/usr/local/share/julia/environments/v1.8"
 		//"python.defaultInterpreterPath": "/usr/lib/python3.8"
 		// "python.linting.enabled": true,
 		// "python.linting.pylintEnabled": true,
@@ -43,12 +41,17 @@
 	// Add the IDs of extensions you want installed when the container is created.
 	"extensions": [
 		"ms-python.python",
-		"julialang.language-julia"
+		"julialang.language-julia",
+		"ms-toolsai.jupyter",
+		"ms-azuretools.vscode-docker",
+		"github.copilot",
+        "github.copilot-chat",
+        "github.copilot-labs"
 		// "ms-python.vscode-pylance"
 	],
-	"mounts": [
-		"source=/media/jakub/NewVolume/slicerData,target=/home/data,type=bind,consistency=cached"
-	  ],
+	// "mounts": [
+	// 	"source=/media/jm/hddData/datasets/Task09_Spleen,target=/home/data,type=bind,consistency=cached"
+	//   ],
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
@@ -65,4 +68,6 @@
 		 //from https://github.com/cli/cli/issues/6175
 		 "ghcr.io/devcontainers/features/github-cli:1": {}//"jupyterlab": "latest"
 	}
+	// "postStartCommand": "/docker-entrypoint.sh"
+
 }

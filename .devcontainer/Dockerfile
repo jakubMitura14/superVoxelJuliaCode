@@ -1,10 +1,12 @@
-# ARG IMAGE=nvidia/cuda:11.1.1-cudnn8-devel-ubuntu20.04
-ARG IMAGE=nvidia/cudagl:11.3.0-devel-ubuntu20.04
-FROM $IMAGE AS base
+#adapted from https://github.com/JuliaGPU/julia-ngc
+# ARG IMAGE=nvidia/cuda:12.1.1-devel-ubuntu20.04
+FROM nvidia/cudagl:11.3.0-devel
 
-ARG JULIA_RELEASE=1.8
-ARG JULIA_VERSION=1.8.1
 
+ARG JULIA_RELEASE=1.9
+ARG JULIA_VERSION=1.9.0-rc3
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 # julia
 
@@ -12,9 +14,27 @@ RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
     apt-get install --yes --no-install-recommends \
                     # basic stuff
-                    curl ca-certificates && \
+                    curl ca-certificates nano && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+RUN curl -s -L https://julialang-s3.julialang.org/bin/linux/x64/${JULIA_RELEASE}/julia-${JULIA_VERSION}-linux-x86_64.tar.gz | \
+    tar -C /usr/local -x -z --strip-components=1 -f -
+
+
+
+RUN apt-get update && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository -y ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt install -y python3.10 && \
+    apt-get install -y  python3.10-dev
+    
+RUN curl -fSsL -O https://bootstrap.pypa.io/get-pip.py && \
+    python3.10 get-pip.py && \
+    rm get-pip.py
+
+
 
 RUN apt-get update -q -y && \
         DEBIAN_FRONTEND=noninteractive \
@@ -46,17 +66,16 @@ RUN apt-get update -q -y && \
         python-dev\
         bzip2\
         cmake\
-        cuda-command-line-tools-11.7 \
-        libcublas-11.7 \
-        cuda-nvrtc-11.7\
-        libcufft-11.7 \
-        libcurand-11.7 \
-        libcusolver-11.7 \
-        libcusparse-11.7 \
+        cuda-command-line-tools-11.3 \
+        libcublas-11.3 \
+        cuda-nvrtc-11.3\
+        libcufft-11.3 \
+        libcurand-11.3 \
+        libcusolver-11.3 \
+        libcusparse-11.3 \
         libfreetype6-dev \
         curl\
         libzmq3-dev \
-        pkg-config\
         software-properties-common\
         libhdf5-serial-dev\
         git \
@@ -77,72 +96,59 @@ RUN apt-get update -q -y && \
         cmake \
         g++ \
         gcc \
-        pkg-config \
         make \
         nasm \
         xxd \
-        yasm && \
+        yasm \
+        libglfw3 \
+        libglfw3-dev \
+        freeglut3-dev \
+                make \
+        pkgconf \
+        xz-utils \
+        xorg-dev \
+        libgl1-mesa-dev \
+        libglu1-mesa-dev \
+        libxrandr-dev \
+        libxinerama-dev \
+        libxcursor-dev \
+        libxi-dev \
+        libxxf86vm-dev \
+        libglfw3 libglfw3-dev xorg-dev libxkbcommon-dev meson clang git cmake libssl-dev cmake \
+        ffmpeg && \
         apt-get install -q -y --reinstall ca-certificates
 
 
+RUN python3 -m pip  --no-cache-dir install install --no-cache-dir \
+    gdown==3.3.1 monai==1.3.0
 
-RUN  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
-RUN  mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
-RUN  wget https://developer.download.nvidia.com/compute/cuda/11.7.1/local_installers/cuda-repo-ubuntu2004-11-7-local_11.7.1-515.65.01-1_amd64.deb
-RUN  dpkg -i cuda-repo-ubuntu2004-11-7-local_11.7.1-515.65.01-1_amd64.deb
-RUN  cp /var/cuda-repo-ubuntu2004-11-7-local/cuda-*-keyring.gpg /usr/share/keyrings/
-RUN  apt-get update
-RUN  apt-get -y install cuda
-
-# RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
-# RUN mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
-# RUN wget https://developer.download.nvidia.com/compute/cuda/11.7.0/local_installers/cuda-repo-ubuntu2004-11-7-local_11.7.0-465.19.01-1_amd64.deb
-# RUN dpkg -i cuda-repo-ubuntu2004-11-7-local_11.7.0-465.19.01-1_amd64.deb
-# RUN apt-key add /var/cuda-repo-ubuntu2004-11-7-local/7fa2af80.pub
-# RUN apt-get update
-# RUN apt-get -y install cuda-11.7
-# RUN apt-key add /var/cuda-repo-ubuntu2004-11-7-local/7fa2af80.pub
-# RUN echo 'APT::Install-Recommends "0" ; APT::Install-Suggests "0" ;' >> /etc/apt/apt.conf && \
-#     echo 'Dir::Cache::pkgcache "";\nDir::Cache::srcpkgcache "";' | tee /etc/apt/apt.conf.d/00_disable-cache-files
+RUN apt-get install --yes --no-install-recommends wget build-essential libcurl4 && \
+    wget https://curl.se/download/curl-7.81.0.tar.gz && \
+    tar -xvf curl-7.81.0.tar.gz && cd curl-7.81.0 && \
+    ./configure --with-openssl && make && make install
 
 
+COPY Project.toml Manifest.toml LocalPreferences.toml /usr/local/share/julia/environments/v${JULIA_RELEASE}/
 
-#from https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#package-manager-ubuntu-install
-RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin 
-
-RUN  mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
-RUN  apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
-RUN  add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
-RUN  apt-get update
-
-RUN  apt-get install libcudnn8=8.5.0.96-1+cuda11.7
-RUN  apt-get install libcudnn8-dev=8.5.0.96-1+cuda11.7
-
-
-
-###############3from https://github.com/jrottenberg/ffmpeg/blob/main/docker-images/5.1/ubuntu2004/Dockerfile
-RUN curl -s -L https://julialang-s3.julialang.org/bin/linux/x64/${JULIA_RELEASE}/julia-${JULIA_VERSION}-linux-x86_64.tar.gz | \
-    tar -C /usr/local -x -z --strip-components=1 -f -
-
-
-RUN export DISPLAY=:0
-
-# system-wide packages
-
-COPY Project.toml Manifest.toml /usr/local/share/julia/environments/v${JULIA_RELEASE}/
-
-RUN JULIA_DEPOT_PATH=/usr/local/share/julia \
-    julia -e 'using Pkg; Pkg.instantiate()'
-# RUN JULIA_DEPOT_PATH=/usr/local/share/julia \
-#     julia -e 'using Pkg; Pkg.instantiate(); Pkg.API.precompile()'
+RUN JULIA_DEPOT_PATH=/usr/local/share/julia \ 
+    julia -e 'using Pkg; Pkg.instantiate(); Pkg.API.precompile()'
 
 # generate the device runtime library for all known and supported devices
-RUN JULIA_DEPOT_PATH=/usr/local/share/julia \
-    julia -e 'using CUDA; CUDA.precompile_runtime()' && \
-    chmod 644 /usr/local/share/julia/compiled/v${JULIA_RELEASE}/GPUCompiler/*/*.bc
-    # TODO: fix this in GPUCompiler.jl
+# XXX: this doesn't precompile into the system depot anymore
+RUN JULIA_DEPOT_PATH=/usr/local/share/julia \ 
+    julia -e 'using CUDA; CUDA.precompile_runtime()'
 
-RUN julia -e 'using Pkg; Pkg.add("FillArrays")'
+# the system depot contains precompiled packages, but its global environment cannot be
+# active at the same time of the user environment. we solve this by using a startup script
+# that will initialize the user depot with the Project and Manifest from the system depot.
+# however, for that script to run, we need to start with only the system depot active.
+ENV JULIA_DEPOT_PATH=/usr/local/share/julia
+COPY startup.jl /usr/local/share/julia/config/
+# RUN julia -e 'using Pkg ;ENV["MODERNGL_DEBUGGING"] = "true"; Pkg.build("ModernGL")'
+
+
+
+
 
 
 # user environment
@@ -151,20 +157,34 @@ RUN julia -e 'using Pkg; Pkg.add("FillArrays")'
 # (i.e., to be compatible with `docker run --user`, which might not have a $HOME)
 
 RUN mkdir -m 0777 /data
-ENV JULIA_DEPOT_PATH=/data:/usr/local/share/julia
+RUN mkdir $HOME/data
 
 ENV JULIA_HISTORY=/data/logs/repl_history.jl
-
-ENV JULIA_CUDA_USE_BINARYBUILDER=false
-
+#TODO set up dynamically after start
 ENV LD_LIBRARY_PATH=""
+# RUN mkdir $HOME/data_decathlon &&\
+# cd $HOME/data_decathlon &&\
+# wget https://raw.githubusercontent.com/pavanjadhaw/gdown.pl/master/gdown.pl && chmod u+x gdown.pl &&\
+# ./gdown https://drive.google.com/file/d/1jyVGUGyxKBXV6_9ivuZapQS8eUJXCIpu/view?usp=sharing
+
+COPY download_data.py /workspace/download_data.py
+
+RUN python3 /workspace/download_data.py
 
 
-RUN git config --global user.name "Jakub Mitura"
-RUN git config --global user.email "jakub.mitura14@gmail.com"
+# setup enviromental variables for Julia multithreading keeping one interactive thread
+COPY setup_threads.sh  /etc/profile.d/
+
+# COPY initt.jl $HOME/initt.jl
+# RUN chmod +x $HOME/initt.jl
+
 
 WORKDIR "/workspace"
 COPY examples /workspace/examples
 
 ENTRYPOINT ["/usr/local/bin/julia"]
+CMD ["sleep", "infinity"]
 
+
+
+# /workspaces/MedEye3d.jl/.devcontainer/initt.jl

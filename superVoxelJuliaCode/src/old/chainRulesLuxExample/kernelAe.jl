@@ -5,14 +5,16 @@
 
 
 using ChainRulesCore,Zygote,CUDA,Enzyme
-using CUDAKernels
+# using CUDAKernels
 using KernelAbstractions
 # using KernelGradients
-using Zygote, Lux
+using Zygote, Lux,LuxCUDA
 using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
 using FillArrays
+using LinearAlgebra
 
+#add ChainRulesCore,Zygote,CUDA,Enzyme,KernelAbstractions,Lux,NNlib,Optimisers,Plots,Random,Statistics,FillArrays,MedEye3d
 #### test data
 Nx, Ny, Nz = 8, 8, 8
 oneSidePad = 1
@@ -33,9 +35,9 @@ rng = Random.default_rng()
 #### main kernel
 function testKern(A, p, Aout,Nx)
     #adding one bewcouse of padding
-    x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) + 1
-    y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) + 1
-    z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) + 1
+    x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
+    y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) 
+    z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) 
     Aout[x, y, z] = A[x, y, z] *p[x, y, z] *p[x, y, z] *p[x, y, z] 
     
     return nothing
@@ -44,7 +46,7 @@ end
 function testKernDeff( A, dA, p
     , dp, Aout
     , dAout,Nx)
-    Enzyme.autodiff_deferred(testKern, Const, Duplicated(A, dA), Duplicated(p, dp), Duplicated(Aout, dAout),Const(Nx)
+    Enzyme.autodiff_deferred(Reverse,testKern, Const, Duplicated(A, dA), Duplicated(p, dp), Duplicated(Aout, dAout),Const(Nx)
     )
     return nothing
 end
@@ -79,9 +81,12 @@ function ChainRulesCore.rrule(::typeof(calltestKern), A, p,Nx)
 
 end
 
+# using Pkg
+# Pkg.test("CUDA")
+
 
 #first testing does custom backpropagation compiles
-ress=Zygote.jacobian(calltestKern,A,p,Nx )
+# ress=Zygote.jacobian(calltestKern,A,p,Nx )
 
 
 #lux layers from http://lux.csail.mit.edu/dev/manual/interface/
@@ -113,10 +118,16 @@ end
 
 l = KernelA(Nx)
 ps, st = Lux.setup(rng, l)
-println("Parameter Length: ", Lux.parameterlength(l), "; State Length: ",
-        Lux.statelength(l))
+# println("Parameter Length: ", Lux.parameterlength(l), "; State Length: ",
+#         Lux.statelength(l))
 
-x = randn(rng, Float32, Nx, Ny,Nz)
+arr = collect(range(1, stop = Nx*Ny*Nz))
+arr = reshape(arr, (Nx, Ny, Nz))
+arr = Float32.(arr)
+
+# x = randn(rng, Float32, Nx, Ny,Nz)
+x = arr
+
 x= CuArray(x)
 # testing weather forward pass runs
 y_pred, st =Lux.apply(l, x, ps, st)
@@ -135,12 +146,12 @@ function loss_function(model, ps, st, x)
 end
 
 tstate = Lux.Training.TrainState(rng, model, opt; transform_variables=Lux.gpu)
-vjp_rule = Lux.Training.ZygoteVJP()
+# vjp_rule = Lux.Training.ZygoteVJP()
+vjp_rule = Lux.Training.AutoZygote()
 
-
-function main(tstate::Lux.Training.TrainState, vjp::Lux.Training.AbstractVJP, data,
+function main(tstate, vjp, data,
     epochs::Int)
-   # data = data .|> Lux.gpu
+    data = CuArray(data) #.|> Lux.gpu
     for epoch in 1:epochs
         grads, loss, stats, tstate = Lux.Training.compute_gradients(vjp, loss_function,
                                                                 data, tstate)
@@ -159,3 +170,13 @@ tstate = main(tstate, vjp_rule, x,1000)
 
 # a=Fill(7.0f0, 3, 2)
 # collect(a)
+
+
+# threads = (4, 4, 4)
+# blocks = (2, 2, 2)
+# dp = CUDA.ones(size(p))
+# dA = CUDA.ones(size(A))
+# Aout =CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad )
+# dAout =CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad )
+# @device_code_warntype @cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, dAout)
+# # @device_code_warntype @cuda threads = threads blocks = blocks testKern( A, p, Aout, Nx)

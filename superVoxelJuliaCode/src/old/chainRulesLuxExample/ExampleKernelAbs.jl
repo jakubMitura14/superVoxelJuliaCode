@@ -235,24 +235,24 @@ tstate = main(tstate, vjp_rule, x,1000)
 # collect(a)
 
 
-using ChainRulesCore,Zygote,CUDA,Enzyme
-using CUDAKernels
-using KernelAbstractions
-using Zygote, Lux
-using Lux, Random
-import NNlib, Optimisers, Plots, Random, Statistics, Zygote
-using FillArrays
+# using ChainRulesCore,Zygote,CUDA,Enzyme
+# using CUDAKernels
+# using KernelAbstractions
+# using Zygote, Lux
+# using Lux, Random
+# import NNlib, Optimisers, Plots, Random, Statistics, Zygote
+# using FillArrays
 
-mkpath("superVoxel_Julia")
-cd("my_image_name")
+# mkpath("superVoxel_Julia")
+# cd("my_image_name")
 
-pkgs = [
-    "Foo", # Replace Foo, Bar, Baz, etc. with the names of actual packages that you want to use
-    "Bar",
-    "Baz",
-]
-julia_version = v"1.4.0"
+# pkgs = [
+#     "Foo", # Replace Foo, Bar, Baz, etc. with the names of actual packages that you want to use
+#     "Bar",
+#     "Baz",
+# ]
+# julia_version = v"1.4.0"
 
-SimpleContainerGenerator.create_dockerfile(pkgs;
-                                           julia_version = julia_version,
-                                           output_directory = pwd())
+# SimpleContainerGenerator.create_dockerfile(pkgs;
+#                                            julia_version = julia_version,
+#                                            output_directory = pwd())

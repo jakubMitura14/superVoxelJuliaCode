@@ -5,7 +5,7 @@
 
 
 using ChainRulesCore,Zygote,CUDA,Enzyme
-using CUDAKernels
+# using CUDAKernels
 using KernelAbstractions
 # using KernelGradients
 using Zygote, Lux
