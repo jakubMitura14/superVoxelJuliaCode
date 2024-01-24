@@ -25,12 +25,18 @@ dA= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad )
 Aoutout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 dAoutout= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 
-p = CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
-dp= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+p = CUDA.ones(3) 
+# p = CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+dp= CUDA.ones(3 ) 
+# dp= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 
 threads = (4, 4, 4)
 blocks = (2, 2, 2)
 rng = Random.default_rng()
+
+function sigmoid(x::Float32)::Float32
+    return 1 / (1 + exp(-x))
+end
 
 #### main kernel
 function testKern(A, p, Aout,Nx)
@@ -38,7 +44,11 @@ function testKern(A, p, Aout,Nx)
     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) 
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) 
-    Aout[x, y, z] = A[x, y, z] *p[x, y, z] *p[x, y, z] *p[x, y, z] 
+    # Aout[x, y, z] = A[x, y, z] *p[x, y, z] *p[x, y, z] *p[x, y, z] 
+    # Int(round(sigmoid(p[1]))*Nx),sigmoid(p[2])*Nx,sigmoid(p[3])*Nx
+
+    # Aout[x, y, z] = A[sigmoid(p[1])*Nx,sigmoid(p[2])*Nx,sigmoid(p[3])*Nx]#A[x, y, z] *p[x, y, z] *p[x, y, z] *p[x, y, z] 
+    Aout[x, y, z] = A[Int(round(sigmoid(p[1]))*(Nx-1))+1,Int(round(sigmoid(p[2]))*(Nx-1))+1,Int(round(sigmoid(p[3]))*(Nx-1))+1]#A[x, y, z] *p[x, y, z] *p[x, y, z] *p[x, y, z] 
     
     return nothing
 end
@@ -54,6 +64,7 @@ end
 function calltestKern(A, p,Nx)
     Aout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
     @cuda threads = threads blocks = blocks testKern( A, p,  Aout,Nx)
+    # @device_code_warntype @cuda threads = threads blocks = blocks testKern( A, p,  Aout,Nx)
     return Aout
 end
 
@@ -83,10 +94,10 @@ end
 
 # using Pkg
 # Pkg.test("CUDA")
-
-
+# paramsA = tstate.parameters.paramsA
+# println(fieldnames(typeof(tstate)))
 #first testing does custom backpropagation compiles
-# ress=Zygote.jacobian(calltestKern,A,p,Nx )
+ress=Zygote.jacobian(calltestKern,A,p,Nx )
 
 
 #lux layers from http://lux.csail.mit.edu/dev/manual/interface/
@@ -99,7 +110,7 @@ function KernelA(confA)
 end
 
 function Lux.initialparameters(rng::AbstractRNG, l::KernelAstr)
-    return (paramsA=CuArray(rand(rng,Float32, l.confA, l.confA, l.confA))
+    return (paramsA=CuArray(rand(rng,Float32, 3))
     ,Nx =l.confA )
 end
 """
@@ -134,15 +145,17 @@ y_pred, st =Lux.apply(l, x, ps, st)
 
 
 
-model = Lux.Chain(KernelA(Nx),KernelA(Nx)) 
-opt = Optimisers.Adam(0.0003)
+# model = Lux.Chain(KernelA(Nx),KernelA(Nx)) 
+model = Lux.Chain(KernelA(Nx)) 
+# opt = Optimisers.Adam(0.0003)
+opt = Optimisers.Adam(0.03)
 
 """
 extremely simple loss function we just want to get the result to be as close to 100 as possible
 """
 function loss_function(model, ps, st, x)
     y_pred, st = Lux.apply(model, x, ps, st)
-    return (100-sum(y_pred))^2, st, ()
+    return (sum(y_pred))^2, st, ()
 end
 
 tstate = Lux.Training.TrainState(rng, model, opt; transform_variables=Lux.gpu)
@@ -155,7 +168,7 @@ function main(tstate, vjp, data,
     for epoch in 1:epochs
         grads, loss, stats, tstate = Lux.Training.compute_gradients(vjp, loss_function,
                                                                 data, tstate)
-        @info epoch=epoch loss=loss
+        @info epoch=epoch loss=loss tstate=tstate.parameters.paramsA
         tstate = Lux.Training.apply_gradients(tstate, grads)
     end
     return tstate
@@ -163,7 +176,10 @@ end
 # one epoch just to check if it runs
 tstate = main(tstate, vjp_rule, x,1)
 #training 
-tstate = main(tstate, vjp_rule, x,1000)
+tstate = main(tstate, vjp_rule, x,20)
+
+Int(round(6.871948f10))
+Int(round(262144.0f0))
 
 # using ChainRulesTestUtils
 # test_rrule(testKern,A, p, Aout)
