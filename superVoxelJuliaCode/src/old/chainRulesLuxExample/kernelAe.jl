@@ -22,8 +22,8 @@ totalPad=oneSidePad*2
 A = CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 dA= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 
-Aoutout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
-dAoutout= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+# Aoutout = CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
+# dAoutout= CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
 
 p = CUDA.ones(3) 
 # p = CUDA.ones(Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
@@ -135,6 +135,9 @@ ps, st = Lux.setup(rng, l)
 arr = collect(range(1, stop = Nx*Ny*Nz))
 arr = reshape(arr, (Nx, Ny, Nz))
 arr = Float32.(arr)
+arr.=1.0
+arr[1:4,1:4,1:4].=0.0
+
 
 # x = randn(rng, Float32, Nx, Ny,Nz)
 x = arr
