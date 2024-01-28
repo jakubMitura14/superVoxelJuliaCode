@@ -16,9 +16,8 @@ includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src
 
 Nx, Ny, Nz = 8, 8, 8
 rng = Random.default_rng()
-
-A = CUDA.ones(1,3,Nx+totalPad, Ny+totalPad, Nz+totalPad ) 
-
+threads = (2, 2,2)
+blocks = (1, 1, 1)
 dev = gpu_device()
 
 function get_sample_dat()
@@ -76,9 +75,7 @@ function main(ps, st,opt,opt_st , vjp, data,model,
 end
 
 #initialization
-model,ps, st,opt,opt_st,vjp_rule=get_model_consts(dev)
-
-y_pred, st = Lux.apply(model, x, ps, st)
+model,ps, st,opt,opt_st,vjp_rule=get_model_consts(dev,Nx,threads,blocks)
 
 # one epoch just to check if it runs
 ps, st,opt,opt_st  = main(ps, st,opt,opt_st , vjp_rule, x,model,1)

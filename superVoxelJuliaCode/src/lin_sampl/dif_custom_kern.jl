@@ -18,7 +18,7 @@ function testKernDeff( prim_A,dprim_A,A, dA, p
 end
 
 
-function calltestKern(prim_A,A, p,Nx)
+function calltestKern(prim_A,A, p,Nx,threads,blocks)
     Aout = CUDA.zeros(Float32,8) 
     @cuda threads = threads blocks = blocks testKern(prim_A, A, p,  Aout,Nx)
     # @device_code_warntype @cuda threads = threads blocks = blocks testKern( A, p,  Aout,Nx)
@@ -28,13 +28,12 @@ end
 
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(calltestKern),prim_A, A, p,Nx)
+function ChainRulesCore.rrule(::typeof(calltestKern),prim_A, A, p,Nx,threads,blocks)
     
 
-    Aout = calltestKern(prim_A,A, p,Nx)#CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad )
+    Aout = calltestKern(prim_A,A, p,Nx,threads,blocks)#CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad )
     function call_test_kernel1_pullback(dAout)
-        threads = (2, 2,2)
-        blocks = (1, 1, 1)
+
 
         dp = CUDA.ones(size(p))
         dprim_A = CUDA.ones(size(prim_A))
@@ -46,7 +45,7 @@ function ChainRulesCore.rrule(::typeof(calltestKern),prim_A, A, p,Nx)
         x̄ = dA
         ȳ = dp
         
-        return dprim_A,f̄, x̄, ȳ,NoTangent()
+        return dprim_A,f̄, x̄, ȳ,NoTangent(),NoTangent(),NoTangent()
     end   
     return Aout, call_test_kernel1_pullback
 
