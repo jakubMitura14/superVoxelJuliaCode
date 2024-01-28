@@ -209,7 +209,7 @@ A=x
 
 
 ps, st = Lux.setup(rng, model) .|> dev
-opt = Optimisers.Adam(0.003)
+opt = Optimisers.Adam(0.03)
 opt_st = Optimisers.setup(opt, ps) |> dev
 # vjp_rule = Lux.Training.ZygoteVJP()
 vjp_rule = Lux.Training.AutoZygote()

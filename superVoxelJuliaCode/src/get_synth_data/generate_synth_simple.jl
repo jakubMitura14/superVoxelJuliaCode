@@ -245,10 +245,6 @@ function getRand_graph_andArr(numberOfNodes,maxDistToJoin, dim_x,dim_y,dim_z ,mi
 end#getRand_graph_andArr
 
 
-
-
-
-
 # ##some constants defining possible discrepancies between distributions defined in termes of js divergence
 # #for two connected distributions
 # minConnectedDiff=5.0
