@@ -3,7 +3,7 @@
 #lux layers from http://lux.csail.mit.edu/dev/manual/interface/
 # backpropagation checkpointing https://fluxml.ai/Zygote.jl/dev/adjoints/#Checkpointing-1
 
-
+using CUDA
 using ChainRulesCore,Zygote,CUDA,Enzyme
 # using CUDAKernels
 using KernelAbstractions

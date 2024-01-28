@@ -1,6 +1,13 @@
 #adapted from https://github.com/JuliaGPU/julia-ngc
 # ARG IMAGE=nvidia/cuda:12.1.1-devel-ubuntu20.04
-FROM nvidia/cudagl:11.3.0-devel
+# FROM nvidia/cudagl:11.3.0-devel
+# FROM nvidia/cuda:11.2.2-cudnn8-devel-ubuntu20.04
+# FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
+# FROM nvidia/cuda:12.1.1-devel-ubuntu20.04
+FROM nvidia/cuda:12.1.1-devel-ubuntu20.04
+
+# ARG JULIA_RELEASE=1.10
+# ARG JULIA_VERSION=1.10.0
 
 
 ARG JULIA_RELEASE=1.9
@@ -63,16 +70,16 @@ RUN apt-get update -q -y && \
         octave\
         kmod\
         zlib1g\
-        python-dev\
+        # python-dev\
         bzip2\
         cmake\
-        cuda-command-line-tools-11.3 \
-        libcublas-11.3 \
-        cuda-nvrtc-11.3\
-        libcufft-11.3 \
-        libcurand-11.3 \
-        libcusolver-11.3 \
-        libcusparse-11.3 \
+        cuda-command-line-tools-12.1 \
+        libcublas-12.1 \
+        cuda-nvrtc-12.1\
+        libcufft-12.1 \
+        libcurand-12.1 \
+        libcusolver-12.1 \
+        libcusparse-12.1 \
         libfreetype6-dev \
         curl\
         libzmq3-dev \
@@ -131,10 +138,10 @@ RUN apt-get install --yes --no-install-recommends wget build-essential libcurl4 
 COPY Project.toml Manifest.toml LocalPreferences.toml /usr/local/share/julia/environments/v${JULIA_RELEASE}/
 
 RUN JULIA_DEPOT_PATH=/usr/local/share/julia \ 
-    julia -e 'using Pkg; Pkg.instantiate(); Pkg.API.precompile()'
+    julia -e 'using Pkg; Pkg.Registry.update(); Pkg.instantiate(); Pkg.API.precompile()'
 
-# generate the device runtime library for all known and supported devices
-# XXX: this doesn't precompile into the system depot anymore
+# # generate the device runtime library for all known and supported devices
+# # XXX: this doesn't precompile into the system depot anymore
 RUN JULIA_DEPOT_PATH=/usr/local/share/julia \ 
     julia -e 'using CUDA; CUDA.precompile_runtime()'
 
@@ -177,6 +184,24 @@ COPY setup_threads.sh  /etc/profile.d/
 
 # COPY initt.jl $HOME/initt.jl
 # RUN chmod +x $HOME/initt.jl
+
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        pkg-config \
+        libglvnd-dev libglvnd-dev \
+        libgl1-mesa-dev libgl1-mesa-dev \
+        libegl1-mesa-dev libegl1-mesa-dev \
+        libgles2-mesa-dev libgles2-mesa-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# ENV cudnn_version=8.1
+# ENV cuda_version=12.1
+# RUN apt-get install libcudnn8
+# RUN apt-get install libcudnn8-dev
+# RUN apt-get install libcudnn8-samples
+# RUN apt-get install libcudnn8=${cudnn_version}-1+${cuda_version}
+# RUN apt-get install libcudnn8-dev=${cudnn_version}-1+${cuda_version}
+# RUN apt-get install libcudnn8-samples=${cudnn_version}-1+${cuda_version}
 
 
 WORKDIR "/workspace"
