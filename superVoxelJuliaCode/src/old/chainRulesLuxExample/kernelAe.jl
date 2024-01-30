@@ -14,6 +14,7 @@ import NNlib, Optimisers, Plots, Random, Statistics, Zygote
 using FillArrays
 using LinearAlgebra
 using Images,ImageFiltering
+Pkg.add(url="https://github.com/EnzymeAD/Enzyme.jl.git")
 
 #`/usr/local/share/julia/environments/v1.10/Manifest.toml`
 #add ChainRulesCore,Zygote,Enzyme,KernelAbstractions,Lux,NNlib,Optimisers,Plots,Random,Statistics,FillArrays,LuxCUDA,CUDA,MedEye3d,Images,ImageFiltering

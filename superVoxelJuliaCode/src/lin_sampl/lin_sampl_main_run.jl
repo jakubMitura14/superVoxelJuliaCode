@@ -77,8 +77,11 @@ end
 #initialization
 model,ps, st,opt,opt_st,vjp_rule=get_model_consts(dev,Nx,threads,blocks)
 
+# y_pred, st = Lux.apply(model, x, ps, st)
+
 # one epoch just to check if it runs
 ps, st,opt,opt_st  = main(ps, st,opt,opt_st , vjp_rule, x,model,1)
+
 #training 
-ps, st,opt,opt_st  = main(ps, st,opt,opt_st , vjp_rule, x,model,30)
+ps, st,opt,opt_st  = main(ps, st,opt,opt_st , vjp_rule, x,model,300)
 
