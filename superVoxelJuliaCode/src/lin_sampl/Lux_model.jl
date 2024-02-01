@@ -56,7 +56,7 @@ end
 function get_model_consts(dev,Nx,threads,blocks)
     model = Lux.Chain(SkipConnection(Lux.Chain(conv1(1,3),conv2(3,3),convsigm2(3,3)) , connection_before_kernelA; name="prim_convs"),KernelA(Nx,threads,blocks)) 
     ps, st = Lux.setup(rng, model) .|> dev
-    opt = Optimisers.Adam(0.00003)
+    opt = Optimisers.Adam(0.003)
     opt_st = Optimisers.setup(opt, ps) |> dev
     # vjp_rule = Lux.Training.ZygoteVJP()
     vjp_rule = Lux.Training.AutoZygote()
