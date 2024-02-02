@@ -30,7 +30,7 @@ lin_y_point_pre=Meshes.Point3(lin_y[2,1,2,:])
 lin_y_point_post=Meshes.Point3(lin_y[2,2,2,:])
 
 lin_z_point_pre=Meshes.Point3(lin_z[2,2,1,:])
-lin_z_point_post=Meshes.Point3(lin_y[2,2,2,:])
+lin_z_point_post=Meshes.Point3(lin_z[2,2,2,:])
 
 oblique_point_1=Meshes.Point3(oblique[1,1,1,:])
 oblique_point_2=Meshes.Point3(oblique[2,1,1,:])
@@ -57,32 +57,49 @@ tetrs=[
 
     ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_2,lin_y_point_pre)
     ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_2,lin_z_point_pre)
+    ,Meshes.Tetrahedron(sv_center,lin_y_point_pre,oblique_point_2,lin_z_point_pre)
 
     ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_3,lin_y_point_post)
+    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_3,lin_z_point_pre)
     ,Meshes.Tetrahedron(sv_center,lin_z_point_pre,oblique_point_3,lin_y_point_post)
 
+    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_4,lin_y_point_pre)
     ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_4,lin_z_point_post)
     ,Meshes.Tetrahedron(sv_center,lin_z_point_post,oblique_point_4,lin_y_point_pre)
 
+
     ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_5,lin_y_point_post)
     ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_5,lin_z_point_post)
+    ,Meshes.Tetrahedron(sv_center,lin_z_point_post,oblique_point_5,lin_y_point_post)
 
+    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_6,lin_y_point_post)
     ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_6,lin_z_point_pre)
     ,Meshes.Tetrahedron(sv_center,lin_z_point_pre,oblique_point_6,lin_y_point_post)
 
     ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_7,lin_y_point_pre)
+    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_7,lin_z_point_post)   
     ,Meshes.Tetrahedron(sv_center,lin_z_point_post,oblique_point_7,lin_y_point_pre)
 
     ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_8,lin_y_point_post)
     ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_8,lin_z_point_post)
     ,Meshes.Tetrahedron(sv_center,lin_z_point_post,oblique_point_8,lin_y_point_post)
+    
 
 
 ]
 
+
+
+
 viz(tetrs, color = 1:length(tetrs))
 
 
+sv_center ∈ tetrs[5]
+
+
+
+
+asdasd
 
 # combinationss = collect(combinations(points, 3))
 
