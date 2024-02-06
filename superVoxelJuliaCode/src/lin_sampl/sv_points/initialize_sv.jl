@@ -29,7 +29,8 @@ function get_linear_control_points(dims,axis,diam,radius)
     dim_new[axis]=dim_new[axis]+1
     indicies=get_base_indicies_arr(Tuple(dim_new)).-1
     indicies=indicies.*diam
-    indicies_ax=indicies[:,:,:,axis].+radius
+    indicies=indicies.+diam
+    indicies_ax=indicies[:,:,:,axis].-radius
     indicies[:,:,:,axis]=indicies_ax
     return indicies
 end#get_linear_control_points

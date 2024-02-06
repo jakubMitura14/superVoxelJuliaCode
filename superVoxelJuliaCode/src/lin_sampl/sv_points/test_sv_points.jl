@@ -13,7 +13,6 @@ using LinearAlgebra
 using GLMakie
 using Combinatorics
 
-
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
 
 dims=(3,3,3)
@@ -24,14 +23,16 @@ sv_centers,lin_x,lin_y,lin_z,oblique,lin_x_add,lin_y_add,lin_z_add=example_set_o
 
 
 sv_center=Meshes.Point3(sv_centers[1,1,1,:])
-lin_x_point_pre=Meshes.Point3(lin_x[1,2,2,:])
-lin_x_point_post=Meshes.Point3(lin_x[2,2,2,:])
 
-lin_y_point_pre=Meshes.Point3(lin_y[2,1,2,:])
-lin_y_point_post=Meshes.Point3(lin_y[2,2,2,:])
 
-lin_z_point_pre=Meshes.Point3(lin_z[2,2,1,:])
-lin_z_point_post=Meshes.Point3(lin_z[2,2,2,:])
+lin_x_point_pre=Meshes.Point3(lin_x[1,1,1,:])
+lin_x_point_post=Meshes.Point3(lin_x[2,1,1,:])
+
+lin_y_point_pre=Meshes.Point3(lin_y[1,1,1,:])
+lin_y_point_post=Meshes.Point3(lin_y[1,2,1,:])
+
+lin_z_point_pre=Meshes.Point3(lin_z[1,1,1,:])
+lin_z_point_post=Meshes.Point3(lin_z[1,1,2,:])
 
 lin_x_point_pre_add=Meshes.Point3(lin_x_add[2,1,1,:])
 # lin_x_point_pre_add=Meshes.Point3(lin_x_add[1,2,2,:])
@@ -53,6 +54,39 @@ oblique_point_5=Meshes.Point3(oblique[1,2,2,:])
 oblique_point_6=Meshes.Point3(oblique[2,2,1,:])
 oblique_point_7=Meshes.Point3(oblique[2,1,2,:])
 oblique_point_8=Meshes.Point3(oblique[2,2,2,:])
+
+
+#take a corner and can modify just one of the coordinates will get 3 combinations
+1,1,1
+2,1,1
+1,2,1
+
+1,1,1
+2,1,1
+1,1,2
+
+1,1,1
+1,1,2
+1,2,1
+
+
+
+1,2,1
+1,2,2
+2,2,2
+
+1,2,1
+2,2,1
+2,2,2
+
+1,2,2
+2,1,2
+2,2,2
+
+2,2,1
+2,1,2
+2,2,2
+
 #sv_center,
 points=[lin_x_point_pre,lin_x_point_post
 ,lin_y_point_pre,lin_y_point_post
@@ -71,9 +105,9 @@ function is_point_in_array(x,y,z,arr)
     return res
 end     
 
-x=3.0
-y=3.0
-z=3.0
+x=9.0
+y=6.0
+z=9.0
 is_point_in_array(x,y,z,oblique)
 is_point_in_array(x,y,z,lin_x)
 is_point_in_array(x,y,z,lin_y)
@@ -83,88 +117,68 @@ is_point_in_array(x,y,z,lin_z_add)
 is_point_in_array(x,y,z,lin_z_add)
 is_point_in_array(x,y,z,lin_z_add)
 
+function flip_num(tupl,ind)
+    arr=collect(tupl)
+    if(arr[ind]==1)
+        arr[ind]=2
+    else
+        arr[ind]=1
+    end    
+    return Tuple(arr)
+end
+
+function get_tetr_a(corner)
+    p_a=flip_num(corner,1)
+    p_b=flip_num(corner,2)
+    p_c=flip_num(corner,3)
+    
+    print("p_a $(p_a) p_b $(p_b) p_c $(p_c)")
+    p_a=Meshes.Point3(oblique[p_a[1],p_a[2],p_a[3],:])
+    p_b=Meshes.Point3(oblique[p_b[1],p_b[2],p_b[3],:])
+    p_c=Meshes.Point3(oblique[p_c[1],p_c[2],p_c[3],:])
+    corner=Meshes.Point3(oblique[corner[1],corner[2],corner[3],:])
+    return [Meshes.Tetrahedron(sv_center ,corner,p_a,p_b)
+    ,Meshes.Tetrahedron(sv_center ,corner,p_b,p_c)
+    ,Meshes.Tetrahedron(sv_center ,corner,p_a,p_c)
+    ]
+end
+
 
 tetrs=[
-    #all oblique
-    Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_1,lin_y_point_pre)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_1,lin_z_point_pre)
-    ,Meshes.Tetrahedron(sv_center,lin_z_point_pre,oblique_point_1,lin_y_point_pre)
+    get_tetr_a((1,1,1))
+    ,get_tetr_a((2,2,1))
+    ,get_tetr_a((1,2,2))
+    ,get_tetr_a((2,1,2))
 
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_2,lin_y_point_pre)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_2,lin_z_point_pre)
-    ,Meshes.Tetrahedron(sv_center,lin_y_point_pre,oblique_point_2,lin_z_point_pre)
-
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_3,lin_y_point_post)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_3,lin_z_point_pre)
-    ,Meshes.Tetrahedron(sv_center,lin_z_point_pre,oblique_point_3,lin_y_point_post)
-
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_4,lin_y_point_pre)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_4,lin_z_point_post)
-    ,Meshes.Tetrahedron(sv_center,lin_z_point_post,oblique_point_4,lin_y_point_pre)
+]
+tetrs = collect(Iterators.flatten(tetrs))
+viz(tetrs, color = 1:length(tetrs))
 
 
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_5,lin_y_point_post)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,oblique_point_5,lin_z_point_post)
-    ,Meshes.Tetrahedron(sv_center,lin_z_point_post,oblique_point_5,lin_y_point_post)
+tt=get_tetr_a((1,1,1))
+tetrs=[
+    tt[1],tt[2],tt[3]
+#  Meshes.Tetrahedron(sv_center,oblique_point_1,oblique_point_2,oblique_point_3)
+#  Meshes.Tetrahedron(sv_center,oblique_point_1,oblique_point_2,oblique_point_4)
 
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_6,lin_y_point_post)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_6,lin_z_point_pre)
-    ,Meshes.Tetrahedron(sv_center,lin_z_point_pre,oblique_point_6,lin_y_point_post)
+#  Meshes.Tetrahedron(sv_center,oblique_point_3,oblique_point_5,oblique_point_8)
+#  Meshes.Tetrahedron(sv_center,oblique_point_6,oblique_point_3,oblique_point_8)
 
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_7,lin_y_point_pre)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_7,lin_z_point_post)   
-    ,Meshes.Tetrahedron(sv_center,lin_z_point_post,oblique_point_7,lin_y_point_pre)
+#  Meshes.Tetrahedron(sv_center,oblique_point_5,oblique_point_7,oblique_point_8)
+#  Meshes.Tetrahedron(sv_center,oblique_point_6,oblique_point_7,oblique_point_8)
 
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_8,lin_y_point_post)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,oblique_point_8,lin_z_point_post)
-    ,Meshes.Tetrahedron(sv_center,lin_z_point_post,oblique_point_8,lin_y_point_post)
-    # more central
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,lin_y_point_pre,lin_z_point_pre)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,lin_y_point_pre,lin_z_point_pre)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,lin_y_point_post,lin_z_point_pre)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,lin_y_point_pre,lin_z_point_post)
+# Meshes.Tetrahedron(sv_center,Meshes.Point3(oblique[1,1,1,:]),Meshes.Point3(oblique[2,1,1,:]),Meshes.Point3(oblique[1,2,1,:]))
+# Meshes.Tetrahedron(sv_center,Meshes.Point3(oblique[1,1,1,:]),Meshes.Point3(oblique[2,1,1,:]),Meshes.Point3(oblique[1,1,2,:]))
+# Meshes.Tetrahedron(sv_center,Meshes.Point3(oblique[1,1,1,:]),Meshes.Point3(oblique[1,1,2,:]),Meshes.Point3(oblique[1,2,1,:]))
 
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,lin_y_point_post,lin_z_point_pre)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre,lin_y_point_post,lin_z_point_post)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,lin_y_point_pre,lin_z_point_post)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_post,lin_y_point_post,lin_z_point_post)
-    #new with oblique
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre_add,oblique_point_1,lin_y_point_pre_add)
-    ,Meshes.Tetrahedron(sv_center,lin_x_point_pre_add,oblique_point_1,lin_z_point_pre_add)
-    ,Meshes.Tetrahedron(sv_center,lin_z_point_pre_add,oblique_point_1,lin_y_point_pre_add)
-
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_post_add,oblique_point_2,lin_y_point_pre_add)
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_post_add,oblique_point_2,lin_z_point_pre_add)
-    # ,Meshes.Tetrahedron(sv_center,lin_y_point_pre_add,oblique_point_2,lin_z_point_pre_add)
-
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_pre_add,oblique_point_3,lin_y_point_post_add)
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_pre_add,oblique_point_3,lin_z_point_pre_add)
-    # ,Meshes.Tetrahedron(sv_center,lin_z_point_pre_add,oblique_point_3,lin_y_point_post_add)
-
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_pre_add,oblique_point_4,lin_y_point_pre_add)
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_pre_add,oblique_point_4,lin_z_point_post_add)
-    # ,Meshes.Tetrahedron(sv_center,lin_z_point_post_add,oblique_point_4,lin_y_point_pre_add)
+# Meshes.Tetrahedron(sv_center,Meshes.Point3(oblique[1,2,2,:]),Meshes.Point3(oblique[2,2,2,:]),Meshes.Point3(oblique[1,2,1,:]))
+# Meshes.Tetrahedron(sv_center,Meshes.Point3(oblique[1,2,2,:]),Meshes.Point3(oblique[1,2,1,:]),Meshes.Point3(oblique[1,1,2,:]))
+# Meshes.Tetrahedron(sv_center,Meshes.Point3(oblique[1,2,2,:]),Meshes.Point3(oblique[2,2,2,:]),Meshes.Point3(oblique[1,1,2,:]))
 
 
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_pre_add,oblique_point_5,lin_y_point_post_add)
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_pre_add,oblique_point_5,lin_z_point_post_add)
-    # ,Meshes.Tetrahedron(sv_center,lin_z_point_post_add,oblique_point_5,lin_y_point_post_add)
 
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_post_add,oblique_point_6,lin_y_point_post_add)
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_post_add,oblique_point_6,lin_z_point_pre_add)
-    # ,Meshes.Tetrahedron(sv_center,lin_z_point_pre_add,oblique_point_6,lin_y_point_post_add)
 
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_post_add,oblique_point_7,lin_y_point_pre_add)
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_post_add,oblique_point_7,lin_z_point_post_add)   
-    # ,Meshes.Tetrahedron(sv_center,lin_z_point_post_add,oblique_point_7,lin_y_point_pre_add)
-
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_post_add,oblique_point_8,lin_y_point_post_add)
-    # ,Meshes.Tetrahedron(sv_center,lin_x_point_post_add,oblique_point_8,lin_z_point_post_add)
-    # ,Meshes.Tetrahedron(sv_center,lin_z_point_post_add,oblique_point_8,lin_y_point_post_add)
-
-    ,Meshes.Tetrahedron(sv_center,lin_z_point_post,oblique_point_8,lin_y_point_post_add)
-
-    
+# 3,3,9    3,9,3
 ]
 
 viz(tetrs, color = 1:length(tetrs))
