@@ -57,35 +57,7 @@ oblique_point_8=Meshes.Point3(oblique[2,2,2,:])
 
 
 #take a corner and can modify just one of the coordinates will get 3 combinations
-1,1,1
-2,1,1
-1,2,1
 
-1,1,1
-2,1,1
-1,1,2
-
-1,1,1
-1,1,2
-1,2,1
-
-
-
-1,2,1
-1,2,2
-2,2,2
-
-1,2,1
-2,2,1
-2,2,2
-
-1,2,2
-2,1,2
-2,2,2
-
-2,2,1
-2,1,2
-2,2,2
 
 #sv_center,
 points=[lin_x_point_pre,lin_x_point_post
@@ -127,19 +99,59 @@ function flip_num(tupl,ind)
     return Tuple(arr)
 end
 
+"""
+we can identify the line between two corners that go obliquely through the wall of the cube
+it connects points that has 2 coordinates diffrent and one the same 
+we can also find a point in the middle so it will be in lin_x if this common index is 1 and in lin_y if it is 2 and lin_z if 3
+next if we have 1 it is pre and if 2 post
+"""
+function get_linear_between(ind_1,ind_2)
+    if(ind_1[1]==ind_2[1])
+        return lin_x[ind_1[1],1,1,:]
+    end
+    if(ind_1[2]==ind_2[2])
+        return lin_y[1,ind_1[2],1,:]
+    end
+
+    return lin_z[1,1,ind_1[3],:]
+end
+
 function get_tetr_a(corner)
     p_a=flip_num(corner,1)
     p_b=flip_num(corner,2)
     p_c=flip_num(corner,3)
-    
-    print("p_a $(p_a) p_b $(p_b) p_c $(p_c)")
+
+
+    p_ab=get_linear_between(p_a,p_b)
+    p_ac=get_linear_between(p_a,p_c)
+    p_bc=get_linear_between(p_b,p_c)
+
+    print("indd corner $(corner) p_a $(p_a) p_b $(p_b) p_c $(p_c) p_ab $(p_ab) p_ac $(p_ac) p_bc $(p_bc) \n ")
+
+
     p_a=Meshes.Point3(oblique[p_a[1],p_a[2],p_a[3],:])
     p_b=Meshes.Point3(oblique[p_b[1],p_b[2],p_b[3],:])
     p_c=Meshes.Point3(oblique[p_c[1],p_c[2],p_c[3],:])
+
+
+    p_ab=Meshes.Point3(p_ab)
+    p_ac=Meshes.Point3(p_ac)
+    p_bc=Meshes.Point3(p_bc)
+
     corner=Meshes.Point3(oblique[corner[1],corner[2],corner[3],:])
-    return [Meshes.Tetrahedron(sv_center ,corner,p_a,p_b)
-    ,Meshes.Tetrahedron(sv_center ,corner,p_b,p_c)
-    ,Meshes.Tetrahedron(sv_center ,corner,p_a,p_c)
+
+    # print("coo corner $(corner) p_a $(p_a) p_b $(p_b) p_c $(p_c) \n ")
+
+    return [
+        Meshes.Tetrahedron(sv_center ,corner,p_a,p_ab)
+        ,Meshes.Tetrahedron(sv_center ,corner,p_ab,p_b)
+
+    ,Meshes.Tetrahedron(sv_center ,corner,p_b,p_bc)
+    ,Meshes.Tetrahedron(sv_center ,corner,p_bc,p_c)
+
+    ,Meshes.Tetrahedron(sv_center ,corner,p_a,p_ac)
+    ,Meshes.Tetrahedron(sv_center ,corner,p_ac,p_c)
+
     ]
 end
 
