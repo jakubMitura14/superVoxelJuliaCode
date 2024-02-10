@@ -73,6 +73,7 @@ simple kernel friendly interpolator - given float coordinates and source array w
 
 function ThreeDLinInterpol(coord_x,coord_y,coord_z,source_arr)
     ## first we get the total distances of all points to be able to normalize it later
+    #TODO(use dist_sum and res as var2 and 3 if possible)
     dist_sum=0.0    
     dist_sum+=sqrt((coord_x-@my_floor(coord_x))^2+(coord_y-@my_floor(coord_y))^2+(coord_z-@my_floor(coord_z))^2)
     dist_sum+=sqrt((coord_x-@my_ceil(coord_x))^2+(coord_y-@my_floor(coord_y))^2+(coord_z-@my_floor(coord_z))^2)

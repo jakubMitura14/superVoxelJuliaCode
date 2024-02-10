@@ -24,20 +24,19 @@ function KernelA(Nx,threads,blocks)
 end
 
 function Lux.initialparameters(rng::AbstractRNG, l::KernelAstr)
-    return (paramsA=CuArray(rand(rng,Float32, 3,8))
-    ,Nx =l.Nx,threads=l.threads,blocks=l.blocks )
+    return (paramsA=CuArray(rand(rng,Float32, 3,8)) )
 end
 """
 https://stackoverflow.com/questions/52035775/in-julia-1-0-how-to-set-a-named-tuple-with-only-one-key-value-pair
 in order to get named tuple with single element put comma after
 """
 function Lux.initialstates(::AbstractRNG, l::KernelAstr)::NamedTuple
-    return (NxSt=l.Nx , )
+    return (Nx =l.Nx,threads=l.threads,blocks=l.blocks )
 end
 
 function (l::KernelAstr)(x, ps, st::NamedTuple)
     x,prim_a= x
-    return calltestKern(prim_a,x, ps.paramsA,ps.Nx,ps.threads,ps.blocks),st
+    return calltestKern(prim_a,x, ps.paramsA,st.Nx,st.threads,st.blocks),st
 end
 
 

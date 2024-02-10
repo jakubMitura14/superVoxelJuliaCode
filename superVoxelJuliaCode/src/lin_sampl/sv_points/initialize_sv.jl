@@ -1,7 +1,5 @@
-"""
-initializing supervoxel points
-"""
 
+using SplitApplyCombine
 
 """
 get 4 dimensional array of cartesian indicies of a 3 dimensional array
@@ -25,8 +23,9 @@ we will create linear points by moving by radius in each axis
 """
 function get_linear_control_points(dims,axis,diam,radius)
     #increasing dimension as we need to have them both up and down the axis
-    dim_new=collect(Iterators.flatten(dims))#.+1
-    dim_new[axis]=dim_new[axis]+1
+    # dim_new=collect(Iterators.flatten(dims))#.+1
+    # dim_new[axis]=dim_new[axis]+1
+    dim_new=collect(Iterators.flatten(dims)).+1
     indicies=get_base_indicies_arr(Tuple(dim_new)).-1
     indicies=indicies.*diam
     indicies=indicies.+diam
@@ -73,14 +72,10 @@ function initialize_centers_and_control_points(dims,radius)
     lin_z=get_linear_control_points(dims,3,diam,radius)
     oblique=get_oblique_control_points(dims,diam,radius)
 
-    lin_x_add=get_linear_control_points_added(dims,1,diam,radius)
-    lin_y_add=get_linear_control_points_added(dims,2,diam,radius)
-    lin_z_add=get_linear_control_points_added(dims,3,diam,radius)
-
-    return sv_centers,lin_x,lin_y,lin_z,oblique,lin_x_add,lin_y_add,lin_z_add
-
-
+    stacked_points = sv_centers,combinedims([lin_x, lin_y, lin_z, oblique],4)
+    return stacked_points
 end#initialize_centers_and_control_points    
+    
 
 # dims=(4,4,4)
 # collect(Iterators.flatten(dims)).+1
