@@ -14,17 +14,12 @@ import NNlib, Optimisers, Plots, Random, Statistics, Zygote
 using FillArrays
 using LinearAlgebra
 using Images,ImageFiltering
-Pkg.add(url="https://github.com/EnzymeAD/Enzyme.jl.git")
+# Pkg.add(url="https://github.com/EnzymeAD/Enzyme.jl.git")
 
 #### test data
 Nx, Ny, Nz = 8, 8, 8
 threads = (2,2,2)
 blocks = (1, 1, 1)
-rng = Random.default_rng()
-
-function sigmoid(x::Float32)::Float32
-    return 1 / (1 + exp(-x))
-end
 
 #### main dummy kernel
 function testKern(prim_A,A, p, Aout,Nx)
@@ -78,80 +73,56 @@ function ChainRulesCore.rrule(::typeof(calltestKern),prim_A, A, p,Nx)
 
 end
 
+using ChainRulesCore
 
-#lux layers from http://lux.csail.mit.edu/dev/manual/interface/
-struct KernelAstr<: Lux.AbstractExplicitLayer
-    confA::Int
-end
+# Define the inputs
+prim_A = CUDA.zeros(Float32, Nx, Ny, Nz)
+A = CUDA.zeros(Float32, Nx, Ny, Nz)
+p = CUDA.zeros(Float32, Nx, Ny, Nz)
 
-function KernelA(confA)
-    return KernelAstr(confA)
-end
-
-function Lux.initialparameters(rng::AbstractRNG, l::KernelAstr)
-    return (paramsA=CuArray(rand(rng,Float32, 3,8))
-    ,Nx =l.confA )
-end
-
-function Lux.initialstates(::AbstractRNG, l::KernelAstr)::NamedTuple
-    return (NxSt=l.confA , )
-end
-
-function (l::KernelAstr)(x, ps, st::NamedTuple)
-    x,prim_a= x
-    return calltestKern(prim_a,x, ps.paramsA,ps.Nx),st
-end
+# Compute the Jacobian
+jacobian_result =Zygote.jacobian(calltestKern, prim_A, A, p, Nx)
 
 
 
+# arr = collect(range(1, stop = Nx*Ny*Nz))
+# arr=reshape(arr,(Nx,Ny,Nz,1,1))
+# arr=Float32.(arr)
+# x = arr
+# x= CuArray(x)
 
-conv1 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.tanh, stride=1, pad=Lux.SamePad())
-conv2 = (in, out) -> Lux.Conv((3,3,3),  in => out , NNlib.tanh, stride=2, pad=Lux.SamePad())
+# dev = gpu_device()
+# model = Lux.Chain(SkipConnection(Lux.Chain(conv1(1,3),conv2(3,3),conv2(3,3)) , connection_before_kernelA; name="prim_convs"),KernelA(Nx)) 
 
-# model = Lux.Chain(KernelA(Nx),KernelA(Nx)) 
-function connection_before_kernelA(x,y)
-    return (x,y)
-end
+# ps, st = Lux.setup(rng, model) .|> dev
+# opt = Optimisers.Adam(0.03)
+# opt_st = Optimisers.setup(opt, ps) |> dev
+# vjp_rule = Lux.Training.AutoZygote()
+# y_pred, st = Lux.apply(model, x, ps, st)
 
+# """
+# extremely simple loss function we just want to get the result to be as close to 100 as possible
+# """
+# function loss_function(model, ps, st, x)
+#     y_pred, st = Lux.apply(model, x, ps, st)
+#     return (sum(y_pred)), st, ()
 
-arr = collect(range(1, stop = Nx*Ny*Nz))
-arr=reshape(arr,(Nx,Ny,Nz,1,1))
-arr=Float32.(arr)
-x = arr
-x= CuArray(x)
+# end
 
-dev = gpu_device()
-model = Lux.Chain(SkipConnection(Lux.Chain(conv1(1,3),conv2(3,3),conv2(3,3)) , connection_before_kernelA; name="prim_convs"),KernelA(Nx)) 
+# function main(ps, st,opt,opt_st , vjp, data,model,
+#     epochs::Int)
+#     x = CuArray(data) #.|> Lux.gpu
+#     for epoch in 1:epochs
 
-ps, st = Lux.setup(rng, model) .|> dev
-opt = Optimisers.Adam(0.03)
-opt_st = Optimisers.setup(opt, ps) |> dev
-vjp_rule = Lux.Training.AutoZygote()
-y_pred, st = Lux.apply(model, x, ps, st)
+#         (loss, st), back = Zygote.pullback(p -> loss_function(model, p, st, x), ps)
+#         gs = back((one(loss), nothing))[1]
+#         opt_st, ps = Optimisers.update(opt_st, ps, gs)
 
-"""
-extremely simple loss function we just want to get the result to be as close to 100 as possible
-"""
-function loss_function(model, ps, st, x)
-    y_pred, st = Lux.apply(model, x, ps, st)
-    return (sum(y_pred)), st, ()
-
-end
-
-function main(ps, st,opt,opt_st , vjp, data,model,
-    epochs::Int)
-    x = CuArray(data) #.|> Lux.gpu
-    for epoch in 1:epochs
-
-        (loss, st), back = Zygote.pullback(p -> loss_function(model, p, st, x), ps)
-        gs = back((one(loss), nothing))[1]
-        opt_st, ps = Optimisers.update(opt_st, ps, gs)
-
-        @info epoch=epoch loss=loss 
-    end
-    return ps, st,opt,opt_st 
-end
-# one epoch just to check if it runs
-ps, st,opt,opt_st  = main(ps, st,opt,opt_st , vjp_rule, x,model,1)
+#         @info epoch=epoch loss=loss 
+#     end
+#     return ps, st,opt,opt_st 
+# end
+# # one epoch just to check if it runs
+# ps, st,opt,opt_st  = main(ps, st,opt,opt_st , vjp_rule, x,model,1)
 
 

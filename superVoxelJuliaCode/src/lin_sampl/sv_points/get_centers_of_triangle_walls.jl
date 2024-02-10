@@ -17,6 +17,8 @@ using Combinatorics
 using SplitApplyCombine
 using CUDA
 using Combinatorics
+using Random
+using Statistics
 
 
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
@@ -93,45 +95,6 @@ function get_tetr_a(control_points,base_ind,corner)
     # ]
     # return [p_a,p_b,p_c,p_ab,p_ac,p_bc,corner   ]
 end
-
-
-
-
-function get_tetrahedrons_of_sv(base_ind)
-    return [
-        get_tetr_a(control_points,base_ind,(base_ind[1],base_ind[2],base_ind[3]))
-        ,get_tetr_a(control_points,base_ind,(base_ind[1]+1,base_ind[2]+1,base_ind[3]))
-        ,get_tetr_a(control_points,base_ind,(base_ind[1],base_ind[2]+1,base_ind[3]+1))
-        ,get_tetr_a(control_points,base_ind,(base_ind[1]+1,base_ind[2],base_ind[3]+1))
-    ]
-end #get_tetrahedrons_of_sv
-
-
-####################################
-"""
-now we have in tetrs all of the triangles that create the outer skin of sv volume 
-we need to no 
-1. get a center of each triangle
-2. draw a line between the center of the triangle and the center of the sv lets call it AB
-3. divide AB into n sections (the bigger n the more sample points)
-4. division between sections will be our main sample points morover we will get point in a middle between
-    last main zsample points and a verticies of main triangle that we got as input
-5. we weight each point by getting the distance to the edges of the tetrahedron in which we are operating
-    the bigger the distance the bigger the importance of this sample point. 
-    a)in order to get this distance for main sample points we need to define lines between triangle verticies and the center of the sv
-    and then we need to project the sample point onto this line pluc the distance to previous and or next sample point
-    b)in case for additional ones - those that branch out from last main sample point we will approximate the spread by just getting the distance between
-    the last main sample point and the the vartex of the trangle that we used for it and using it as a diameter of the sphere which volume we will use for weighting those points
-
-
-Implementation details:
-probably the bst is to get all of the sample point per tetrahedron to be calculated in sequence over single thread
-and then parallelize info on tetrahedrons 
-In case of using float32 and reserving space for shadow memory for enzyme we probably can keep 2-3 floats32 in shared memory per thread
-for x,y,z indicies of the supervoxels probably uint8 will be sufficient
-
-"""
-
 
 
 
@@ -216,23 +179,40 @@ macro threeDLinInterpol(source_arr)
     ## first we get the total distances of all points to be able to normalize it later
     return  esc(quote
     var1=0.0    
-    var1+=sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
-    var1+=sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
-    var1+=sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
-    var1+=sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
-    var1+=sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
-    var1+=sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
-    var1+=sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
-    var1+=sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
+    var1+=((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
+    var1+=((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
+    var1+=((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
+    var1+=((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
+    var1+=((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
+    var1+=((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
+    var1+=((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
+    var1+=((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
+    # var1+=sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
+    # var1+=sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
+    # var1+=sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
+    # var1+=sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
+    # var1+=sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
+    # var1+=sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
+    # var1+=sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
+    # var1+=sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
     # ## now we get the final value by weightes summation
-    var2= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_floor(shared_arr[2])),Int(@my_floor(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_floor(shared_arr[2])),Int(@my_floor(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_ceil(shared_arr[2])) ,Int(@my_floor(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_floor(shared_arr[2])),Int(@my_ceil(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_ceil(shared_arr[2])) ,Int(@my_floor(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_ceil(shared_arr[2])) ,Int(@my_ceil(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_floor(shared_arr[2])),Int(@my_ceil(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_ceil(shared_arr[1]))  ,Int(@my_ceil(shared_arr[2])) ,Int(@my_ceil(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
+    var2= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_floor(shared_arr[2])),Int(@my_floor(shared_arr[3]))]*(((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
+    var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_floor(shared_arr[2])),Int(@my_floor(shared_arr[3]))]*(((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
+    var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_ceil(shared_arr[2])) ,Int(@my_floor(shared_arr[3]))]*(((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
+    var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_floor(shared_arr[2])),Int(@my_ceil(shared_arr[3]))]*(((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
+    var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_ceil(shared_arr[2])) ,Int(@my_floor(shared_arr[3]))]*(((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
+    var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_ceil(shared_arr[2])) ,Int(@my_ceil(shared_arr[3]))]*(((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
+    var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_floor(shared_arr[2])),Int(@my_ceil(shared_arr[3]))]*(((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
+    var2+= $source_arr[Int(@my_ceil(shared_arr[1]))  ,Int(@my_ceil(shared_arr[2])) ,Int(@my_ceil(shared_arr[3]))]*(((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
+    
+    # var2= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_floor(shared_arr[2])),Int(@my_floor(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
+    # var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_floor(shared_arr[2])),Int(@my_floor(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
+    # var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_ceil(shared_arr[2])) ,Int(@my_floor(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
+    # var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_floor(shared_arr[2])),Int(@my_ceil(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
+    # var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_ceil(shared_arr[2])) ,Int(@my_floor(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
+    # var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_ceil(shared_arr[2])) ,Int(@my_ceil(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
+    # var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_floor(shared_arr[2])),Int(@my_ceil(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
+    # var2+= $source_arr[Int(@my_ceil(shared_arr[1]))  ,Int(@my_ceil(shared_arr[2])) ,Int(@my_ceil(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
     
     end)
 
@@ -278,7 +258,6 @@ function is created to find ith sample point when max is is the number of main s
     source_arr - array with image on which we are working    
 """
 function get_sample_point_num(tetr_dat,num_base_samp_points,shared_arr,out_sampled_points,source_arr)
-    samp_points=[]
     #TODO unroll the loop
     var1=0.0
     var2=0.0#will be used for example for interpolation
@@ -302,6 +281,7 @@ function get_sample_point_num(tetr_dat,num_base_samp_points,shared_arr,out_sampl
                            +(shared_arr[3] -@get_diff_on_line_sv_tetr(3,triangle_corner_num+1,point_num) )^2     
             ) 
         end#for triangle_corner_num     
+
         #now as we had looked into distance to other points in 5 directions we divide by 5 and save it to the out_sampled_points
         out_sampled_points[point_num,2]=var1/5
 
@@ -314,13 +294,12 @@ function get_sample_point_num(tetr_dat,num_base_samp_points,shared_arr,out_sampl
         #performing interpolation result is in var2 and it get data from shared_arr
         @threeDLinInterpol(source_arr)
         #saving the result of interpolated value to the out_sampled_points
-        out_sampled_points[point_num,2]=var2
+        out_sampled_points[point_num,1]=var2
         #saving sample points coordinates
         out_sampled_points[point_num,3]=shared_arr[1]
         out_sampled_points[point_num,4]=shared_arr[2]
         out_sampled_points[point_num,5]=shared_arr[3]
-        #for CPU debug
-        push!(samp_points,copy(shared_arr))
+
 
     end#for num_base_samp_points
 
@@ -342,20 +321,25 @@ function get_sample_point_num(tetr_dat,num_base_samp_points,shared_arr,out_sampl
         #performing interpolation result is in var2 and it get data from shared_arr
         @threeDLinInterpol(source_arr)
         #saving the result of interpolated value to the out_sampled_points
-        out_sampled_points[num_base_samp_points+triangle_corner_num,2]=var2
+        out_sampled_points[num_base_samp_points+triangle_corner_num,1]=var2
         #saving sample points coordinates
         out_sampled_points[num_base_samp_points+triangle_corner_num,3]=shared_arr[1]
         out_sampled_points[num_base_samp_points+triangle_corner_num,4]=shared_arr[2]
         out_sampled_points[num_base_samp_points+triangle_corner_num,5]=shared_arr[3]
 
 
-        #for CPU debug
-        push!(samp_points,copy(shared_arr))
 
     end #for triangle_corner_num
-    return samp_points
+    return nothing
 end
-
+function get_tetrahedrons_of_sv(base_ind,control_points)
+    return [
+        get_tetr_a(control_points,base_ind,(base_ind[1],base_ind[2],base_ind[3]))
+        ,get_tetr_a(control_points,base_ind,(base_ind[1]+1,base_ind[2]+1,base_ind[3]))
+        ,get_tetr_a(control_points,base_ind,(base_ind[1],base_ind[2]+1,base_ind[3]+1))
+        ,get_tetr_a(control_points,base_ind,(base_ind[1]+1,base_ind[2],base_ind[3]+1))
+    ]
+end #get_tetrahedrons_of_sv
 
 
 
@@ -375,23 +359,24 @@ weights=(weights).*100
 weights = tanh.(weights*0.02)
 
 
-# threads=(2,2,2)
-# blocks=(2,2,2)
 
-# control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(weights),radius,threads,blocks)
+threads=(2,2,2)
+blocks=(2,2,2)
 
-# control_points=Array(control_points)
+control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(weights),radius,threads,blocks)
+
+control_points=Array(control_points)
 
 base_ind=(1,1,1)
-tetrs= [get_tetrahedrons_of_sv(base_ind)
-        # ,get_tetrahedrons_of_sv((2,1,1))
-        # ,get_tetrahedrons_of_sv((1,2,1))
-        # ,get_tetrahedrons_of_sv((1,1,2))
+tetrs= [get_tetrahedrons_of_sv(base_ind,control_points)
+        ,get_tetrahedrons_of_sv((2,1,1),control_points)
+        ,get_tetrahedrons_of_sv((1,2,1),control_points)
+        ,get_tetrahedrons_of_sv((1,1,2),control_points)
         
-        # ,get_tetrahedrons_of_sv((1,2,2))
-        # ,get_tetrahedrons_of_sv((2,2,1))
-        # ,get_tetrahedrons_of_sv((1,2,1))
-        # ,get_tetrahedrons_of_sv((2,2,2))
+        ,get_tetrahedrons_of_sv((1,2,2),control_points)
+        ,get_tetrahedrons_of_sv((2,2,1),control_points)
+        ,get_tetrahedrons_of_sv((1,2,1),control_points)
+        ,get_tetrahedrons_of_sv((2,2,2),control_points)
 
             ]
 
@@ -405,31 +390,56 @@ tetrs=map(tr->(tr[1],tr[2],tr[3],tr[4],get_triangle_center(tr)),tetrs)
 num_base_samp_points=3
 
 
-tetr_dat=collect(tetrs[1])
-tetr_dat=invert(tetr_dat)
-tetr_dat=combinedims(tetr_dat)
+varr=10.0
+meann=-0.8
 
-shared_arr=[0.0,0.0,0.0]
-out_sampled_points=zeros((num_base_samp_points+3,5))
-
-source_arr=zeros(Int.(dims.*(radius*2)))
-points=get_sample_point_num(tetr_dat,num_base_samp_points,shared_arr,out_sampled_points,source_arr)
-
-points_mesh_a=Meshes.Point3.(points)
-tt=invert(splitdims(tetr_dat))
-# tt=tt[2:4]
-points_mesh_b=Meshes.Point3.(tt)
-points_mesh=[points_mesh_a;points_mesh_b]
+source_arr = meann .+ sqrt(varr) .* randn(Int.(dims.*(radius*2)))
 
 
-viz(points_mesh, color = 1:length(points_mesh))
-# viz(points_mesh, color = [5,1,2,3,4])
+function get_sample_of_ind(indd)
+    tetr_dat_cucc=tetrs[indd]
+    tetr_dat=collect(tetr_dat_cucc)
+    tetr_dat=invert(tetr_dat)
+    tetr_dat=combinedims(tetr_dat)
+
+    shared_arr=[0.0,0.0,0.0]
+    out_sampled_points=zeros((num_base_samp_points+3,5))
+
+    # source_arr=ones(Int.(dims.*(radius*2)))
+    get_sample_point_num(tetr_dat,num_base_samp_points,shared_arr,out_sampled_points,source_arr)
+    return out_sampled_points
+end #get_sample_of_ind
+
+sampleddd=map(indd->get_sample_of_ind(indd),1:length(tetrs))
+ssamp=vcat(sampleddd...)
+
+
+
+1
+# spheres=map(i->Meshes.Sphere((out_sampled_points[i,3],out_sampled_points[i,4],out_sampled_points[i,5]),out_sampled_points[i,2]/2),1:6)
+
+# Meshes.Point3(tetr_dat[1,:])
+# tetr_curr=Meshes.Tetrahedron(Meshes.Point3(tetr_dat[1,:]),Meshes.Point3(tetr_dat[2,:]),Meshes.Point3(tetr_dat[3,:]),Meshes.Point3(tetr_dat[4,:]))
+
+
+
+
+
 
 """
 now we want to visualize the points that were selected for sampling and their weights
     we will display their weights by the spheres of the radius equal to weight
 """
 
+# points_mesh_a=Meshes.Point3.(invert(splitdims(out_sampled_points[:,3:5])))
+# tt=invert(splitdims(tetr_dat))
+# # tt=tt[2:4]
+# points_mesh_b=Meshes.Point3.(tt)
+# points_mesh=[points_mesh_a;points_mesh_b]
+
+# spheres=[spheres;points_mesh]
+# viz(spheres, color = 1:length(spheres),alpha=collect(1:length(spheres)).*0.9)
+# # viz(points_mesh, color = 1:length(points_mesh))
 # viz(tetrs, color = 1:length(tetrs))
 
 
@@ -438,86 +448,15 @@ we want to check weather weighted sampling is working correctly by gettin base a
 and checking weather our samples have similar weighted mean and variance
 """
 
+using StatsBase
 
-function get_sample_point_num(tetr_dat,num_base_samp_points,shared_arr,out_sampled_points,source_arr)
-    samp_points=[]
-    #TODO unroll the loop
-    var1=0.0
-    var2=0.0#will be used for example for interpolation
-    #we iterate over rest of points in main sample points
-    for point_num in UInt8(1):UInt8(num_base_samp_points)
+m1=mean(ssamp[:,1])
+m2=sum(ssamp[:,1].*ssamp[:,2])/sum(ssamp[:,2])
 
-        #we get the diffrence between the sv center and the triangle center
-        shared_arr[1]= @get_diff_on_line_sv_tetr(1,5,point_num)
-        shared_arr[2]=@get_diff_on_line_sv_tetr(2,5,point_num)
-        shared_arr[3]=@get_diff_on_line_sv_tetr(3,5,point_num)
+m1,m2
+v1=var(ssamp[:,1])
+v2=sum(ssamp[:,2].*(ssamp[:,1].-m2).^2)/sum(ssamp[:,2])
+v3=var(source_arr)
+v1,v2,v3
 
-        ##calculate weight of the point
-        #first distance from next and previous point on the line between sv center and triangle center
-        var1=sqrt((shared_arr[1]/point_num)^2 +(shared_arr[2]/point_num)^2+(shared_arr[3]/point_num)^2)*2 #distance between main sample points (two times for distance to previous and next)
-        #now we get the distance to the lines that get from sv center to the triangle corners - for simplicity
-        # we can assume that sv center location is 0.0,0.0,0.0 as we need only diffrences 
-        for triangle_corner_num in UInt8(1):UInt8(3)
-            #distance to the line between sv center and the  corner
-            var1+=sqrt((shared_arr[1] -@get_diff_on_line_sv_tetr(1,triangle_corner_num+1,point_num) )^2
-                           +(shared_arr[2] -@get_diff_on_line_sv_tetr(2,triangle_corner_num+1,point_num) )^2     
-                           +(shared_arr[3] -@get_diff_on_line_sv_tetr(3,triangle_corner_num+1,point_num) )^2     
-            ) 
-        end#for triangle_corner_num     
-        #now as we had looked into distance to other points in 5 directions we divide by 5 and save it to the out_sampled_points
-        out_sampled_points[point_num,2]=var1/5
-
-      
-        ##time to get value by interpolation and save it to the out_sampled_points
-        #now we get the location of sample point
-        shared_arr[1]= tetr_dat[1,1]+shared_arr[1]
-        shared_arr[2]= tetr_dat[1,2]+shared_arr[2]
-        shared_arr[3]= tetr_dat[1,3]+shared_arr[3]
-        #performing interpolation result is in var2 and it get data from shared_arr
-        @threeDLinInterpol(source_arr)
-        #saving the result of interpolated value to the out_sampled_points
-        out_sampled_points[point_num,2]=var2
-        #saving sample points coordinates
-        out_sampled_points[point_num,3]=shared_arr[1]
-        out_sampled_points[point_num,4]=shared_arr[2]
-        out_sampled_points[point_num,5]=shared_arr[3]
-        #for CPU debug
-        # push!(samp_points,copy(shared_arr))
-
-    end#for num_base_samp_points
-
-    last_samp_point=copy(shared_arr)
-    print("last_samp_point $last_samp_point \n")
-    ##### now we need to calculate the additional sample points that are branching out from the last main sample point
-    for triangle_corner_num in UInt8(1):UInt8(3)
-        #now we need to get diffrence between the last main sample point and the triangle corner
-        shared_arr[1]=(tetr_dat[triangle_corner_num+1,1]-last_samp_point[1])*0.5
-        shared_arr[2]=(tetr_dat[triangle_corner_num+1,2]-last_samp_point[2])*0.5
-        shared_arr[3]=(tetr_dat[triangle_corner_num+1,3]-last_samp_point[3])*0.5
-
-        # shared_arr[1]=@get_diff_on_line_last_tetr(1,triangle_corner_num+1)
-        # shared_arr[2]=@get_diff_on_line_last_tetr(2,triangle_corner_num+1)
-        # shared_arr[3]=@get_diff_on_line_last_tetr(3,triangle_corner_num+1)
-        out_sampled_points[num_base_samp_points+triangle_corner_num,2]=sqrt( shared_arr[1]^2+shared_arr[2]^2+shared_arr[3]^2)
-        ##time to get value by interpolation and save it to the out_sampled_points
-        #now we get the location of sample point
-        shared_arr[1]= last_samp_point[1]+shared_arr[1]
-        shared_arr[2]= last_samp_point[2]+shared_arr[2]
-        shared_arr[3]= last_samp_point[3]+shared_arr[3]
-
-        #performing interpolation result is in var2 and it get data from shared_arr
-        @threeDLinInterpol(source_arr)
-        #saving the result of interpolated value to the out_sampled_points
-        out_sampled_points[num_base_samp_points+triangle_corner_num,2]=var2
-        #saving sample points coordinates
-        out_sampled_points[num_base_samp_points+triangle_corner_num,3]=shared_arr[1]
-        out_sampled_points[num_base_samp_points+triangle_corner_num,4]=shared_arr[2]
-        out_sampled_points[num_base_samp_points+triangle_corner_num,5]=shared_arr[3]
-
-
-        #for CPU debug
-        push!(samp_points,copy(shared_arr))
-
-    end #for triangle_corner_num
-    return samp_points
-end
+# ,var(ssamp[:,1])
