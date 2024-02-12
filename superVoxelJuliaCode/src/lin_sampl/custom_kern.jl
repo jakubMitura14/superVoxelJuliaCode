@@ -12,56 +12,50 @@ using Images,ImageFiltering
 using Revise
 
 
-# @device_override Base.ceil(x::Float64) = ccall("extern __nv_ceil", llvmcall, Cdouble, (Cdouble,), x)
-# @device_override Base.ceil(x::Float32) = ccall("extern __nv_ceilf", llvmcall, Cfloat, (Cfloat,), x)
-# @device_override Base.floor(f::Float64) = ccall("extern __nv_floor", llvmcall, Cdouble, (Cdouble,), f)
-# @device_override Base.floor(f::Float32) = ccall("extern __nv_floorf", llvmcall, Cfloat, (Cfloat,), f)
-
-
-function sigmoid(x::Float32)::Float32
-    return 1 / (1 + exp(-x))
-end
-
-# function @my_ceil(x::Float32)::Float32
-#     # return x+(1-(x%1))
-#     return round(x+0.5)
-# end
-# function @my_floor(x::Float32)::Float32
-#     # return x+(1-(x%1))
-#     return round(x-0.5)
-# end
 
 macro my_ceil(x)
   return  esc(quote
-  round($x+0.5)
+  round($x+0.50001)
 end)
 end
 
 macro my_floor(x)
-    return  esc(quote
-    round($x-0.5)
-  end)
-  end
+  return  esc(quote
+  round($x-0.50001)
+end)
+end
 
-# @@my_ceil(1.99)
+"""
+calculate distance between set location and neighbouring voxel coordinates
+"""
+macro get_dist(a,b,c)
+  return  esc(:(
+  (1/((((shared_arr[1]-round(shared_arr[1]+($a) ))^2+(shared_arr[2]-round(shared_arr[2] +($b)))^2+(shared_arr[3]-round(shared_arr[3]+($c)))^2)^2  )+0.00000001))#we add a small number to avoid division by 0
+))
+end
 
-# @my_ceil =(x)->round(x+0.5)
-# @my_floor =(x)->round(x-0.5)
+"""
+get interpolated value at place
+"""
+macro get_interpolated_val(source_arr,a,b,c)
 
+  return  esc(quote       
+      var3=(@get_dist($a,$b,$c))
+      var1+=var3
+      ($source_arr[Int(round(shared_arr[1]+($a))),Int(round(shared_arr[2]+($b))),Int(round(shared_arr[3]+($c)))]*(var3 ))
+end)
+end
 
-# coord_x = rand()*100
-# coord_y = rand()*100
-# coord_z = rand()*100
+"""
+used to get approximation of local variance
+"""
+macro get_interpolated_diff(source_arr,a,b,c)
 
-# sum_dist(coord_x, coord_y, coord_z)
+  return  esc(quote       
+      ((($source_arr[Int(round(shared_arr[1]+($a))),Int(round(shared_arr[2]+($b))),Int(round(shared_arr[3]+($c)))])-var2)^2)*((@get_dist($a,$b,$c)) )
+end)
+end
 
-
-# sum_dist(1.1,1.1,1.9)
-# sum_dist(1.1,1.1,1.1)
-# sum_dist(1.1,1.9,1.1)
-# sum_dist(1.9,1.1,1.1)
-# sum_dist(1.9,1.1,1.9)
-# sum_dist(1.7,1.1,1.9)
 
 
 
@@ -69,74 +63,205 @@ macro my_floor(x)
 simple kernel friendly interpolator - given float coordinates and source array will 
 1) look for closest integers in all directions and calculate the euclidean distance to it 
 2) calculate the weights for each of the 8 points in the cube around the pointadding more weight the closer the point is to integer coordinate
-"""
-
-function ThreeDLinInterpol(coord_x,coord_y,coord_z,source_arr)
-    ## first we get the total distances of all points to be able to normalize it later
-    #TODO(use dist_sum and res as var2 and 3 if possible)
-    dist_sum=0.0    
-    dist_sum+=sqrt((coord_x-@my_floor(coord_x))^2+(coord_y-@my_floor(coord_y))^2+(coord_z-@my_floor(coord_z))^2)
-    dist_sum+=sqrt((coord_x-@my_ceil(coord_x))^2+(coord_y-@my_floor(coord_y))^2+(coord_z-@my_floor(coord_z))^2)
-    dist_sum+=sqrt((coord_x-@my_floor(coord_x))^2+(coord_y-@my_ceil(coord_y))^2+(coord_z-@my_floor(coord_z))^2)
-    dist_sum+=sqrt((coord_x-@my_floor(coord_x))^2+(coord_y-@my_floor(coord_y))^2+(coord_z-@my_ceil(coord_z))^2)
-    dist_sum+=sqrt((coord_x-@my_ceil(coord_x))^2+(coord_y-@my_ceil(coord_y))^2+(coord_z-@my_floor(coord_z))^2)
-    dist_sum+=sqrt((coord_x-@my_floor(coord_x))^2+(coord_y-@my_ceil(coord_y))^2+(coord_z-@my_ceil(coord_z))^2)
-    dist_sum+=sqrt((coord_x-@my_ceil(coord_x))^2+(coord_y-@my_floor(coord_y))^2+(coord_z-@my_ceil(coord_z))^2)
-    dist_sum+=sqrt((coord_x-@my_ceil(coord_x))^2+(coord_y-@my_ceil(coord_y))^2+(coord_z-@my_ceil(coord_z))^2)
-    # ## now we get the final value by weightes summation
-    res= source_arr[Int(@my_floor(coord_x)),Int(@my_floor(coord_y)),Int(@my_floor(coord_z))]*(sqrt((coord_x-@my_floor(coord_x))^2+(coord_y-@my_floor(coord_y))^2+(coord_z-@my_floor(coord_z))^2)/dist_sum)
-    res+= source_arr[Int(@my_ceil(coord_x)) ,Int(@my_floor(coord_y)),Int(@my_floor(coord_z))]*(sqrt((coord_x-@my_ceil(coord_x))^2+(coord_y-@my_floor(coord_y))^2+(coord_z-@my_floor(coord_z))^2)/dist_sum)
-    res+= source_arr[Int(@my_floor(coord_x)),Int(@my_ceil(coord_y)) ,Int(@my_floor(coord_z))]*(sqrt((coord_x-@my_floor(coord_x))^2+(coord_y-@my_ceil(coord_y))^2+(coord_z-@my_floor(coord_z))^2)/dist_sum)
-    res+= source_arr[Int(@my_floor(coord_x)),Int(@my_floor(coord_y)),Int(@my_ceil(coord_z))]*(sqrt((coord_x-@my_floor(coord_x))^2+(coord_y-@my_floor(coord_y))^2+(coord_z-@my_ceil(coord_z))^2)/dist_sum)
-    res+= source_arr[Int(@my_ceil(coord_x)) ,Int(@my_ceil(coord_y)) ,Int(@my_floor(coord_z))]*(sqrt((coord_x-@my_ceil(coord_x))^2+(coord_y-@my_ceil(coord_y))^2+(coord_z-@my_floor(coord_z))^2)/dist_sum)
-    res+= source_arr[Int(@my_floor(coord_x)),Int(@my_ceil(coord_y)) ,Int(@my_ceil(coord_z))]*(sqrt((coord_x-@my_floor(coord_x))^2+(coord_y-@my_ceil(coord_y))^2+(coord_z-@my_ceil(coord_z))^2)/dist_sum)
-    res+= source_arr[Int(@my_ceil(coord_x)) ,Int(@my_floor(coord_y)),Int(@my_ceil(coord_z))]*(sqrt((coord_x-@my_ceil(coord_x))^2+(coord_y-@my_floor(coord_y))^2+(coord_z-@my_ceil(coord_z))^2)/dist_sum)
-    res+= source_arr[Int(@my_ceil(coord_x))  ,Int(@my_ceil(coord_y)) ,Int(@my_ceil(coord_z))]*(sqrt((coord_x-@my_ceil(coord_x))^2+(coord_y-@my_ceil(coord_y))^2+(coord_z-@my_ceil(coord_z))^2)/dist_sum)
-    
-    return res
+"""  
+macro threeDLinInterpol(source_arr)
+  ## first we get the total distances of all points to be able to normalize it later
+  return  esc(quote
+  var1=0.0#
+ 
+  var2=0.0
+  for a1 in -0.50001:0.50001:0.50001
+      for b1 in -0.50001:0.50001:0.50001
+          for c1 in -0.50001:0.50001:0.50001
+              var2+= @get_interpolated_val(source_arr,a1,b1,c1)
+          end
+      end
+  end        
+  var2=var2/var1
+  end)
 end
 
-#### main kernel
-function testKern(prim_A,A, p, Aout,Nx)
-    #adding one bewcouse of padding
-    x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
-    y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) 
-    z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) 
+"""
+get local estimation of variance of the source array near the point
+"""
+macro threeD_loc_var(source_arr)
+  ## first we get the total distances of all points to be able to normalize it later
+  return  esc(quote
+  @threeDLinInterpol(source_arr)
+  for a1 in -0.50001:0.50001:0.50001
+      for b1 in -0.50001:0.50001:0.50001
+          for c1 in -0.50001:0.50001:0.50001
+              var3+= @get_interpolated_diff(source_arr,a1,b1,c1)
+          end
+      end
+  end       
+  var2=var3/var1
+  end)
+end
 
-    x_p=A[x,y,z,1,1]*(Nx-3)+2 
-    y_p =A[x,y,z,2,1]*(Nx-3)+2 
-    z_p =A[x,y,z,3,1]*(Nx-3)+2 
 
-    diff=1.12
-    res=ThreeDLinInterpol(x_p-diff,y_p,z_p,prim_A)
-    res-=ThreeDLinInterpol(x_p+diff,y_p,z_p,prim_A)
+
+
+
+
+
+"""
+each tetrahedron will have a set of sample points that are on the line between sv center and triangle center
+and additional one between corner of the triangle and the last main sample point 
+function is created to find ith sample point when max is is the number of main sample points (num_base_samp_points) +3 (for additional ones)
+  now we have in tetrs all of the triangles that create the outer skin of sv volume 
+  we need to no 
+  1. get a center of each triangle
+  2. draw a line between the center of the triangle and the center of the sv lets call it AB
+  3. divide AB into n sections (the bigger n the more sample points)
+  4. division between sections will be our main sample points morover we will get point in a middle between
+      last main zsample points and a verticies of main triangle that we got as input
+  5. we weight each point by getting the distance to the edges of the tetrahedron in which we are operating
+      the bigger the distance the bigger the importance of this sample point. 
+      a)in order to get this distance for main sample points we need to define lines between triangle verticies and the center of the sv
+      and then we need to project the sample point onto this line pluc the distance to previous and or next sample point
+      b)in case for additional ones - those that branch out from last main sample point we will approximate the spread by just getting the distance between
+      the last main sample point and the the vartex of the trangle that we used for it and using it as a diameter of the sphere which volume we will use for weighting those points
+  
+  
+  Implementation details:
+  probably the bst is to get all of the sample point per tetrahedron to be calculated in sequence over single thread
+  and then parallelize info on tetrahedrons 
+  In case of using float32 and reserving space for shadow memory for enzyme we probably can keep 2-3 floats32 in shared memory per thread
+  for x,y,z indicies of the supervoxels probably uint8 will be sufficient - morover we can unroll the loop
+  we will also try to use generic names of the variables to keep track of the register memory usage 
+  
+  tetr_dat - array of 5 points indicies that first is sv center next 3 are verticies of the triangle that creates the base of the tetrahedron plus this triangle center we also have added point to indicate location in control_points so 5x4 array
+  num_base_samp_points - how many main sample points we want to have between each triangle center and sv center in each tetrahedron
+  shared_arr - array of length 3 where we have allocated space for temporarly storing the sample point that we are calculating
+  out_sampled_points - array for storing the value of the sampled point that we got from interpolation and its weight that depends on the proximity to the edges of the tetrahedron and to other points
+      hence the shape of the array is (num_base_samp_points+3)x5 where in second dimension first is the interpolated value of the point and second is its weight the last 3 entries are x,y,z coordinates of sampled point
+  source_arr - array with image on which we are working    
+  control_points - array of where we have the coordinates of the control points of the tetrahedron
+
+  num_additional_samp_points - how many additional sample points we want to have between the last main sample point and the verticies of the triangle that we used for it
+"""
+function get_sample_point_num(tetr_dat,shared_arr,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points)
+  #local variables are reused
+  var1=0.0
+  var2=0.0
+  var3=0.0
+
+  #TODO unroll the loops
+  #TODO try also calculating local directional variance of the source_arr (so iterate only over x y or z axis); local entrophy
+  #setting sv centers data
+  for axis in UInt8(1):UInt8(3)
+      shared_arr[axis]=sv_centers[Int(tetr_dat[1,1]),Int(tetr_dat[1,2]),Int(tetr_dat[1,3]),axis]
+  end#for axis
+  for axis in UInt8(1):UInt8(3)
+      tetr_dat[1,axis]=shared_arr[axis] #populate tetr dat wth coordinates of sv center
+  end#for axis
+  #performing interpolation result is in var2 and it get data from shared_arr
+  @threeDLinInterpol(source_arr)
+  #saving the result of sv center value
+  tetr_dat[1,4]=var2
+
+  for triangle_corner_num in UInt8(2):UInt8(4)
+  
+      for axis in UInt8(1):UInt8(3)
+          shared_arr[axis]=control_points[Int(tetr_dat[triangle_corner_num,1]),Int(tetr_dat[triangle_corner_num,2]),Int(tetr_dat[triangle_corner_num,3]),Int(tetr_dat[triangle_corner_num,4]),axis]
+      end#for axis
+      for axis in UInt8(1):UInt8(3)
+          tetr_dat[triangle_corner_num,axis]=shared_arr[axis] #populate tetr dat wth coordinates of triangle corners
+      end#for axis
+      #performing interpolation result is in var2 and it get data from shared_arr
+      @threeD_loc_var(source_arr)
+      #saving the result of control point value
+      tetr_dat[triangle_corner_num,4]=var2
+  end#for triangle_corner_num
+
+  #get the center of the triangle
+  for triangle_corner_num in UInt8(2):UInt8(3)#we do not not need to loop over last triangle as it is already in the shared memory
+      #we add up x,y,z info of all triangles and in the end we divide by 3 to get the center
+      for axis in UInt8(1):UInt8(3)
+          shared_arr[axis]+=tetr_dat[triangle_corner_num,axis] 
+      end#for axis
+  end#for triangle_corner_num
+  for axis in UInt8(1):UInt8(3)
+      tetr_dat[5,axis]=(shared_arr[axis]/3)
+  end#for axis
+  @threeD_loc_var(source_arr)
+  #saving the result of centroid value
+  tetr_dat[5,4]=var2
+
+  var1=0.0
+  var2=0.0
+  #we iterate over rest of points in main sample points
+  for point_num in UInt8(1):UInt8(num_base_samp_points)
+
+      #we get the diffrence between the sv center and the triangle center
+      shared_arr[1]= @get_diff_on_line_sv_tetr(1,5,point_num)
+      shared_arr[2]=@get_diff_on_line_sv_tetr(2,5,point_num)
+      shared_arr[3]=@get_diff_on_line_sv_tetr(3,5,point_num)
+
+      ##calculate weight of the point
+      #first distance from next and previous point on the line between sv center and triangle center
+      var1=sqrt((shared_arr[1]/point_num)^2 +(shared_arr[2]/point_num)^2+(shared_arr[3]/point_num)^2)*2 #distance between main sample points (two times for distance to previous and next)
+      #now we get the distance to the lines that get from sv center to the triangle corners - for simplicity
+      # we can assume that sv center location is 0.0,0.0,0.0 as we need only diffrences 
+      for triangle_corner_num in UInt8(1):UInt8(3)
+          #distance to the line between sv center and the  corner
+          var1+=sqrt((shared_arr[1] -@get_diff_on_line_sv_tetr(1,triangle_corner_num+1,point_num) )^2
+                         +(shared_arr[2] -@get_diff_on_line_sv_tetr(2,triangle_corner_num+1,point_num) )^2     
+                         +(shared_arr[3] -@get_diff_on_line_sv_tetr(3,triangle_corner_num+1,point_num) )^2     
+          ) 
+      end#for triangle_corner_num     
+
+      #now as we had looked into distance to other points in 5 directions we divide by 5 and save it to the out_sampled_points
+      out_sampled_points[point_num,2]=var1/5
+
     
-    res+=ThreeDLinInterpol(x_p,y_p-diff,z_p,prim_A)
-    res-=ThreeDLinInterpol(x_p,y_p+diff,z_p,prim_A)
-    
-    
-    res+=ThreeDLinInterpol(x_p,y_p,z_p-diff,prim_A)
-    res-=ThreeDLinInterpol(x_p,y_p,z_p+diff,prim_A)
+      ##time to get value by interpolation and save it to the out_sampled_points
+      #now we get the location of sample point
+      shared_arr[1]= tetr_dat[1,1]+shared_arr[1]
+      shared_arr[2]= tetr_dat[1,2]+shared_arr[2]
+      shared_arr[3]= tetr_dat[1,3]+shared_arr[3]
+      #performing interpolation result is in var2 and it get data from shared_arr
+      @threeDLinInterpol(source_arr)
+      #saving the result of interpolated value to the out_sampled_points
+      out_sampled_points[point_num,1]=var2
+      #saving sample points coordinates
+      out_sampled_points[point_num,3]=shared_arr[1]
+      out_sampled_points[point_num,4]=shared_arr[2]
+      out_sampled_points[point_num,5]=shared_arr[3]
 
 
-    # res=prim_A[x_p-1,y_p,z_p] - prim_A[x_p+1,y_p,z_p] + prim_A[x_p,y_p-1,z_p] - prim_A[x_p,y_p+1,z_p] + prim_A[x_p,y_p,z_p-1] - prim_A[x_p,y_p,z_p+1]
-    # Aout[x*4+y*2+z]=res
-    Aout[(x-1)*4+(y-1)*2+z]=res
-    
-    return nothing
-end#testKern
+  end#for num_base_samp_points
 
-# """
-# iterate over array that is treated as one dimensional with given length lengthh as argument
-# amount of iterations needed is also passed as an argument - iterLoop
-# """
-# macro interpolate_on_axis(iterLoop,lengthh, ex)
-#   return  esc(quote
-#   i = UInt32(0)
-#   @unroll for j in 0:($iterLoop)
-#     i= threadIdxX()+(threadIdxY()-1)*blockDimX()+ j* blockDimX()*blockDimY()
-#     if(i<=$lengthh) 
-#       $ex
-#     end 
-#     end 
-# end)
+  ##### now we need to calculate the additional sample points that are branching out from the last main sample point
+  for n_add_samp in UInt8(1):UInt8(num_additional_samp_points)
+      for triangle_corner_num in UInt8(1):UInt8(3)
+
+          #now we need to get diffrence between the last main sample point and the triangle corner
+          shared_arr[1]=(tetr_dat[triangle_corner_num+1,1]-out_sampled_points[num_base_samp_points,3])*(n_add_samp/(num_additional_samp_points+1))
+          shared_arr[2]=(tetr_dat[triangle_corner_num+1,2]-out_sampled_points[num_base_samp_points,4])*(n_add_samp/(num_additional_samp_points+1))
+          shared_arr[3]=(tetr_dat[triangle_corner_num+1,3]-out_sampled_points[num_base_samp_points,5])*(n_add_samp/(num_additional_samp_points+1))
+
+
+          out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=sqrt( shared_arr[1]^2+shared_arr[2]^2+shared_arr[3]^2)
+          ##time to get value by interpolation and save it to the out_sampled_points
+          #now we get the location of sample point
+          shared_arr[1]= out_sampled_points[num_base_samp_points,3]+shared_arr[1]
+          shared_arr[2]= out_sampled_points[num_base_samp_points,4]+shared_arr[2]
+          shared_arr[3]= out_sampled_points[num_base_samp_points,5]+shared_arr[3]
+
+          #performing interpolation result is in var2 and it get data from shared_arr
+          @threeDLinInterpol(source_arr)
+          #saving the result of interpolated value to the out_sampled_points
+          out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=var2
+          #saving sample points coordinates
+          out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[1]
+          out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[2]
+          out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,5]=shared_arr[3]
+
+
+
+      end #for triangle_corner_num
+  end #for n_add_samp
+  return nothing
+end

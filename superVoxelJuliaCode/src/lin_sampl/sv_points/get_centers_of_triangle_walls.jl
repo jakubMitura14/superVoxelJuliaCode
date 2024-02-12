@@ -25,116 +25,7 @@ includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
 
 
-function flip_num(base_ind,tupl,ind)
-    arr=collect(tupl)
-    if(arr[ind]==base_ind[ind])
-        arr[ind]=base_ind[ind]+1
-    else
-        arr[ind]=base_ind[ind]
-    end    
-    return Tuple(arr)
-end
 
-"""
-we can identify the line between two corners that go obliquely through the wall of the cube
-it connects points that has 2 coordinates diffrent and one the same 
-we can also find a point in the middle so it will be in lin_x if this common index is 1 and in lin_y if it is 2 and lin_z if 3
-next if we have 1 it is pre and if 2 post
-    control_points first dimension is lin_x, lin_y, lin_z, oblique
-"""
-function get_linear_between(base_ind,ind_1,ind_2)
-    if(ind_1[1]==ind_2[1])
-        return control_points[ind_1[1],base_ind[2],base_ind[3],1,:]
-    end
-    if(ind_1[2]==ind_2[2])
-        return control_points[base_ind[1],ind_1[2],base_ind[3],2,:]
-    end
-
-    return control_points[base_ind[1],base_ind[2],ind_1[3],3,:]
-end
-
-
-
-
-function get_tetr_a(control_points,base_ind,corner)
-    sv_center=sv_centers[base_ind[1],base_ind[2],base_ind[3],:]
-    p_a=flip_num(base_ind,corner,1)
-    p_b=flip_num(base_ind,corner,2)
-    p_c=flip_num(base_ind,corner,3)
-
-
-    p_ab=get_linear_between(base_ind,p_a,p_b)
-    p_ac=get_linear_between(base_ind,p_a,p_c)
-    p_bc=get_linear_between(base_ind,p_b,p_c)
-
-    p_a=control_points[p_a[1],p_a[2],p_a[3],4,:]
-    p_b=control_points[p_b[1],p_b[2],p_b[3],4,:]
-    p_c=control_points[p_c[1],p_c[2],p_c[3],4,:]
-
-    # p_ab=Meshes.Point3(p_ab)
-    # p_ac=Meshes.Point3(p_ac)
-    # p_bc=Meshes.Point3(p_bc)
-
-    corner=control_points[corner[1],corner[2],corner[3],4,:]
-
-    # print("coo corner $(corner) p_a $(p_a) p_b $(p_b) p_c $(p_c) \n ")
-
-    return [(sv_center,corner,p_a,p_ab)
-            , (sv_center,corner,p_ab,p_b)        
-            , (sv_center,corner,p_b,p_bc)       
-            , (sv_center,corner,p_bc,p_c)     
-            , (sv_center,corner,p_a,p_ac)   
-            , (sv_center,corner,p_ac,p_c)   
-    ]
-    # return [Meshes.Point3(get_triangle_center(corner,p_a,p_ab))
-    #         ,Meshes.Point3(get_triangle_center(corner,p_ab,p_b))        
-    #         ,Meshes.Point3(get_triangle_center(corner,p_b,p_bc))       
-    #         ,Meshes.Point3(get_triangle_center(corner,p_bc,p_c))      
-    #         ,Meshes.Point3(get_triangle_center(corner,p_a,p_ac))     
-    #         ,Meshes.Point3(get_triangle_center(corner,p_ac,p_c))    
-    # ]
-    # return [p_a,p_b,p_c,p_ab,p_ac,p_bc,corner   ]
-end
-
-
-
-
-# #reshape for broadcast
-
-
-
-
-
-function get_triangle_center(tr)
-    center = (tr[2] + tr[3] + tr[4]) / 3
-    return center
-end
-
-
-
-# """
-# get a point between 2 other in 3D using weight how far from the first it should be
-# if weight is 0 it is the same as point 1 if 1 it is the same as point 2
-# """
-# function  get_point_on_a_line(vertex_1,vertex_2,weight)
-#     diff_x=vertex_2[1]-vertex_1[1]
-#     diff_y=vertex_2[2]-vertex_1[2]
-#     diff_z=vertex_2[3]-vertex_1[3]
-#     return [vertex_1[1]+(diff_x*weight),vertex_1[2]+(diff_y*weight),vertex_1[3]+(diff_z*weight)]
-# end
-
-
-
-# """
-# get a coordinate on a given acxis between sv center and some of the point stored in the tetr_dat
-# we weight the distance between sv center and the point on the basis of variable i that indicates which main point it is
-# """
-# macro get_coordinate_on_line_sv_tetr(coord_i,tetr_dat_coord,point_num)
-#     return  esc(quote
-#         tetr_dat[1,$coord_i]+((tetr_dat[$tetr_dat_coord,$coord_i]-tetr_dat[1,$coord_i])*(point_num/(num_base_samp_points+1)))
-#   end)
-#   end
-  
   """
   get a diffrence between coordinates in given axis of sv center and triangle center
   """
@@ -144,30 +35,52 @@ end
   end)
   end
 
-  """
-  get a diffrence between coordinates in given axis of last normal sample point and triangle center
-  """
-  macro get_diff_on_line_last_tetr(coord_i,triangle_corner_num)
-    return  esc(quote
-    # (tetr_dat[$triangle_corner_num,$coord_i]-  
-    # ((tetr_dat[5,$coord_i]-tetr_dat[1,$coord_i])*(num_base_samp_points/(num_base_samp_points+1))) #recomputing last sample point
-    #  )*(0.5) 
-    (((tetr_dat[5,$coord_i]-tetr_dat[1,$coord_i])*(num_base_samp_points/(num_base_samp_points+1))) #recomputing last sample point
-     -tetr_dat[$triangle_corner_num,$coord_i])*(0.5) 
-  
-  end)
-  end
+
+
   macro my_ceil(x)
     return  esc(quote
-    round($x+0.5)
+    round($x+0.50001)
   end)
   end
   
-  macro my_floor(x)
-      return  esc(quote
-      round($x-0.5)
-    end)
-    end
+macro my_floor(x)
+    return  esc(quote
+    round($x-0.50001)
+end)
+end
+
+"""
+calculate distance between set location and neighbouring voxel coordinates
+"""
+macro get_dist(a,b,c)
+    return  esc(:(
+    (1/((((shared_arr[1]-round(shared_arr[1]+($a) ))^2+(shared_arr[2]-round(shared_arr[2] +($b)))^2+(shared_arr[3]-round(shared_arr[3]+($c)))^2)^2  )+0.00000001))#we add a small number to avoid division by 0
+))
+end
+
+"""
+get interpolated value at place
+"""
+macro get_interpolated_val(source_arr,a,b,c)
+
+    return  esc(quote       
+        var3=(@get_dist($a,$b,$c))
+        var1+=var3
+        ($source_arr[Int(round(shared_arr[1]+($a))),Int(round(shared_arr[2]+($b))),Int(round(shared_arr[3]+($c)))]*(var3 ))
+end)
+end
+
+"""
+used to get approximation of local variance
+"""
+macro get_interpolated_diff(source_arr,a,b,c)
+
+    return  esc(quote       
+        ((($source_arr[Int(round(shared_arr[1]+($a))),Int(round(shared_arr[2]+($b))),Int(round(shared_arr[3]+($c)))])-var2)^2)*((@get_dist($a,$b,$c)) )
+end)
+end
+
+
 
 
 """
@@ -178,47 +91,40 @@ simple kernel friendly interpolator - given float coordinates and source array w
 macro threeDLinInterpol(source_arr)
     ## first we get the total distances of all points to be able to normalize it later
     return  esc(quote
-    var1=0.0    
-    var1+=((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
-    var1+=((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
-    var1+=((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
-    var1+=((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
-    var1+=((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
-    var1+=((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
-    var1+=((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
-    var1+=((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
-    # var1+=sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
-    # var1+=sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
-    # var1+=sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
-    # var1+=sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
-    # var1+=sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)
-    # var1+=sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
-    # var1+=sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
-    # var1+=sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)
-    # ## now we get the final value by weightes summation
-    var2= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_floor(shared_arr[2])),Int(@my_floor(shared_arr[3]))]*(((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_floor(shared_arr[2])),Int(@my_floor(shared_arr[3]))]*(((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_ceil(shared_arr[2])) ,Int(@my_floor(shared_arr[3]))]*(((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_floor(shared_arr[2])),Int(@my_ceil(shared_arr[3]))]*(((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_ceil(shared_arr[2])) ,Int(@my_floor(shared_arr[3]))]*(((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_ceil(shared_arr[2])) ,Int(@my_ceil(shared_arr[3]))]*(((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_floor(shared_arr[2])),Int(@my_ceil(shared_arr[3]))]*(((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
-    var2+= $source_arr[Int(@my_ceil(shared_arr[1]))  ,Int(@my_ceil(shared_arr[2])) ,Int(@my_ceil(shared_arr[3]))]*(((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
-    
-    # var2= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_floor(shared_arr[2])),Int(@my_floor(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
-    # var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_floor(shared_arr[2])),Int(@my_floor(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
-    # var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_ceil(shared_arr[2])) ,Int(@my_floor(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
-    # var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_floor(shared_arr[2])),Int(@my_ceil(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
-    # var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_ceil(shared_arr[2])) ,Int(@my_floor(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_floor(shared_arr[3]))^2)/var1)
-    # var2+= $source_arr[Int(@my_floor(shared_arr[1])),Int(@my_ceil(shared_arr[2])) ,Int(@my_ceil(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_floor(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
-    # var2+= $source_arr[Int(@my_ceil(shared_arr[1])) ,Int(@my_floor(shared_arr[2])),Int(@my_ceil(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_floor(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
-    # var2+= $source_arr[Int(@my_ceil(shared_arr[1]))  ,Int(@my_ceil(shared_arr[2])) ,Int(@my_ceil(shared_arr[3]))]*(sqrt((shared_arr[1]-@my_ceil(shared_arr[1]))^2+(shared_arr[2]-@my_ceil(shared_arr[2]))^2+(shared_arr[3]-@my_ceil(shared_arr[3]))^2)/var1)
-    
+    var1=0.0#
+   
+    var2=0.0
+    for a1 in -0.50001:0.50001:0.50001
+        for b1 in -0.50001:0.50001:0.50001
+            for c1 in -0.50001:0.50001:0.50001
+                var2+= @get_interpolated_val(source_arr,a1,b1,c1)
+            end
+        end
+    end        
+    var2=var2/var1
     end)
-
-
-
 end
+
+"""
+get local estimation of variance of the source array near the point
+"""
+macro threeD_loc_var(source_arr)
+    ## first we get the total distances of all points to be able to normalize it later
+    return  esc(quote
+    @threeDLinInterpol(source_arr)
+    for a1 in -0.50001:0.50001:0.50001
+        for b1 in -0.50001:0.50001:0.50001
+            for c1 in -0.50001:0.50001:0.50001
+                var3+= @get_interpolated_diff(source_arr,a1,b1,c1)
+            end
+        end
+    end       
+    var2=var3/var1
+    end)
+end
+
+
+
 
 
 
@@ -249,18 +155,66 @@ function is created to find ith sample point when max is is the number of main s
     for x,y,z indicies of the supervoxels probably uint8 will be sufficient - morover we can unroll the loop
     we will also try to use generic names of the variables to keep track of the register memory usage 
     
-    sv_center- indicates array length 3 with coordinates of point that are the center of the supervoxel
-    tetr_dat - array of 5 points that first is sv center next 3 are verticies of the triangle that creates the base of the tetrahedron plus this triangle center so 5x3 array
+    tetr_dat - array of 5 points indicies that first is sv center next 3 are verticies of the triangle that creates the base of the tetrahedron plus this triangle center we also have added point to indicate location in control_points so 5x4 array
     num_base_samp_points - how many main sample points we want to have between each triangle center and sv center in each tetrahedron
     shared_arr - array of length 3 where we have allocated space for temporarly storing the sample point that we are calculating
     out_sampled_points - array for storing the value of the sampled point that we got from interpolation and its weight that depends on the proximity to the edges of the tetrahedron and to other points
         hence the shape of the array is (num_base_samp_points+3)x5 where in second dimension first is the interpolated value of the point and second is its weight the last 3 entries are x,y,z coordinates of sampled point
     source_arr - array with image on which we are working    
+    control_points - array of where we have the coordinates of the control points of the tetrahedron
+
+    num_additional_samp_points - how many additional sample points we want to have between the last main sample point and the verticies of the triangle that we used for it
 """
-function get_sample_point_num(tetr_dat,num_base_samp_points,shared_arr,out_sampled_points,source_arr)
-    #TODO unroll the loop
+function get_sample_point_num(tetr_dat,num_base_samp_points,shared_arr,out_sampled_points,source_arr,control_points,sv_centers,num_additional_samp_points)
+    #local variables are reused
     var1=0.0
-    var2=0.0#will be used for example for interpolation
+    var2=0.0
+    var3=0.0
+
+    #TODO unroll the loops
+    #TODO try also calculating local directional variance of the source_arr (so iterate only over x y or z axis); local entrophy
+    #setting sv centers data
+    for axis in UInt8(1):UInt8(3)
+        shared_arr[axis]=sv_centers[Int(tetr_dat[1,1]),Int(tetr_dat[1,2]),Int(tetr_dat[1,3]),axis]
+    end#for axis
+    for axis in UInt8(1):UInt8(3)
+        tetr_dat[1,axis]=shared_arr[axis] #populate tetr dat wth coordinates of sv center
+    end#for axis
+    #performing interpolation result is in var2 and it get data from shared_arr
+    @threeDLinInterpol(source_arr)
+    #saving the result of sv center value
+    tetr_dat[1,4]=var2
+
+    for triangle_corner_num in UInt8(2):UInt8(4)
+    
+        for axis in UInt8(1):UInt8(3)
+            shared_arr[axis]=control_points[Int(tetr_dat[triangle_corner_num,1]),Int(tetr_dat[triangle_corner_num,2]),Int(tetr_dat[triangle_corner_num,3]),Int(tetr_dat[triangle_corner_num,4]),axis]
+        end#for axis
+        for axis in UInt8(1):UInt8(3)
+            tetr_dat[triangle_corner_num,axis]=shared_arr[axis] #populate tetr dat wth coordinates of triangle corners
+        end#for axis
+        #performing interpolation result is in var2 and it get data from shared_arr
+        @threeD_loc_var(source_arr)
+        #saving the result of control point value
+        tetr_dat[triangle_corner_num,4]=var2
+    end#for triangle_corner_num
+
+    #get the center of the triangle
+    for triangle_corner_num in UInt8(2):UInt8(3)#we do not not need to loop over last triangle as it is already in the shared memory
+        #we add up x,y,z info of all triangles and in the end we divide by 3 to get the center
+        for axis in UInt8(1):UInt8(3)
+            shared_arr[axis]+=tetr_dat[triangle_corner_num,axis] 
+        end#for axis
+    end#for triangle_corner_num
+    for axis in UInt8(1):UInt8(3)
+        tetr_dat[5,axis]=(shared_arr[axis]/3)
+    end#for axis
+    @threeD_loc_var(source_arr)
+    #saving the result of centroid value
+    tetr_dat[5,4]=var2
+
+    var1=0.0
+    var2=0.0
     #we iterate over rest of points in main sample points
     for point_num in UInt8(1):UInt8(num_base_samp_points)
 
@@ -304,57 +258,51 @@ function get_sample_point_num(tetr_dat,num_base_samp_points,shared_arr,out_sampl
     end#for num_base_samp_points
 
     ##### now we need to calculate the additional sample points that are branching out from the last main sample point
-    for triangle_corner_num in UInt8(1):UInt8(3)
-        #now we need to get diffrence between the last main sample point and the triangle corner
-        shared_arr[1]=(tetr_dat[triangle_corner_num+1,1]-out_sampled_points[num_base_samp_points,3])*0.5
-        shared_arr[2]=(tetr_dat[triangle_corner_num+1,2]-out_sampled_points[num_base_samp_points,4])*0.5
-        shared_arr[3]=(tetr_dat[triangle_corner_num+1,3]-out_sampled_points[num_base_samp_points,5])*0.5
+    for n_add_samp in UInt8(1):UInt8(num_additional_samp_points)
+        for triangle_corner_num in UInt8(1):UInt8(3)
+
+            #now we need to get diffrence between the last main sample point and the triangle corner
+            shared_arr[1]=(tetr_dat[triangle_corner_num+1,1]-out_sampled_points[num_base_samp_points,3])*(n_add_samp/(num_additional_samp_points+1))
+            shared_arr[2]=(tetr_dat[triangle_corner_num+1,2]-out_sampled_points[num_base_samp_points,4])*(n_add_samp/(num_additional_samp_points+1))
+            shared_arr[3]=(tetr_dat[triangle_corner_num+1,3]-out_sampled_points[num_base_samp_points,5])*(n_add_samp/(num_additional_samp_points+1))
 
 
-        out_sampled_points[num_base_samp_points+triangle_corner_num,2]=sqrt( shared_arr[1]^2+shared_arr[2]^2+shared_arr[3]^2)
-        ##time to get value by interpolation and save it to the out_sampled_points
-        #now we get the location of sample point
-        shared_arr[1]= out_sampled_points[num_base_samp_points,3]+shared_arr[1]
-        shared_arr[2]= out_sampled_points[num_base_samp_points,4]+shared_arr[2]
-        shared_arr[3]= out_sampled_points[num_base_samp_points,5]+shared_arr[3]
+            out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=sqrt( shared_arr[1]^2+shared_arr[2]^2+shared_arr[3]^2)
+            ##time to get value by interpolation and save it to the out_sampled_points
+            #now we get the location of sample point
+            shared_arr[1]= out_sampled_points[num_base_samp_points,3]+shared_arr[1]
+            shared_arr[2]= out_sampled_points[num_base_samp_points,4]+shared_arr[2]
+            shared_arr[3]= out_sampled_points[num_base_samp_points,5]+shared_arr[3]
 
-        #performing interpolation result is in var2 and it get data from shared_arr
-        @threeDLinInterpol(source_arr)
-        #saving the result of interpolated value to the out_sampled_points
-        out_sampled_points[num_base_samp_points+triangle_corner_num,1]=var2
-        #saving sample points coordinates
-        out_sampled_points[num_base_samp_points+triangle_corner_num,3]=shared_arr[1]
-        out_sampled_points[num_base_samp_points+triangle_corner_num,4]=shared_arr[2]
-        out_sampled_points[num_base_samp_points+triangle_corner_num,5]=shared_arr[3]
+            #performing interpolation result is in var2 and it get data from shared_arr
+            @threeDLinInterpol(source_arr)
+            #saving the result of interpolated value to the out_sampled_points
+            out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=var2
+            #saving sample points coordinates
+            out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[1]
+            out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[2]
+            out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,5]=shared_arr[3]
 
 
 
-    end #for triangle_corner_num
+        end #for triangle_corner_num
+    end #for n_add_samp
     return nothing
 end
-function get_tetrahedrons_of_sv(base_ind,control_points)
-    return [
-        get_tetr_a(control_points,base_ind,(base_ind[1],base_ind[2],base_ind[3]))
-        ,get_tetr_a(control_points,base_ind,(base_ind[1]+1,base_ind[2]+1,base_ind[3]))
-        ,get_tetr_a(control_points,base_ind,(base_ind[1],base_ind[2]+1,base_ind[3]+1))
-        ,get_tetr_a(control_points,base_ind,(base_ind[1]+1,base_ind[2],base_ind[3]+1))
-    ]
-end #get_tetrahedrons_of_sv
-
 
 
 dims=(7,7,7)
 dims_plus=(dims[1]+1,dims[2]+1,dims[3]+1)
-radius=3.0
-diam=radius*2
+radiuss=3.0
+diam=radiuss*2
 num_weights_per_point=6
-example_set_of_svs=initialize_centers_and_control_points(dims,radius)
-sv_centers,control_points=example_set_of_svs   # ,lin_x_add,lin_y_add,lin_z_add
+example_set_of_svs=initialize_centers_and_control_points(dims,radiuss)
+sv_centers,control_points,tetrs=example_set_of_svs   # ,lin_x_add,lin_y_add,lin_z_add
 
 # control_points first dimension is lin_x, lin_y, lin_z, oblique
 # weights=zeros((dims_plus[1],dims_plus[2],dims_plus[3],num_weights_per_point))
 weights = rand(dims_plus[1], dims_plus[2], dims_plus[3], num_weights_per_point)
-weights=weights.-0.5
+weights=weights.-0.50001
 weights=(weights).*100
 weights = tanh.(weights*0.02)
 
@@ -362,60 +310,77 @@ weights = tanh.(weights*0.02)
 
 threads=(2,2,2)
 blocks=(2,2,2)
+# control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(weights),radiuss,threads,blocks)
+# control_points=Array(control_points)
 
-control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(weights),radius,threads,blocks)
 
-control_points=Array(control_points)
-
-base_ind=(1,1,1)
-tetrs= [get_tetrahedrons_of_sv(base_ind,control_points)
-        ,get_tetrahedrons_of_sv((2,1,1),control_points)
-        ,get_tetrahedrons_of_sv((1,2,1),control_points)
-        ,get_tetrahedrons_of_sv((1,1,2),control_points)
-        
-        ,get_tetrahedrons_of_sv((1,2,2),control_points)
-        ,get_tetrahedrons_of_sv((2,2,1),control_points)
-        ,get_tetrahedrons_of_sv((1,2,1),control_points)
-        ,get_tetrahedrons_of_sv((2,2,2),control_points)
-
-            ]
-
-sv_center=sv_centers[base_ind[1],base_ind[2],base_ind[3],:]            
-tetrs = collect(Iterators.flatten(tetrs))
-tetrs = collect(Iterators.flatten(tetrs))
-#augment triangles with their centers so last entry in a tuple is a triangle center and first is sv center
-tetrs=map(tr->(tr[1],tr[2],tr[3],tr[4],get_triangle_center(tr)),tetrs)
 
 #how many main sample points we want to have between each triangle center and sv center in each tetrahedron
 num_base_samp_points=3
-
+num_additional_samp_points=2
 
 varr=10.0
 meann=-0.8
 
-source_arr = meann .+ sqrt(varr) .* randn(Int.(dims.*(radius*2)))
+source_arr = meann .+ sqrt(varr) .* randn(Int.(dims.*(radiuss*2)))
 
 
-function get_sample_of_ind(indd)
-    tetr_dat_cucc=tetrs[indd]
-    tetr_dat=collect(tetr_dat_cucc)
-    tetr_dat=invert(tetr_dat)
-    tetr_dat=combinedims(tetr_dat)
-
+function get_sample_of_ind(tetr_dat_in)
+    
     shared_arr=[0.0,0.0,0.0]
-    out_sampled_points=zeros((num_base_samp_points+3,5))
-
-    # source_arr=ones(Int.(dims.*(radius*2)))
-    get_sample_point_num(tetr_dat,num_base_samp_points,shared_arr,out_sampled_points,source_arr)
+    out_sampled_points=zeros((num_base_samp_points+(3*num_additional_samp_points),5))
+    # source_arr=ones(Int.(dims.*(radiuss*2)))
+    get_sample_point_num(tetr_dat_in,num_base_samp_points,shared_arr,out_sampled_points,source_arr,control_points,sv_centers,num_additional_samp_points)
     return out_sampled_points
+
 end #get_sample_of_ind
-
-sampleddd=map(indd->get_sample_of_ind(indd),1:length(tetrs))
-ssamp=vcat(sampleddd...)
-
+curr_tetr=tetrs[1,:,:]
+outt=get_sample_of_ind(curr_tetr)
 
 
-1
+
+source_arr[5,5,5]
+outt
+curr_tetr
+source_arr[3,3,3]
+
+curr_tetr
+
+a
+
+
+
+# function testinterpol(source_arr,shared_arr)
+#     var1=0.0
+#     var2=0.0
+#     var3=0.0
+#     @threeD_loc_var(source_arr)
+#     # return var2,source_arr[Int(round(shared_arr[1]+0.50001)),Int(round(shared_arr[2]+0.50001)),Int(round(shared_arr[3]+0.50001))]
+#     return round(var2;digits=2),round(source_arr[Int(round(shared_arr[1])),Int(round(shared_arr[2])),Int(round(shared_arr[3]))];digits=2)
+# end    
+
+# # source_arr=ones((7,7,7))
+# source_arr[3,3,3]=10
+# source_arr[4,3,3]=20
+# a,b=testinterpol(source_arr,[3.41,3.41,3.41])
+# a,b=testinterpol(source_arr,[3.9,3.0,3.0])
+# a,b=testinterpol(source_arr,[3.8,3.0,3.0])
+# a,b=testinterpol(source_arr,[3.7,3.0,3.0])
+# a,b=testinterpol(source_arr,[3.6,3.0,3.0])
+# a,b=testinterpol(source_arr,[3.5,3.0,3.0])
+# a,b=testinterpol(source_arr,[3.4,3.0,3.0])
+# a,b=testinterpol(source_arr,[3.3,3.0,3.0])
+# a,b=testinterpol(source_arr,[3.2,3.0,3.0])
+# a,b=testinterpol(source_arr,[3.1,3.0,3.0])
+# a,b=testinterpol(source_arr,[3.1,3.1,3.1])
+# Int(round(a))
+
+# sampleddd=map(indd->get_sample_of_ind(indd),1:length(tetrs))
+# ssamp=vcat(sampleddd...)
+
+
+
+# 1
 # spheres=map(i->Meshes.Sphere((out_sampled_points[i,3],out_sampled_points[i,4],out_sampled_points[i,5]),out_sampled_points[i,2]/2),1:6)
 
 # Meshes.Point3(tetr_dat[1,:])

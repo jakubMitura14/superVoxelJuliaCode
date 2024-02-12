@@ -67,7 +67,6 @@ function apply_weights_to_locs_kern(control_points,weights,radius)
     control_points[x,y,z,4,2]=control_points[x,y,z,4,2]+weights[x,y,z,5]*radius
     control_points[x,y,z,4,3]=control_points[x,y,z,4,3]+weights[x,y,z,6]*radius
 
-    # TODO save triangle centroids here probably after sync grid
     return nothing
 
 end #apply_weights_to_locs

@@ -15,8 +15,8 @@ using FillArrays
 using LinearAlgebra
 using Images,ImageFiltering
 # Pkg.add(url="https://github.com/EnzymeAD/Enzyme.jl.git")
-
-#### test data
+using CUDA, Enzyme, Random
+Enzyme.API.printall!(true)
 Nx, Ny, Nz = 8, 8, 8
 threads = (2,2,2)
 blocks = (1, 1, 1)
@@ -49,80 +49,14 @@ end
 
 
 
-# rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(calltestKern),prim_A, A, p,Nx)
-    
-
-    Aout = calltestKern(prim_A,A, p,Nx)
-    function call_test_kernel1_pullback(dAout)
-        threads = (2, 2,2)
-        blocks = (1, 1, 1)
-
-        dp = CUDA.ones(size(p))
-        dprim_A = CUDA.ones(size(prim_A))
-        dA = CUDA.ones(size(A))
-        @cuda threads = threads blocks = blocks testKernDeff(prim_A,dprim_A, A, dA, p, dp, Aout, CuArray(collect(dAout)),Nx)
-
-        f̄ = NoTangent()
-        x̄ = dA
-        ȳ = dp
-        
-        return dprim_A,f̄, x̄, ȳ,NoTangent()
-    end   
-    return Aout, call_test_kernel1_pullback
-
-end
-
-using ChainRulesCore
-
-# Define the inputs
 prim_A = CUDA.zeros(Float32, Nx, Ny, Nz)
+dprim_A = CUDA.zeros(Float32, Nx, Ny, Nz)
 A = CUDA.zeros(Float32, Nx, Ny, Nz)
+dA = CUDA.zeros(Float32, Nx, Ny, Nz)
+
 p = CUDA.zeros(Float32, Nx, Ny, Nz)
+dp = CUDA.zeros(Float32, Nx, Ny, Nz)
+Aout = CUDA.zeros(Float32,8) 
+dAout = CUDA.zeros(Float32,8) 
 
-# Compute the Jacobian
-jacobian_result =Zygote.jacobian(calltestKern, prim_A, A, p, Nx)
-
-
-
-# arr = collect(range(1, stop = Nx*Ny*Nz))
-# arr=reshape(arr,(Nx,Ny,Nz,1,1))
-# arr=Float32.(arr)
-# x = arr
-# x= CuArray(x)
-
-# dev = gpu_device()
-# model = Lux.Chain(SkipConnection(Lux.Chain(conv1(1,3),conv2(3,3),conv2(3,3)) , connection_before_kernelA; name="prim_convs"),KernelA(Nx)) 
-
-# ps, st = Lux.setup(rng, model) .|> dev
-# opt = Optimisers.Adam(0.03)
-# opt_st = Optimisers.setup(opt, ps) |> dev
-# vjp_rule = Lux.Training.AutoZygote()
-# y_pred, st = Lux.apply(model, x, ps, st)
-
-# """
-# extremely simple loss function we just want to get the result to be as close to 100 as possible
-# """
-# function loss_function(model, ps, st, x)
-#     y_pred, st = Lux.apply(model, x, ps, st)
-#     return (sum(y_pred)), st, ()
-
-# end
-
-# function main(ps, st,opt,opt_st , vjp, data,model,
-#     epochs::Int)
-#     x = CuArray(data) #.|> Lux.gpu
-#     for epoch in 1:epochs
-
-#         (loss, st), back = Zygote.pullback(p -> loss_function(model, p, st, x), ps)
-#         gs = back((one(loss), nothing))[1]
-#         opt_st, ps = Optimisers.update(opt_st, ps, gs)
-
-#         @info epoch=epoch loss=loss 
-#     end
-#     return ps, st,opt,opt_st 
-# end
-# # one epoch just to check if it runs
-# ps, st,opt,opt_st  = main(ps, st,opt,opt_st , vjp_rule, x,model,1)
-
-
+@cuda threads = threads blocks = blocks testKernDeff(prim_A,dprim_A, A, dA, p, dp, Aout, dAout,Nx)

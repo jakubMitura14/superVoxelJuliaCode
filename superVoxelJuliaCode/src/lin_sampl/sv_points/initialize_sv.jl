@@ -66,6 +66,7 @@ flips the value of the index of the tuple at the position ind needed for get_lin
 """
 function flip_num(base_ind,tupl,ind)
     arr=collect(tupl)
+    # arr=append!(arr,[4])
     if(arr[ind]==base_ind[ind])
         arr[ind]=base_ind[ind]+1
     else
@@ -83,13 +84,13 @@ next if we have 1 it is pre and if 2 post
 """
 function get_linear_between(base_ind,ind_1,ind_2)
     if(ind_1[1]==ind_2[1])
-        return [ind_1[1],base_ind[2],base_ind[3]]
+        return [ind_1[1],base_ind[2],base_ind[3],1]
     end
     if(ind_1[2]==ind_2[2])
-        return [base_ind[1],ind_1[2],base_ind[3]]
+        return [base_ind[1],ind_1[2],base_ind[3],2]
     end
 
-    return [base_ind[1],base_ind[2],ind_1[3]]
+    return [base_ind[1],base_ind[2],ind_1[3],3]
 end
 
 
@@ -99,8 +100,9 @@ from control points and base index of the supervoxel we get the tetrahedron that
 and the control points we are creating here all tetrahedrons that cover one of the corners of the cube
 """
 function get_tetr_triangles_in_corner(base_ind,corner)
-    corner=Float32.(collect(corner))
-    sv_center=Float32.([base_ind[1],base_ind[2],base_ind[3]])
+    corner=Float32.(append!(collect(corner),[4]))
+    
+    sv_center=Float32.([base_ind[1],base_ind[2],base_ind[3],-1.0])
     p_a=Float32.(flip_num(base_ind,corner,1))
     p_b=Float32.(flip_num(base_ind,corner,2))
     p_c=Float32.(flip_num(base_ind,corner,3))
@@ -110,23 +112,27 @@ function get_tetr_triangles_in_corner(base_ind,corner)
     p_ac=Float32.(get_linear_between(base_ind,p_a,p_c))
     p_bc=Float32.(get_linear_between(base_ind,p_b,p_c))
 
-    dummy=Float32.([-1.0,-1.0,-1.0])
-    res= [sv_center;;corner;;p_a;;p_ab;;dummy;;
-        sv_center;;corner;;p_ab;;p_b;;dummy;;
-        sv_center;;corner;;p_b;;p_bc;;dummy;; 
-        sv_center;;corner;;p_bc;;p_c;;dummy;;
-        sv_center;;corner;;p_a;;p_ac;;dummy;;
-        sv_center;;corner;;p_ac;;p_c;;dummy;; 
+    dummy=Float32.([-1.0,-1.0,-1.0,-1.0])
+    
+    res= [[sv_center;;corner;;p_a;;p_ab;;dummy]
+        ,[sv_center;;corner;;p_ab;;p_b;;dummy]
+        ,[sv_center;;corner;;p_b;;p_bc;;dummy]
+        ,[sv_center;;corner;;p_bc;;p_c;;dummy]
+        ,[sv_center;;corner;;p_a;;p_ac;;dummy]
+        ,[sv_center;;corner;;p_ac;;p_c;;dummy] 
     ]
+
     # res=permutedims(res, (2, 1))
     # print("uuuuuuuuu $(size(res))")
-    # res=reshape(io,(5,3,6))
-    
+    # res=reshape(io,(5,3,6))    
     # res=permutedims(res, (3,1,2))
-
+    res=map(el-> permutedims(el, (2, 1)) ,res)
+    res=map(el-> reshape(el, (1, size(el)...)) ,res)
+    res=vcat(res...)
     return res
 
 end
+
 
 
 """
@@ -160,9 +166,9 @@ function get_flattened_triangle_data(dims)
 
     all_surf_triangles=map(el->get_all_surface_triangles_of_sv(el),indices)
     #get the output of single get_tetr_triangles_in_corner to order
-    all_surf_triangles=map(el_out->map(el_in->permutedims(el_in, (2, 1)),el_out) ,all_surf_triangles)
-    all_surf_triangles=map(el_out->map(el_in->reshape(el_in,(5,3,6)),el_out) ,all_surf_triangles)
-    all_surf_triangles=map(el_out->map(el_in->permutedims(el_in, (3,1,2)),el_out) ,all_surf_triangles)
+    # all_surf_triangles=map(el_out->map(el_in->permutedims(el_in, (2, 1)),el_out) ,all_surf_triangles)
+    # all_surf_triangles=map(el_out->map(el_in->reshape(el_in, (1, size(el)...)),el_out) ,all_surf_triangles)
+    # all_surf_triangles=map(el_out->map(el_in->permutedims(el_in, (3,1,2)),el_out) ,all_surf_triangles)
     #concatenate all on first dimension
     all_surf_triangles=map(el->vcat(el...),all_surf_triangles)
     all_surf_triangles=vcat(all_surf_triangles...)
