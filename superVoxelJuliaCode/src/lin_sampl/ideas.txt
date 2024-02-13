@@ -1,0 +1,2 @@
+1) add sampling of image transformed by stationary wavelet transformed
+2) in the apply weights to loc_kern we can add parameters that look at the image and multiplies/add ... with vector of given direction to add to weights directionality info
