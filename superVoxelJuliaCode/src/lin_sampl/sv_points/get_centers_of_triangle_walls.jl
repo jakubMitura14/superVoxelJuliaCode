@@ -46,8 +46,13 @@ weights = tanh.(weights*0.02)
 
 threads=(2,2,2)
 blocks=(2,2,2)
-# control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(weights),radiuss,threads,blocks)
-# control_points=Array(control_points)
+# TODO() calculate needed number of threads and blocks and add padding if needed
+# https://cuda.juliagpu.org/stable/lib/driver/#Occupancy-API
+threads ,blocks  = launch_configuration(get_shmem,meansMahalinobisKernel,(CUDA.zeros(2,2,2),CUDA.zeros(2,2,2),args...))
+
+
+control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(weights),radiuss,threads,blocks)
+control_points=Array(control_points)
 
 
 
@@ -58,22 +63,31 @@ num_additional_samp_points=2
 varr=10.0
 meann=-0.8
 
-source_arr = meann .+ sqrt(varr) .* randn(Int.(dims.*(radiuss*2)))
+source_arr = meann .+ sqrt(varr) .* randn(Int.(((dims.*(radiuss*2) ).+radiuss).+(radiuss*2)) )
 out_sampled_points=zeros((size(tetrs)[1],num_base_samp_points+(3*num_additional_samp_points),5))
+
+
+# TODO() calculate needed number of threads and blocks and add padding if needed we need to make sure that 
+#we get the threads constant as it uses constant shared memory
 threads=(100,)
 blocks=(2,)
 
 tetrs=CuArray(tetrs)
 out_sampled_points=CuArray(out_sampled_points)
 source_arr=CuArray(source_arr)
+control_points=control_points.+radiuss
+sv_centers=sv_centers.+radiuss
 control_points=CuArray(control_points)
 sv_centers=CuArray(sv_centers)
 
+size(source_arr)
+
+
 
 call_point_info_kern(tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads,blocks)
+maximum(tetrs)
+maximum(source_arr)
 
-
-a
 # """
 # get a diffrence between coordinates in given axis of sv center and triangle center
 # """
