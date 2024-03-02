@@ -46,18 +46,22 @@ morover basic control points that are modified by this function are independent 
     also we assume that we have just a vector of weights and a set of single points - as we will broadcast over point arrays
      control_points first dimension is lin_x, lin_y, lin_z, oblique
 """
-function apply_weights_to_locs(control_points,weights,radius)
-    return [ [control_points[1,1]+weights[1]*radius,control_points[1,2],control_points[1,3]]#lin_x
-            ,[control_points[2,1],control_points[2,2]+weights[2]*radius,control_points[2,3]]#lin_y
-            ,[control_points[3,1],control_points[3,2],control_points[3,3]+weights[3]*radius]#lin_z
-            ,[control_points[4,1]+weights[4]*radius,control_points[4,2]+weights[5]*radius,control_points[4,3]+weights[6]*radius]#oblique
-    ]
-end #apply_weights_to_locs
+# function apply_weights_to_locs(control_points,weights,radius)
+#     return [ [control_points[1,1]+weights[1]*radius,control_points[1,2],control_points[1,3]]#lin_x
+#             ,[control_points[2,1],control_points[2,2]+weights[2]*radius,control_points[2,3]]#lin_y
+#             ,[control_points[3,1],control_points[3,2],control_points[3,3]+weights[3]*radius]#lin_z
+#             ,[control_points[4,1]+weights[4]*radius,control_points[4,2]+weights[5]*radius,control_points[4,3]+weights[6]*radius]#oblique
+#     ]
+# end #apply_weights_to_locs
 
-function apply_weights_to_locs_kern(control_points,weights,radius)
-    x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
-    y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) 
-    z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) 
+function apply_weights_to_locs_kern(control_points,weights,radius,control_points_size)
+    z = div((threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())),(control_points_size[1]*control_points_size[2]))
+    y = div((threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))-(z*(control_points_size[1]*control_points_size[2])) , (control_points_size[1]))
+    x = ((threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))-(z*(control_points_size[1]*control_points_size[2]))-(y*(control_points_size[1]) ) )
+
+    # x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
+    # y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) 
+    # z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) 
 
     control_points[x,y,z,1,1]=control_points[x,y,z,1,1]+weights[x,y,z,1]*radius#lin_x
     control_points[x,y,z,2,2]=control_points[x,y,z,2,2]+weights[x,y,z,2]*radius#lin_y
@@ -74,14 +78,13 @@ end #apply_weights_to_locs
 
 
 function apply_weights_to_locs_kern_deff(control_points,d_control_points,weights,d_weights,radius)
-    Enzyme.autodiff_deferred(Reverse,apply_weights_to_locs_kern, Const, Duplicated(control_points, d_control_points),Duplicated(weights, d_weights),Const(radius) )
+    Enzyme.autodiff_deferred(Reverse,apply_weights_to_locs_kern, Const, Duplicated(control_points, d_control_points),Duplicated(weights, d_weights),Const(radius),Const(size(control_points)) )
     return nothing
 end
 
 
 function call_apply_weights_to_locs_kern(control_points,weights,radius,threads,blocks)
-
-    @cuda threads = threads blocks = blocks apply_weights_to_locs_kern(control_points,weights,radius)
+    @cuda threads = threads blocks = blocks apply_weights_to_locs_kern(control_points,weights,radius,size(control_points))
     return control_points
 end
 

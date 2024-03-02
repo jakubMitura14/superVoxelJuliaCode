@@ -25,6 +25,7 @@ includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern.jl")
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern.jl")
+includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/utils_lin_sampl.jl")
 
 
 dims=(7,7,7)
@@ -48,10 +49,57 @@ threads=(2,2,2)
 blocks=(2,2,2)
 # TODO() calculate needed number of threads and blocks and add padding if needed
 # https://cuda.juliagpu.org/stable/lib/driver/#Occupancy-API
-threads ,blocks  = launch_configuration(get_shmem,meansMahalinobisKernel,(CUDA.zeros(2,2,2),CUDA.zeros(2,2,2),args...))
+# kernel = @cuda launch=false getBlockTpFpFn(args...) 
+# threads ,blocks  = launch_configuration(apply_weights_to_locs_kern)
+
+control_points_size=size(control_points)
+
+curr_x=7
+curr_y=3
+curr_z=1
+
+lin=(control_points_size[1]*control_points_size[2])*(curr_z-1) + (control_points_size[1])*(curr_y-1) + curr_x
+lin
+z = div(lin,(control_points_size[1]*control_points_size[2]))
+y = div(lin-(z*(control_points_size[1]*control_points_size[2])) , (control_points_size[1]))
+x = (lin-(z*(control_points_size[1]*control_points_size[2]))-(y*(control_points_size[1]) ) )
+
+x=x
+y=y+1
+z=z+1
+
+65 % 64
+
+"""
+check the optimal launch configuration for the kernel
+calculate the number of threads and blocks and how much padding to add if needed
+"""
+function prepare_for_apply_weights_to_locs_kern(control_points_shape,weights_shape)
+    bytes_per_thread=8
+    blocks_apply_w,threads_apply_w,maxBlocks=computeBlocksFromOccupancy(apply_weights_to_locs_kern,(Cuda.zeros(control_points_shape),Cuda.zeros(weights_shape)), bytes_per_thread)
+    total_num=control_points_shape[1]*control_points_shape[2]*control_points_shape[3]
+    needed_blocks=ceil(total_num / threads_apply_w)
+    to_pad=threads_apply_w*needed_blocks-total_num
+    
+    return needed_blocks,threads_apply_w,to_pad
 
 
-control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(weights),radiuss,threads,blocks)
+end
+
+
+
+#     bytes_per_thread=8
+# blocks_apply_w,threads_apply_w,maxBlocks=computeBlocksFromOccupancy(apply_weights_to_locs_kern,(CuArray(control_points),CuArray(weights),3), bytes_per_thread)
+
+# blocks_apply_w
+# threads_apply_w
+# 8*8*8
+
+
+
+
+
+control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(weights),radiuss,threads_apply_w,blocks_apply_w)
 control_points=Array(control_points)
 
 
