@@ -101,14 +101,12 @@ varr=10.0
 meann=-0.8
 
 # source_arr = meann .+ sqrt(varr) .* randn(Int.(((dims.*(radiuss*2) ).+radiuss).+((radiuss*2)+1)) )
-source_arr = meann .+ sqrt(varr) .* randn(Int.(((dims.*(radiuss*2) ).+radiuss).+((radiuss*5))) )
+source_arr = meann .+ sqrt(varr) .* randn(Int.((dims.*(radiuss*2) ).+((radiuss*3))) )
 out_sampled_points=zeros((size(tetrs)[1],num_base_samp_points+(3*num_additional_samp_points),5))
 
 
-# TODO() calculate needed number of threads and blocks and add padding if needed we need to make sure that 
 #we get the threads constant as it uses constant shared memory
-threads=(100,)
-blocks=(2,)
+
 
 tetrs=CuArray(tetrs)
 out_sampled_points=CuArray(out_sampled_points)
@@ -139,24 +137,32 @@ end
 
 threads_point_info,blocks_point_info,pad_point_info=prepare_for_point_info(size(tetrs))
 
+8232/256
+
 pad_point_info
 
 
-call_point_info_kern(tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
-maximum(tetrs)
+out_sampled_points,tetr_dat=call_point_info_kern(tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+
+maximum(tetr_dat)
+maximum(out_sampled_points)
+tetr_dat[1,1,:]
+source_arr[9,9,9]
 maximum(source_arr)
 tetrs[100,:,1]
 
 
-maximum(tetrs[:,:,1])
-maximum(tetrs[:,:,2])
-maximum(tetrs[:,:,3])
+maximum(tetr_dat[:,:,1])
+maximum(tetr_dat[:,:,2])
+maximum(tetr_dat[:,:,3])
 
 control_points[1,1,1,:]
 
 maximum(control_points[:,:,:,1])
 maximum(control_points[:,:,:,2])
 maximum(control_points[:,:,:,3])
+
+size(out_sampled_points)
 
 size(source_arr)
 

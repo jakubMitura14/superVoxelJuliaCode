@@ -236,7 +236,7 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,s
       end#for triangle_corner_num     
 
       #now as we had looked into distance to other points in 5 directions we divide by 5 and save it to the out_sampled_points
-      out_sampled_points[point_num,2]=var1/5
+      out_sampled_points[index,point_num,2]=var1/5
 
     
       ##time to get value by interpolation and save it to the out_sampled_points
@@ -247,11 +247,11 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,s
       #performing interpolation result is in var2 and it get data from shared_arr
       @threeDLinInterpol(source_arr)
       #saving the result of interpolated value to the out_sampled_points
-      out_sampled_points[point_num,1]=var2
+      out_sampled_points[index,point_num,1]=var2
       #saving sample points coordinates
-      out_sampled_points[point_num,3]=shared_arr[threadIdx().x,1]
-      out_sampled_points[point_num,4]=shared_arr[threadIdx().x,2]
-      out_sampled_points[point_num,5]=shared_arr[threadIdx().x,3]
+      out_sampled_points[index,point_num,3]=shared_arr[threadIdx().x,1]
+      out_sampled_points[index,point_num,4]=shared_arr[threadIdx().x,2]
+      out_sampled_points[index,point_num,5]=shared_arr[threadIdx().x,3]
 
 
   end#for num_base_samp_points
@@ -261,26 +261,26 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,s
     @loopinfo unroll for triangle_corner_num in UInt8(1):UInt8(3)
 
           #now we need to get diffrence between the last main sample point and the triangle corner
-          shared_arr[threadIdx().x,1]=(tetr_dat[index,triangle_corner_num+1,1]-out_sampled_points[num_base_samp_points,3])*(n_add_samp/(num_additional_samp_points+1))
-          shared_arr[threadIdx().x,2]=(tetr_dat[index,triangle_corner_num+1,2]-out_sampled_points[num_base_samp_points,4])*(n_add_samp/(num_additional_samp_points+1))
-          shared_arr[threadIdx().x,3]=(tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[num_base_samp_points,5])*(n_add_samp/(num_additional_samp_points+1))
+          shared_arr[threadIdx().x,1]=(tetr_dat[index,triangle_corner_num+1,1]-out_sampled_points[index,num_base_samp_points,3])*(n_add_samp/(num_additional_samp_points+1))
+          shared_arr[threadIdx().x,2]=(tetr_dat[index,triangle_corner_num+1,2]-out_sampled_points[index,num_base_samp_points,4])*(n_add_samp/(num_additional_samp_points+1))
+          shared_arr[threadIdx().x,3]=(tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[index,num_base_samp_points,5])*(n_add_samp/(num_additional_samp_points+1))
 
 
-          out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=sqrt( shared_arr[threadIdx().x,1]^2+shared_arr[threadIdx().x,2]^2+shared_arr[threadIdx().x,3]^2)
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=sqrt( shared_arr[threadIdx().x,1]^2+shared_arr[threadIdx().x,2]^2+shared_arr[threadIdx().x,3]^2)
           ##time to get value by interpolation and save it to the out_sampled_points
           #now we get the location of sample point
-          shared_arr[threadIdx().x,1]= out_sampled_points[num_base_samp_points,3]+shared_arr[threadIdx().x,1]
-          shared_arr[threadIdx().x,2]= out_sampled_points[num_base_samp_points,4]+shared_arr[threadIdx().x,2]
-          shared_arr[threadIdx().x,3]= out_sampled_points[num_base_samp_points,5]+shared_arr[threadIdx().x,3]
+          shared_arr[threadIdx().x,1]= out_sampled_points[index,num_base_samp_points,3]+shared_arr[threadIdx().x,1]
+          shared_arr[threadIdx().x,2]= out_sampled_points[index,num_base_samp_points,4]+shared_arr[threadIdx().x,2]
+          shared_arr[threadIdx().x,3]= out_sampled_points[index,num_base_samp_points,5]+shared_arr[threadIdx().x,3]
 
           #performing interpolation result is in var2 and it get data from shared_arr
           @threeDLinInterpol(source_arr)
-          #saving the result of interpolated value to the out_sampled_points
-          out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=var2
-          #saving sample points coordinates
-          out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[threadIdx().x,1]
-          out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[threadIdx().x,2]
-          out_sampled_points[(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,5]=shared_arr[threadIdx().x,3]
+          # #saving the result of interpolated value to the out_sampled_points
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=var2
+          # #saving sample points coordinates
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[threadIdx().x,1]
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[threadIdx().x,2]
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,5]=shared_arr[threadIdx().x,3]
 
 
 

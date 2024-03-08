@@ -39,11 +39,18 @@ function call_point_info_kern(tetr_dat,out_sampled_points,source_arr,control_poi
     # shared_arr = CuDynamicSharedArray(Float32, (threads[1],3))
     #shmem is in bytes
     tetr_shape=size(tetr_dat)
+    out_shape=size(out_sampled_points)
     to_pad_tetr=CUDA.ones(pad_point_info,tetr_shape[2],tetr_shape[3])*2
     tetr_dat=vcat(tetrs,to_pad_tetr)
+
+    to_pad_out=CUDA.ones(pad_point_info,out_shape[2],out_shape[3])*2
+    out_sampled_points=vcat(out_sampled_points,to_pad_out)
+
+
     @cuda threads = threads blocks = blocks point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points)
     
     tetr_dat=tetr_dat[1:tetr_shape[1],:,:]
+    out_sampled_points=out_sampled_points[1:out_shape[1],:,:]
 
     # @device_code_warntype @cuda threads = threads blocks = blocks testKern( A, p,  Aout,Nx)
     return out_sampled_points,tetr_dat
