@@ -160,7 +160,7 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,s
 
 
   # shared_arr = CuStaticSharedArray(Float32, (CUDA.blockDim_x(),3))
-  shared_arr = CuStaticSharedArray(Float32, (100,3))
+  shared_arr = CuStaticSharedArray(Float32, (256,3))
   index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
 
   

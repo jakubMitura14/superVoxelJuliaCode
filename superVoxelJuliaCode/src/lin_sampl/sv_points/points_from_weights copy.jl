@@ -55,21 +55,24 @@ morover basic control points that are modified by this function are independent 
 # end #apply_weights_to_locs
 
 function apply_weights_to_locs_kern(control_points,weights,radius,control_points_size)
-    z = div((threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())),(control_points_size[1]*control_points_size[2]))
-    y = div((threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))-(z*(control_points_size[1]*control_points_size[2])) , (control_points_size[1]))
-    x = ((threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))-(z*(control_points_size[1]*control_points_size[2]))-(y*(control_points_size[1]) ) )
+    # z = div((threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())),(control_points_size[1]*control_points_size[2]))
+    # y = div((threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))-(z*(control_points_size[1]*control_points_size[2])) , (control_points_size[1]))
+    # x = ((threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))-(z*(control_points_size[1]*control_points_size[2]))-(y*(control_points_size[1]) ) )
 
-    # x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
-    # y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) 
-    # z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) 
+    x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
+    y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) 
+    z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) 
 
-    control_points[x,y,z,1,1]=control_points[x,y,z,1,1]+weights[x,y,z,1]*radius#lin_x
-    control_points[x,y,z,2,2]=control_points[x,y,z,2,2]+weights[x,y,z,2]*radius#lin_y
-    control_points[x,y,z,3,3]=control_points[x,y,z,3,3]+weights[x,y,z,3]*radius#lin_z
-    
-    control_points[x,y,z,4,1]=control_points[x,y,z,4,1]+weights[x,y,z,4]*radius
-    control_points[x,y,z,4,2]=control_points[x,y,z,4,2]+weights[x,y,z,5]*radius
-    control_points[x,y,z,4,3]=control_points[x,y,z,4,3]+weights[x,y,z,6]*radius
+    if(x<=control_points_size[1] && y<=control_points_size[2] && z<=control_points_size[3])
+        # control_points[x,y,z,1,1]=control_points[x,y,z,1,1]+weights[x,y,z,1]*radius#lin_x
+        # control_points[x,y,z,2,2]=control_points[x,y,z,2,2]+weights[x,y,z,2]*radius#lin_y
+        # control_points[x,y,z,3,3]=control_points[x,y,z,3,3]+weights[x,y,z,3]*radius#lin_z
+        
+        # control_points[x,y,z,4,1]=control_points[x,y,z,4,1]+weights[x,y,z,4]*radius
+        # control_points[x,y,z,4,2]=control_points[x,y,z,4,2]+weights[x,y,z,5]*radius
+        # control_points[x,y,z,4,3]=control_points[x,y,z,4,3]+weights[x,y,z,6]*radius
+    end    
+
     return nothing
 
 end #apply_weights_to_locs
@@ -78,12 +81,14 @@ end #apply_weights_to_locs
 
 
 function apply_weights_to_locs_kern_deff(control_points,d_control_points,weights,d_weights,radius)
+
     Enzyme.autodiff_deferred(Reverse,apply_weights_to_locs_kern, Const, Duplicated(control_points, d_control_points),Duplicated(weights, d_weights),Const(radius),Const(size(control_points)) )
     return nothing
 end
 
 
 function call_apply_weights_to_locs_kern(control_points,weights,radius,threads,blocks)
+
     @cuda threads = threads blocks = blocks apply_weights_to_locs_kern(control_points,weights,radius,size(control_points))
     return control_points
 end
