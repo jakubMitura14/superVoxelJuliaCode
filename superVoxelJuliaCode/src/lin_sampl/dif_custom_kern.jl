@@ -48,7 +48,8 @@ function call_point_info_kern(tetr_dat,out_sampled_points,source_arr,control_poi
 
 
     @cuda threads = threads blocks = blocks point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points)
-    
+
+
     tetr_dat=tetr_dat[1:tetr_shape[1],:,:]
     out_sampled_points=out_sampled_points[1:out_shape[1],:,:]
 

@@ -165,13 +165,11 @@ function get_flattened_triangle_data(dims)
     indices=splitdims(indices,1)
 
     all_surf_triangles=map(el->get_all_surface_triangles_of_sv(el),indices)
-    #get the output of single get_tetr_triangles_in_corner to order
-    # all_surf_triangles=map(el_out->map(el_in->permutedims(el_in, (2, 1)),el_out) ,all_surf_triangles)
-    # all_surf_triangles=map(el_out->map(el_in->reshape(el_in, (1, size(el)...)),el_out) ,all_surf_triangles)
-    # all_surf_triangles=map(el_out->map(el_in->permutedims(el_in, (3,1,2)),el_out) ,all_surf_triangles)
     #concatenate all on first dimension
     all_surf_triangles=map(el->vcat(el...),all_surf_triangles)
     all_surf_triangles=vcat(all_surf_triangles...)
+
+
     return all_surf_triangles
 end
 
@@ -184,11 +182,11 @@ and the intilia positions of the control points
 function initialize_centers_and_control_points(dims,radius)
     diam=radius*2
 
-    sv_centers=get_base_indicies_arr(dims)*diam
-    lin_x=get_linear_control_points(dims,1,diam,radius)
-    lin_y=get_linear_control_points(dims,2,diam,radius)
-    lin_z=get_linear_control_points(dims,3,diam,radius)
-    oblique=get_oblique_control_points(dims,diam,radius)
+    sv_centers=(get_base_indicies_arr(dims)*diam).+1
+    lin_x=get_linear_control_points(dims,1,diam,radius).+1
+    lin_y=get_linear_control_points(dims,2,diam,radius).+1
+    lin_z=get_linear_control_points(dims,3,diam,radius).+1
+    oblique=get_oblique_control_points(dims,diam,radius).+1
     flattened_triangles=get_flattened_triangle_data(dims)
     
     return sv_centers,combinedims([lin_x, lin_y, lin_z, oblique],4),flattened_triangles

@@ -275,7 +275,7 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,s
 
           #performing interpolation result is in var2 and it get data from shared_arr
           @threeDLinInterpol(source_arr)
-          # #saving the result of interpolated value to the out_sampled_points
+          #saving the result of interpolated value to the out_sampled_points
           out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=var2
           # #saving sample points coordinates
           out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[threadIdx().x,1]

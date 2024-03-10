@@ -36,6 +36,9 @@ num_weights_per_point=6
 example_set_of_svs=initialize_centers_and_control_points(dims,radiuss)
 sv_centers,control_points,tetrs=example_set_of_svs   # ,lin_x_add,lin_y_add,lin_z_add
 
+
+tetrs
+
 # control_points first dimension is lin_x, lin_y, lin_z, oblique
 # weights=zeros((dims_plus[1],dims_plus[2],dims_plus[3],num_weights_per_point))
 weights = rand(dims_plus[1], dims_plus[2], dims_plus[3], num_weights_per_point)
@@ -100,8 +103,9 @@ num_additional_samp_points=2
 varr=10.0
 meann=-0.8
 
-# source_arr = meann .+ sqrt(varr) .* randn(Int.(((dims.*(radiuss*2) ).+radiuss).+((radiuss*2)+1)) )
-source_arr = meann .+ sqrt(varr) .* randn(Int.((dims.*(radiuss*2) ).+((radiuss*3))) )
+# source_arr = meann .+ sqrt(varr) .* randn(Int.((dims.*(radiuss*2) ).+((radiuss*3))) )
+source_arr = meann .+ sqrt(varr) .* randn(Int.((dims.*(radiuss*2) )))
+
 out_sampled_points=zeros((size(tetrs)[1],num_base_samp_points+(3*num_additional_samp_points),5))
 
 
@@ -146,8 +150,8 @@ out_sampled_points,tetr_dat=call_point_info_kern(tetrs,out_sampled_points,source
 
 maximum(tetr_dat)
 maximum(out_sampled_points)
-tetr_dat[1,1,:]
-source_arr[9,9,9]
+
+size(source_arr)
 maximum(source_arr)
 tetrs[100,:,1]
 
