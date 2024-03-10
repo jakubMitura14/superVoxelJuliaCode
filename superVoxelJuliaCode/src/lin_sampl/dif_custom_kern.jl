@@ -16,20 +16,47 @@ function point_info_kern_deff(tetr_dat,d_tetr_dat
                             ,source_arr,d_source_arr
                             ,control_points,d_control_points
                             ,sv_centers,d_sv_centers
-                            ,num_base_samp_points,num_additional_samp_points,threads,blocks)
+                            ,num_base_samp_points
+                            ,num_additional_samp_points
+                            ,threads
+                            ,blocks
+                            ,pad_point_info)
+
+    #pad to avoid conditionals in kernel
+    tetr_shape=size(tetr_dat)
+    out_shape=size(out_sampled_points)
+    to_pad_tetr=CUDA.ones(pad_point_info,tetr_shape[2],tetr_shape[3])*2
+    tetr_dat=vcat(tetrs,to_pad_tetr)
+    d_tetr_dat=vcat(d_tetr_dat,to_pad_tetr)
+
+    to_pad_out=CUDA.ones(pad_point_info,out_shape[2],out_shape[3])*2
+    out_sampled_points=vcat(out_sampled_points,to_pad_out)
+    d_out_sampled_points=vcat(d_out_sampled_points,to_pad_out)
 
 
     # shared_arr = CuStaticSharedArray(Float32, (threads[0],3))
     # d_shared_arr = CuStaticSharedArray(Float32, (threads[0],3))
 
-    Enzyme.autodiff_deferred(Reverse,testKern, Const
+    Enzyme.autodiff_deferred(Reverse,point_info_kern, Const
                             , Duplicated(tetr_dat, d_tetr_dat)
                             , Duplicated(out_sampled_points, d_out_sampled_points)
                             , Duplicated(source_arr, d_source_arr)
                             , Duplicated(control_points, d_control_points)
                             , Duplicated(sv_centers, d_sv_centers)
-                            ,Const(num_base_samp_points),Const(num_additional_samp_points) ,Const(threads)  ,Const(blocks)  )
-    return nothing
+                            ,Const(num_base_samp_points)
+                            ,Const(num_additional_samp_points) 
+                            ,Const(threads)  
+                            ,Const(blocks)
+                            ,Const(pad_point_info)  )
+    
+    #reverse padding
+    tetr_dat=tetr_dat[1:tetr_shape[1],:,:]
+    d_tetr_dat=d_tetr_dat[1:tetr_shape[1],:,:]
+    out_sampled_points=out_sampled_points[1:out_shape[1],:,:]
+    d_out_sampled_points=d_out_sampled_points[1:out_shape[1],:,:]
+
+
+                            return nothing
 end
 
 

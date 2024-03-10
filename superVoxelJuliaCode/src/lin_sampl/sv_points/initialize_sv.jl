@@ -16,12 +16,39 @@ function get_base_indicies_arr(dims)
 end#get_base_indicies_arr
 
 
+function get_corrected_dim(ax,radius,image_shape)
+    diam=radius*2
+    return Int(ceil((image_shape[ax]-5)/diam))-2
+end    
+
+function get_dif(ax,image_shape,dims,diam)
+    return max(floor((image_shape[ax]-((dims[ax]+1).*diam))/2),2.0)
+end
+
+"""
+initialize sv centers coordinates 
+"""
+function get_sv_centers(radius,image_shape)
+    diam=radius*2
+    dims=(get_corrected_dim(1,radius,image_shape),get_corrected_dim(2,radius,image_shape),get_corrected_dim(3,radius,image_shape))
+    diffs= (get_dif(1,image_shape,dims,diam),get_dif(2,image_shape,dims,diam),get_dif(3,image_shape,dims,diam))
+    # diffs= (1.0,1.0,1.0)
+    res= get_base_indicies_arr(dims)*diam
+    res[:,:,:,1]=res[:,:,:,1].+diffs[1]
+    res[:,:,:,2]=res[:,:,:,2].+diffs[2]
+    res[:,:,:,3]=res[:,:,:,3].+diffs[3]
+    return res,dims,diffs
+
+end
+
+
+
 """
 given the size of the x,y,z dimension of control weights (what in basic architecture get as output of convolutions)
 we get linear control points - so points that are on the lines between each of the sv_centers - hence their modifications will require just one weight
 we will create linear points by moving by radius in each axis
 """
-function get_linear_control_points(dims,axis,diam,radius)
+function get_linear_control_points(dims,axis,diam,radius,diffs)
     #increasing dimension as we need to have them both up and down the axis
     # dim_new=collect(Iterators.flatten(dims))#.+1
     # dim_new[axis]=dim_new[axis]+1
@@ -31,7 +58,12 @@ function get_linear_control_points(dims,axis,diam,radius)
     indicies=indicies.+diam
     indicies_ax=indicies[:,:,:,axis].-radius
     indicies[:,:,:,axis]=indicies_ax
-    return indicies
+    res=indicies
+    res[:,:,:,1]=res[:,:,:,1].+diffs[1]
+    res[:,:,:,2]=res[:,:,:,2].+diffs[2]
+    res[:,:,:,3]=res[:,:,:,3].+diffs[3]
+
+    return res
 end#get_linear_control_points
 
 
@@ -39,26 +71,20 @@ end#get_linear_control_points
 will get oblique control points - so points that are on the corners of the cube that is enclosing a volume of
 non modified supervoxel area 
 """
-function get_oblique_control_points(dims,diam,radius)
+function get_oblique_control_points(dims,diam,radius,diffs)
     #increasing dimension as we need to have them both up and down the axis
     dim_new=collect(Iterators.flatten(dims)).+1
     indicies=get_base_indicies_arr(Tuple(dim_new)).-1
     indicies=indicies.*diam
-    return indicies.+radius
+    res= indicies.+radius
+    res[:,:,:,1]=res[:,:,:,1].+diffs[1]
+    res[:,:,:,2]=res[:,:,:,2].+diffs[2]
+    res[:,:,:,3]=res[:,:,:,3].+diffs[3]
+
+    return res
+
+
 end#get_oblique_control_points
-
-function get_linear_control_points_added(dims,axis,diam,radius)
-    #increasing dimension as we need to have them both up and down the axis
-    indicies=get_oblique_control_points(dims,diam,radius)
-    indicies_ax=indicies[:,:,:,axis].-radius
-    indicies[:,:,:,axis]=indicies_ax
-    return indicies
-end#get_linear_control_points
-
-
-
-
-
 
 
 """
@@ -162,6 +188,7 @@ function get_flattened_triangle_data(dims)
     indices=collect(Iterators.flatten(indices))
     indices=reshape(indices,(3,dims[1]*dims[2]*dims[3]))
     indices=permutedims(indices,(2,1))
+
     indices=splitdims(indices,1)
 
     all_surf_triangles=map(el->get_all_surface_triangles_of_sv(el),indices)
@@ -179,29 +206,37 @@ given the size of the x,y,z dimension of control weights (what in basic architec
 and the radius of supervoxels will return the grid of points that will be used as centers of supervoxels 
 and the intilia positions of the control points
 """
-function initialize_centers_and_control_points(dims,radius)
+function initialize_centers_and_control_points(image_shape,radius)
     diam=radius*2
+    sv_centers,dims,diffs= get_sv_centers(radius,image_shape)
+    lin_x=get_linear_control_points(dims,1,diam,radius,diffs)
+    lin_y=get_linear_control_points(dims,2,diam,radius,diffs)
+    lin_z=get_linear_control_points(dims,3,diam,radius,diffs)
+    oblique=get_oblique_control_points(dims,diam,radius,diffs)
 
-    sv_centers=(get_base_indicies_arr(dims)*diam).+1
-    lin_x=get_linear_control_points(dims,1,diam,radius).+1
-    lin_y=get_linear_control_points(dims,2,diam,radius).+1
-    lin_z=get_linear_control_points(dims,3,diam,radius).+1
-    oblique=get_oblique_control_points(dims,diam,radius).+1
-    flattened_triangles=get_flattened_triangle_data(dims)
-    
-    return sv_centers,combinedims([lin_x, lin_y, lin_z, oblique],4),flattened_triangles
+    flattened_triangles=get_flattened_triangle_data(dims)  
+
+    return sv_centers,combinedims([lin_x, lin_y, lin_z, oblique],4),flattened_triangles,dims
 end#initialize_centeris_and_control_points    
     
 
 
-# dims=(4,4,4)
-# collect(Iterators.flatten(dims)).+1
+# radius=4.0
+# diam=radius*2
+# # a=36
+# a=42
+# # image_shape=(36,37,38)
+# image_shape=(a,a,a)
+# dims=(get_corrected_dim(1,radius,image_shape),get_corrected_dim(2,radius,image_shape),get_corrected_dim(3,radius,image_shape))
+# diffs= floor.((image_shape.-((dims.+1).*diam))./2).+1
+# # diffs= (1,1,1)
+
+# sv_centers=(get_base_indicies_arr(dims)*diam)
 
 
-# dims=(2,2,2)
-# axis=3
-# diam=4.0
-# radius=2.0
-# uu=get_linear_control_points(dims,axis,diam,radius)
+# sv_centers[:,:,:,1]=sv_centers[:,:,:,1].+diffs[1]
+# sv_centers[:,:,:,2]=sv_centers[:,:,:,2].+diffs[2]
+# sv_centers[:,:,:,3]=sv_centers[:,:,:,3].+diffs[3]
 
-# uu[1,1,1,:]
+# maximum(sv_centers)
+# minimum(sv_centers)

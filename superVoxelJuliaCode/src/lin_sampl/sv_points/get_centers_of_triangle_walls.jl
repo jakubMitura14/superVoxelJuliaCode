@@ -28,50 +28,25 @@ includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/utils_lin_sampl.jl")
 
 
-dims=(7,7,7)
-dims_plus=(dims[1]+1,dims[2]+1,dims[3]+1)
-radiuss=3.0
+radiuss=4.0
 diam=radiuss*2
 num_weights_per_point=6
-example_set_of_svs=initialize_centers_and_control_points(dims,radiuss)
-sv_centers,control_points,tetrs=example_set_of_svs   # ,lin_x_add,lin_y_add,lin_z_add
+a=81
+image_shape= (a,a,a)
 
+example_set_of_svs=initialize_centers_and_control_points(image_shape,radiuss)
+sv_centers,control_points,tetrs,dims=example_set_of_svs
 
-tetrs
-
+dims_plus=(dims[1]+1,dims[2]+1,dims[3]+1)
 # control_points first dimension is lin_x, lin_y, lin_z, oblique
-# weights=zeros((dims_plus[1],dims_plus[2],dims_plus[3],num_weights_per_point))
-weights = rand(dims_plus[1], dims_plus[2], dims_plus[3], num_weights_per_point)
+weights=rand(dims_plus[1],dims_plus[2],dims_plus[3],num_weights_per_point)
+# weights = rand(image_shape...)
 weights=weights.-0.50001
 weights=(weights).*100
 weights = tanh.(weights*0.02)
 
-
-
-threads=(2,2,2)
-blocks=(2,2,2)
-# TODO() calculate needed number of threads and blocks and add padding if needed
-# https://cuda.juliagpu.org/stable/lib/driver/#Occupancy-API
-# kernel = @cuda launch=false getBlockTpFpFn(args...) 
-# threads ,blocks  = launch_configuration(apply_weights_to_locs_kern)
-
 control_points_size=size(control_points)
 
-# curr_x=7
-# curr_y=3
-# curr_z=1
-
-# lin=(control_points_size[1]*control_points_size[2])*(curr_z-1) + (control_points_size[1])*(curr_y-1) + curr_x
-# lin
-# z = div(lin,(control_points_size[1]*control_points_size[2]))
-# y = div(lin-(z*(control_points_size[1]*control_points_size[2])) , (control_points_size[1]))
-# x = (lin-(z*(control_points_size[1]*control_points_size[2]))-(y*(control_points_size[1]) ) )
-
-# x=x
-# y=y+1
-# z=z+1
-
-# 65 % 64
 
 """
 check the optimal launch configuration for the kernel
@@ -91,6 +66,7 @@ end
 
 threads_apply_w,blocks_apply_w=prepare_for_apply_weights_to_locs_kern(control_points_size,size(weights))
 
+
 control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(weights),radiuss,threads_apply_w,blocks_apply_w)
 control_points=Array(control_points)
 
@@ -104,7 +80,8 @@ varr=10.0
 meann=-0.8
 
 # source_arr = meann .+ sqrt(varr) .* randn(Int.((dims.*(radiuss*2) ).+((radiuss*3))) )
-source_arr = meann .+ sqrt(varr) .* randn(Int.((dims.*(radiuss*2) )))
+# source_arr = meann .+ sqrt(varr) .* randn(Int.((dims.*(radiuss*2) )))
+source_arr = meann .+ sqrt(varr) .* randn(image_shape...)
 
 out_sampled_points=zeros((size(tetrs)[1],num_base_samp_points+(3*num_additional_samp_points),5))
 
@@ -120,7 +97,6 @@ sv_centers=sv_centers.+radiuss
 control_points=CuArray(control_points)
 sv_centers=CuArray(sv_centers)
 
-size(source_arr)
 
 
 bytes_per_thread=6
@@ -141,24 +117,20 @@ end
 
 threads_point_info,blocks_point_info,pad_point_info=prepare_for_point_info(size(tetrs))
 
-8232/256
-
-pad_point_info
-
-
 out_sampled_points,tetr_dat=call_point_info_kern(tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+
 
 maximum(tetr_dat)
 maximum(out_sampled_points)
-
-size(source_arr)
-maximum(source_arr)
-tetrs[100,:,1]
 
 
 maximum(tetr_dat[:,:,1])
 maximum(tetr_dat[:,:,2])
 maximum(tetr_dat[:,:,3])
+
+minimum(tetr_dat[:,:,1])
+minimum(tetr_dat[:,:,2])
+minimum(tetr_dat[:,:,3])
 
 control_points[1,1,1,:]
 
