@@ -19,6 +19,7 @@ using CUDA
 using Combinatorics
 using Random
 using Statistics
+using ChainRulesCore
 
 
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
@@ -28,7 +29,7 @@ includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/utils_lin_sampl.jl")
 
 
-radiuss=4.0
+radiuss=Float32(4.0)
 diam=radiuss*2
 num_weights_per_point=6
 a=81
@@ -43,7 +44,7 @@ weights=rand(dims_plus[1],dims_plus[2],dims_plus[3],num_weights_per_point)
 # weights = rand(image_shape...)
 weights=weights.-0.50001
 weights=(weights).*100
-weights = tanh.(weights*0.02)
+weights = Float32.(tanh.(weights*0.02))
 
 control_points_size=size(control_points)
 
@@ -54,21 +55,35 @@ calculate the number of threads and blocks and how much padding to add if needed
 """
 function prepare_for_apply_weights_to_locs_kern(control_points_shape,weights_shape)
     bytes_per_thread=0
-    blocks_apply_w,threads_apply_w,maxBlocks=computeBlocksFromOccupancy(apply_weights_to_locs_kern,(CUDA.zeros(control_points_shape),CUDA.zeros(weights_shape),3,control_points_shape), bytes_per_thread)
+    blocks_apply_w,threads_apply_w,maxBlocks=computeBlocksFromOccupancy(apply_weights_to_locs_kern,(CUDA.zeros(control_points_shape...),CUDA.zeros(control_points_shape...),CUDA.zeros(weights_shape...)
+    ,Float32(3)
+    ,UInt32(control_points_shape[1]),UInt32(control_points_shape[2]),UInt32(control_points_shape[3])
+    ), bytes_per_thread)
     # total_num=control_points_shape[1]*control_points_shape[2]*control_points_shape[3]
     # needed_blocks=ceil(total_num / threads_apply_w)
-    threads_res=(8,8,(floor(Int,threads_apply_w/64)))
+    # threads_res=(8,8,(floor(Int,threads_apply_w/64)))
+    threads_res=(8,8,(floor(Int,threads_apply_w/128)))
     needed_blocks=(ceil(Int,control_points_shape[1]/threads_res[1]),ceil(Int,control_points_shape[2]/threads_res[2]),ceil(Int,control_points_shape[3]/threads_res[3]))
 
-    return threads_apply_w,needed_blocks
+    return threads_res,needed_blocks
 end
 
 
 threads_apply_w,blocks_apply_w=prepare_for_apply_weights_to_locs_kern(control_points_size,size(weights))
 
 
-control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(weights),radiuss,threads_apply_w,blocks_apply_w)
+control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CUDA.zeros(size(control_points)...),CuArray(weights),radiuss,threads_apply_w,blocks_apply_w)
 control_points=Array(control_points)
+
+
+# Compute the Jacobian
+# jacobian_result =Zygote.jacobian(call_apply_weights_to_locs_kern
+#                                     ,CuArray(control_points)
+#                                     ,CUDA.zeros(size(control_points)...)
+#                                     ,CuArray(weights),
+#                                     radiuss,threads_apply_w,blocks_apply_w)
+
+
 
 
 
@@ -105,7 +120,8 @@ function prepare_for_point_info(tetr_dat_shape)
     bytes_per_thread=6
     #TODO (use dynamic shared memory below)
     # blocks,threads,maxBlocks=computeBlocksFromOccupancy(point_info_kern,(tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points), bytes_per_thread)
-    threads=256
+    # threads=256
+    threads=128
 
     # total_num=control_points_shape[1]*control_points_shape[2]*control_points_shape[3]
     # needed_blocks=ceil(total_num / threads_apply_w)
@@ -117,10 +133,21 @@ end
 
 threads_point_info,blocks_point_info,pad_point_info=prepare_for_point_info(size(tetrs))
 
-out_sampled_points,tetr_dat=call_point_info_kern(tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+out_sampled_points=call_point_info_kern(tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+
+tetr_dat=tetrs
+
+out_sampled_points=Float32.(out_sampled_points)
+source_arr=Float32.(source_arr)
+control_points
+sv_centers
 
 
-maximum(tetr_dat)
+a,ff=rrule(call_point_info_kern,tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+ff(out_sampled_points)
+
+
+# maximum(tetr_dat)
 maximum(out_sampled_points)
 
 

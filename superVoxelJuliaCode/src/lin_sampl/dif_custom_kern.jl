@@ -18,42 +18,24 @@ function point_info_kern_deff(tetr_dat,d_tetr_dat
                             ,sv_centers,d_sv_centers
                             ,num_base_samp_points
                             ,num_additional_samp_points
-                            ,threads
-                            ,blocks
-                            ,pad_point_info)
-
-    #pad to avoid conditionals in kernel
-    tetr_shape=size(tetr_dat)
-    out_shape=size(out_sampled_points)
-    to_pad_tetr=CUDA.ones(pad_point_info,tetr_shape[2],tetr_shape[3])*2
-    tetr_dat=vcat(tetrs,to_pad_tetr)
-    d_tetr_dat=vcat(d_tetr_dat,to_pad_tetr)
-
-    to_pad_out=CUDA.ones(pad_point_info,out_shape[2],out_shape[3])*2
-    out_sampled_points=vcat(out_sampled_points,to_pad_out)
-    d_out_sampled_points=vcat(d_out_sampled_points,to_pad_out)
+)
 
 
-    # shared_arr = CuStaticSharedArray(Float32, (threads[0],3))
-    # d_shared_arr = CuStaticSharedArray(Float32, (threads[0],3))
 
-    Enzyme.autodiff_deferred(Reverse,point_info_kern, Const
+
+    # shared_arr = CuStaticSharedArray(Float32, (128,3))
+    # d_shared_arr = CuStaticSharedArray(Float32, (128,3))
+
+    Enzyme.autodiff_deferred(Enzyme.Reverse,point_info_kern, Const
+                            # , Duplicated(CuStaticSharedArray(Float32, (128,3)), CuStaticSharedArray(Float32, (128,3)))
                             , Duplicated(tetr_dat, d_tetr_dat)
                             , Duplicated(out_sampled_points, d_out_sampled_points)
                             , Duplicated(source_arr, d_source_arr)
                             , Duplicated(control_points, d_control_points)
                             , Duplicated(sv_centers, d_sv_centers)
                             ,Const(num_base_samp_points)
-                            ,Const(num_additional_samp_points) 
-                            ,Const(threads)  
-                            ,Const(blocks)
-                            ,Const(pad_point_info)  )
+                            ,Const(num_additional_samp_points)  )
     
-    #reverse padding
-    tetr_dat=tetr_dat[1:tetr_shape[1],:,:]
-    d_tetr_dat=d_tetr_dat[1:tetr_shape[1],:,:]
-    out_sampled_points=out_sampled_points[1:out_shape[1],:,:]
-    d_out_sampled_points=d_out_sampled_points[1:out_shape[1],:,:]
 
 
                             return nothing
@@ -74,6 +56,7 @@ function call_point_info_kern(tetr_dat,out_sampled_points,source_arr,control_poi
     out_sampled_points=vcat(out_sampled_points,to_pad_out)
 
 
+    # @cuda threads = threads blocks = blocks point_info_kern(CuStaticSharedArray(Float32, (128,3)),tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points)
     @cuda threads = threads blocks = blocks point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points)
 
 
@@ -81,31 +64,74 @@ function call_point_info_kern(tetr_dat,out_sampled_points,source_arr,control_poi
     out_sampled_points=out_sampled_points[1:out_shape[1],:,:]
 
     # @device_code_warntype @cuda threads = threads blocks = blocks testKern( A, p,  Aout,Nx)
-    return out_sampled_points,tetr_dat
+    return out_sampled_points
 end
 
 
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(call_point_info_kern),prim_A, A, p,Nx,threads,blocks)
+function ChainRulesCore.rrule(::typeof(call_point_info_kern),tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
     
 
-    Aout = calltestKern(prim_A,A, p,Nx,threads,blocks)#CUDA.zeros(Nx+totalPad, Ny+totalPad, Nz+totalPad )
-    function call_test_kernel1_pullback(dAout)
-
-
-        dp = CUDA.ones(size(p))
-        dprim_A = CUDA.ones(size(prim_A))
-        dA = CUDA.ones(size(A))
-        #@device_code_warntype @cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, CuArray(collect(dAout)),Nx)
-        @cuda threads = threads blocks = blocks testKernDeff(prim_A,dprim_A, A, dA, p, dp, Aout, CuArray(collect(dAout)),Nx)
-
-        f̄ = NoTangent()
-        x̄ = dA
-        ȳ = dp
+        out_sampled_points = call_point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)    
+        d_tetr_dat = CUDA.ones(size(tetr_dat)...)
+        # d_out_sampled_points = CUDA.ones(size(out_sampled_points)...) # TODO remove
+        d_source_arr = CUDA.ones(size(source_arr)...)
+        d_control_points = CUDA.ones(size(control_points)...)
+        d_sv_centers = CUDA.ones(size(sv_centers)...)
         
-        return dprim_A,f̄, x̄, ȳ,NoTangent(),NoTangent(),NoTangent()
-    end   
-    return Aout, call_test_kernel1_pullback
+
+        #pad to avoid conditionals in kernel
+        tetr_shape=size(tetr_dat)
+        out_shape=size(out_sampled_points)
+        to_pad_tetr=CUDA.ones(pad_point_info,tetr_shape[2],tetr_shape[3])
+        tetr_dat=vcat(tetrs,to_pad_tetr)
+        d_tetr_dat=vcat(d_tetr_dat,to_pad_tetr)
+
+        to_pad_out=CUDA.ones(pad_point_info,out_shape[2],out_shape[3])
+        out_sampled_points=vcat(out_sampled_points,to_pad_out)
+        
+
+        function call_test_kernel1_pullback(d_out_sampled_points)
+            #@device_code_warntype @cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, CuArray(collect(dAout)),Nx)
+            d_out_sampled_points=vcat(CuArray(collect(d_out_sampled_points)),to_pad_out)
+            
+            # d_out_sampled_points = CUDA.ones(size(out_sampled_points)...) #TODO(remove)
+            # d_out_sampled_points=vcat(d_out_sampled_points,to_pad_out)#TODO(remove)
+            #@device_code_warntype 
+            # @device_code_warntype  @cuda threads = threads_point_info blocks = blocks_point_info Enzyme.autodiff_deferred(Enzyme.Reverse,point_info_kern, Const
+            #                                                                         , Duplicated(tetr_dat, d_tetr_dat)
+            #                                                                         , Duplicated(out_sampled_points, d_out_sampled_points)
+            #                                                                         , Duplicated(source_arr, d_source_arr)
+            #                                                                         , Duplicated(control_points, d_control_points)
+            #                                                                         , Duplicated(sv_centers, d_sv_centers)
+            #                                                                         ,Const(num_base_samp_points)
+            #                                                                         ,Const(num_additional_samp_points) 
+                                                                                    # )  
+
+
+            @cuda threads = threads_point_info blocks = blocks_point_info point_info_kern_deff(tetr_dat,d_tetr_dat
+                                                        ,out_sampled_points,d_out_sampled_points
+                                                        ,source_arr,d_source_arr
+                                                        ,control_points,d_control_points
+                                                        ,sv_centers,d_sv_centers
+                                                        ,num_base_samp_points
+                                                        ,num_additional_samp_points
+                                                                                            )
+                        #reverse padding
+            
+                       
+
+            d_tetr_dat=d_tetr_dat[1:tetr_shape[1],:,:]
+            d_out_sampled_points=d_out_sampled_points[1:out_shape[1],:,:]   
+            
+            return NoTangent(),d_tetr_dat,d_out_sampled_points,d_source_arr,d_control_points,d_sv_centers,NoTangent(),NoTangent(),NoTangent(),NoTangent(),NoTangent(),NoTangent(),NoTangent(),NoTangent(),NoTangent()
+        end
+
+        tetr_dat=tetr_dat[1:tetr_shape[1],:,:]
+        out_sampled_points=out_sampled_points[1:out_shape[1],:,:]
+
+
+    return out_sampled_points, call_test_kernel1_pullback
 
 end
