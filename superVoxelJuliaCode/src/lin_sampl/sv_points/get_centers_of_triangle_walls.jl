@@ -25,7 +25,8 @@ using ChainRulesCore
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern.jl")
-includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern.jl")
+includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point.jl")
+includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_tetr.jl")
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/utils_lin_sampl.jl")
 
 
@@ -133,41 +134,61 @@ end
 
 threads_point_info,blocks_point_info,pad_point_info=prepare_for_point_info(size(tetrs))
 
-out_sampled_points=call_point_info_kern(tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+# print("**************      pre         ********************* tetrs $(size(tetrs))\n")
+# for triangle_corner_num in 1:5
+#     for axis in 1:3
+#         print("triangle_corner_num $(triangle_corner_num) axis $(axis) maxxx ",maximum(tetrs[:,triangle_corner_num,axis]),"\n  ")
+#         print("triangle_corner_num $(triangle_corner_num) axis $(axis)   minn ",minimum(tetrs[:,triangle_corner_num,axis]),"\n  ")
+    
+# end    
+# end
 
+# tetrs=call_set_tetr_dat_kern(tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+
+
+# print("**************      post         ********************* \n")
+# for triangle_corner_num in 1:5
+#     for axis in 1:3
+#         print("triangle_corner_num $(triangle_corner_num) axis $(axis) maxxx ",maximum(tetrs[:,triangle_corner_num,axis]),"\n  ")
+#         print("triangle_corner_num $(triangle_corner_num) axis $(axis)   minn ",minimum(tetrs[:,triangle_corner_num,axis]),"\n  ")
+    
+# end    
+# end
 tetr_dat=tetrs
 
 out_sampled_points=Float32.(out_sampled_points)
 source_arr=Float32.(source_arr)
-control_points
+control_points=Float32.(control_points)
+print("ccccccccccccccccc tetrs $(size(tetrs)) sum $(sum(tetrs))")
 sv_centers
 
+print()
+a,ff=rrule(call_set_tetr_dat_kern,tetrs,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+# a,ff=rrule(call_set_tetr_dat_kern,tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+ff(tetr_dat)
 
-a,ff=rrule(call_point_info_kern,tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
-ff(out_sampled_points)
 
-
-# maximum(tetr_dat)
+maximum(a)
 maximum(out_sampled_points)
 
 
 maximum(tetr_dat[:,:,1])
-maximum(tetr_dat[:,:,2])
-maximum(tetr_dat[:,:,3])
+# maximum(tetr_dat[:,:,2])
+# maximum(tetr_dat[:,:,3])
 
-minimum(tetr_dat[:,:,1])
-minimum(tetr_dat[:,:,2])
-minimum(tetr_dat[:,:,3])
+# minimum(tetr_dat[:,:,1])
+# minimum(tetr_dat[:,:,2])
+# minimum(tetr_dat[:,:,3])
 
-control_points[1,1,1,:]
+# control_points[1,1,1,:]
 
-maximum(control_points[:,:,:,1])
-maximum(control_points[:,:,:,2])
-maximum(control_points[:,:,:,3])
+# maximum(control_points[:,:,:,1])
+# maximum(control_points[:,:,:,2])
+# maximum(control_points[:,:,:,3])
 
-size(out_sampled_points)
+# size(out_sampled_points)
 
-size(source_arr)
+# size(source_arr)
 
 
 """
@@ -192,15 +213,15 @@ we want to check weather weighted sampling is working correctly by gettin base a
 and checking weather our samples have similar weighted mean and variance
 """
 
-using StatsBase
+# using StatsBase
 
-m1=mean(ssamp[:,1])
-m2=sum(ssamp[:,1].*ssamp[:,2])/sum(ssamp[:,2])
+# m1=mean(ssamp[:,1])
+# m2=sum(ssamp[:,1].*ssamp[:,2])/sum(ssamp[:,2])
 
-m1,m2
-v1=var(ssamp[:,1])
-v2=sum(ssamp[:,2].*(ssamp[:,1].-m2).^2)/sum(ssamp[:,2])
-v3=var(source_arr)
-v1,v2,v3
+# m1,m2
+# v1=var(ssamp[:,1])
+# v2=sum(ssamp[:,2].*(ssamp[:,1].-m2).^2)/sum(ssamp[:,2])
+# v3=var(source_arr)
+# v1,v2,v3
 
 # ,var(ssamp[:,1])

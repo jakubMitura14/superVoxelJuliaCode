@@ -9,7 +9,10 @@ using LinearAlgebra
 using Images,ImageFiltering
 using Revise
 
-includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern.jl")
+Enzyme.API.strictAliasing!(false)# taken from here https://github.com/EnzymeAD/Enzyme.jl/issues/1159
+
+
+includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern.jl") 
 
 function point_info_kern_deff(tetr_dat,d_tetr_dat
                             ,out_sampled_points,d_out_sampled_points
@@ -19,13 +22,8 @@ function point_info_kern_deff(tetr_dat,d_tetr_dat
                             ,num_base_samp_points
                             ,num_additional_samp_points
 )
-
-
-
-
     # shared_arr = CuStaticSharedArray(Float32, (128,3))
     # d_shared_arr = CuStaticSharedArray(Float32, (128,3))
-
     Enzyme.autodiff_deferred(Enzyme.Reverse,point_info_kern, Const
                             # , Duplicated(CuStaticSharedArray(Float32, (128,3)), CuStaticSharedArray(Float32, (128,3)))
                             , Duplicated(tetr_dat, d_tetr_dat)
@@ -34,8 +32,7 @@ function point_info_kern_deff(tetr_dat,d_tetr_dat
                             , Duplicated(control_points, d_control_points)
                             , Duplicated(sv_centers, d_sv_centers)
                             ,Const(num_base_samp_points)
-                            ,Const(num_additional_samp_points)  )
-    
+                            ,Const(num_additional_samp_points)  )  
 
 
                             return nothing
@@ -73,7 +70,7 @@ end
 function ChainRulesCore.rrule(::typeof(call_point_info_kern),tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
     
 
-        out_sampled_points = call_point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)    
+        out_sampled_points = call_point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)    #TODO unhash
         d_tetr_dat = CUDA.ones(size(tetr_dat)...)
         # d_out_sampled_points = CUDA.ones(size(out_sampled_points)...) # TODO remove
         d_source_arr = CUDA.ones(size(source_arr)...)
@@ -94,6 +91,9 @@ function ChainRulesCore.rrule(::typeof(call_point_info_kern),tetr_dat,out_sample
 
         function call_test_kernel1_pullback(d_out_sampled_points)
             #@device_code_warntype @cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, CuArray(collect(dAout)),Nx)
+            
+            print("*************************  $(d_res)\n")
+            
             d_out_sampled_points=vcat(CuArray(collect(d_out_sampled_points)),to_pad_out)
             
             # d_out_sampled_points = CUDA.ones(size(out_sampled_points)...) #TODO(remove)
@@ -128,8 +128,8 @@ function ChainRulesCore.rrule(::typeof(call_point_info_kern),tetr_dat,out_sample
             return NoTangent(),d_tetr_dat,d_out_sampled_points,d_source_arr,d_control_points,d_sv_centers,NoTangent(),NoTangent(),NoTangent(),NoTangent(),NoTangent(),NoTangent(),NoTangent(),NoTangent(),NoTangent()
         end
 
-        tetr_dat=tetr_dat[1:tetr_shape[1],:,:]
-        out_sampled_points=out_sampled_points[1:out_shape[1],:,:]
+        # tetr_dat=tetr_dat[1:tetr_shape[1],:,:]
+        # out_sampled_points=out_sampled_points[1:out_shape[1],:,:]
 
 
     return out_sampled_points, call_test_kernel1_pullback
