@@ -92,8 +92,7 @@ function ChainRulesCore.rrule(::typeof(call_point_info_kern),tetr_dat,out_sample
         function call_test_kernel1_pullback(d_out_sampled_points)
             #@device_code_warntype @cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, CuArray(collect(dAout)),Nx)
             
-            print("*************************  $(d_res)\n")
-            
+           
             d_out_sampled_points=vcat(CuArray(collect(d_out_sampled_points)),to_pad_out)
             
             # d_out_sampled_points = CUDA.ones(size(out_sampled_points)...) #TODO(remove)

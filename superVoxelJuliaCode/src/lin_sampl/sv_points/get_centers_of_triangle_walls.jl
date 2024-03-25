@@ -143,7 +143,8 @@ threads_point_info,blocks_point_info,pad_point_info=prepare_for_point_info(size(
 # end    
 # end
 
-# tetrs=call_set_tetr_dat_kern(tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+tetrs=call_set_tetr_dat_kern(tetrs,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+out_sampled_points=call_point_info_kern(tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
 
 
 # print("**************      post         ********************* \n")
@@ -162,11 +163,11 @@ control_points=Float32.(control_points)
 print("ccccccccccccccccc tetrs $(size(tetrs)) sum $(sum(tetrs))")
 sv_centers
 
-print()
-a,ff=rrule(call_set_tetr_dat_kern,tetrs,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
-# a,ff=rrule(call_set_tetr_dat_kern,tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
-ff(tetr_dat)
-
+# a,ff=rrule(call_set_tetr_dat_kern,tetrs,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+# # a,ff=rrule(call_set_tetr_dat_kern,tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+# ff(tetr_dat)
+a,ff=rrule(call_point_info_kern,tetrs,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+ff(out_sampled_points)
 
 maximum(a)
 maximum(out_sampled_points)
