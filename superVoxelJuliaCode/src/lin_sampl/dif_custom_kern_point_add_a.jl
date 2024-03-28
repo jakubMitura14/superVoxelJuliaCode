@@ -14,7 +14,7 @@ Enzyme.API.strictAliasing!(false)# taken from here https://github.com/EnzymeAD/E
 
 includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern.jl") 
 
-function point_info_kern_deff(tetr_dat,d_tetr_dat
+function point_info_kern_deff_add_a(tetr_dat,d_tetr_dat
                             ,out_sampled_points,d_out_sampled_points
                             ,source_arr,d_source_arr
                             ,control_points,d_control_points
@@ -24,7 +24,7 @@ function point_info_kern_deff(tetr_dat,d_tetr_dat
 )
     # shared_arr = CuStaticSharedArray(Float32, (128,3))
     # d_shared_arr = CuStaticSharedArray(Float32, (128,3))
-    Enzyme.autodiff_deferred(Enzyme.Reverse,point_info_kern, Const
+    Enzyme.autodiff_deferred(Enzyme.Reverse,point_info_kern_add_a, Const
                             # , Duplicated(CuStaticSharedArray(Float32, (128,3)), CuStaticSharedArray(Float32, (128,3)))
                             , Duplicated(tetr_dat, d_tetr_dat)
                             , Duplicated(out_sampled_points, d_out_sampled_points)
@@ -39,7 +39,7 @@ function point_info_kern_deff(tetr_dat,d_tetr_dat
 end
 
 
-function call_point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads,blocks,pad_point_info)
+function call_point_info_kern_add_a(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads,blocks,pad_point_info)
     # shared_arr = CuStaticSharedArray(Float32, (threads[1],3))
     # shared_arr = CuStaticSharedArray(Float32, (100,3))
     # shared_arr = CuDynamicSharedArray(Float32, (threads[1],3))
@@ -54,7 +54,7 @@ function call_point_info_kern(tetr_dat,out_sampled_points,source_arr,control_poi
 
 
     #@device_code_warntype  @cuda threads = threads blocks = blocks point_info_kern(CuStaticSharedArray(Float32, (128,3)),tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points)
-    @cuda threads = threads blocks = blocks point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points)
+    @cuda threads = threads blocks = blocks point_info_kern_add_a(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points)
 
 
     tetr_dat=tetr_dat[1:tetr_shape[1],:,:]
@@ -67,10 +67,10 @@ end
 
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(call_point_info_kern),tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
+function ChainRulesCore.rrule(::typeof(call_point_info_kern_add_a),tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)
     
 
-        out_sampled_points = call_point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)    #TODO unhash
+        out_sampled_points = call_point_info_kern_add_a(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points,threads_point_info,blocks_point_info,pad_point_info)    #TODO unhash
         d_tetr_dat = CUDA.ones(size(tetr_dat)...)
         # d_out_sampled_points = CUDA.ones(size(out_sampled_points)...) # TODO remove
         d_source_arr = CUDA.ones(size(source_arr)...)
@@ -109,7 +109,7 @@ function ChainRulesCore.rrule(::typeof(call_point_info_kern),tetr_dat,out_sample
                                                                                     # )  
 
 
-            @device_code_warntype @cuda threads = threads_point_info blocks = blocks_point_info point_info_kern_deff(tetr_dat,d_tetr_dat
+            @device_code_warntype @cuda threads = threads_point_info blocks = blocks_point_info point_info_kern_deff_add_a(tetr_dat,d_tetr_dat
                                                         ,out_sampled_points,d_out_sampled_points
                                                         ,source_arr,d_source_arr
                                                         ,control_points,d_control_points

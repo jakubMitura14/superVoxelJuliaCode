@@ -149,25 +149,6 @@ end
 
 
 
-# """
-# get local estimation of variance of the source array near the point
-# """
-# macro threeD_loc_var(source_arr)
-#   ## first we get the total distances of all points to be able to normalize it later
-#   return  esc(quote
-#   @threeDLinInterpol(source_arr)
-#   # @get_interpolated_diff(source_arr)#todo unhash
-  
-#   # for a1 in -0.50001:0.50001:0.50001
-#   #   for b1 in -0.50001:0.50001:0.50001
-#   #     for c1 in -0.50001:0.50001:0.50001
-#   #             var3+= @get_interpolated_diff(source_arr,a1,b1,c1)
-#   #         end
-#   #     end
-#   # end       
-#   var2=var3/var1
-#   end)
-# end
 
 
 
@@ -361,7 +342,7 @@ function set_tetr_dat_kern(tetr_dat,tetr_dat_out,source_arr,control_points,sv_ce
   var2=var3/var1
 
   # #saving the result of control point value
-  tetr_dat_out[index,triangle_corner_num,4]=var2#todo 
+  tetr_dat_out[index,triangle_corner_num,4]=var2 
 
 
 
@@ -447,7 +428,7 @@ function set_tetr_dat_kern(tetr_dat,tetr_dat_out,source_arr,control_points,sv_ce
   var2=var3/var1
 
   # #saving the result of control point value
-  tetr_dat_out[index,triangle_corner_num,4]=var2#todo 
+  tetr_dat_out[index,triangle_corner_num,4]=var2 
 
 
 
@@ -534,7 +515,7 @@ function set_tetr_dat_kern(tetr_dat,tetr_dat_out,source_arr,control_points,sv_ce
   var2=var3/var1
 
   # #saving the result of control point value
-  tetr_dat_out[index,triangle_corner_num,4]=var2#todo 
+  tetr_dat_out[index,triangle_corner_num,4]=var2 
 
 
 
@@ -547,7 +528,7 @@ function set_tetr_dat_kern(tetr_dat,tetr_dat_out,source_arr,control_points,sv_ce
   end#for triangle_corner_num
   for axis in 1:3
       shared_arr[threadIdx().x,axis]=shared_arr[threadIdx().x,axis]/3
-      tetr_dat_out[index,5,axis]=shared_arr[threadIdx().x,axis]#todo 
+      tetr_dat_out[index,5,axis]=shared_arr[threadIdx().x,axis] 
   end#for axis
    # ########## interpolation
    var1=Float32(0.0)
@@ -661,9 +642,9 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,s
   # we can assume that sv center location is 0.0,0.0,0.0 as we need only diffrences 
   for triangle_corner_num in UInt8(1):UInt8(3)
       #distance to the line between sv center and the  corner
-      var1+=sqrt((shared_arr[threadIdx().x,1] -(tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,1])*(point_num/(num_base_samp_points+1)))^2
-                      +(shared_arr[threadIdx().x,1] -(tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,2])*(point_num/(num_base_samp_points+1)))^2
-                      +(shared_arr[threadIdx().x,1] -(tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,3])*(point_num/(num_base_samp_points+1)))^2
+      var1+=sqrt((shared_arr[threadIdx().x,1] -(tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,1])*Float32(point_num/(num_base_samp_points+1)))^2
+                      +(shared_arr[threadIdx().x,1] -(tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,2])*Float32(point_num/(num_base_samp_points+1)))^2
+                      +(shared_arr[threadIdx().x,1] -(tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,3])*Float32(point_num/(num_base_samp_points+1)))^2
       ) 
   end#for triangle_corner_num     
 
@@ -722,9 +703,9 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,s
     # (tetr_dat[$tetr_dat_coord,$coord_i]-tetr_dat[1,$coord_i])*(point_num/(num_base_samp_points+1))
   
     #we get the diffrence between the sv center and the triangle center
-    shared_arr[threadIdx().x,1]= (tetr_dat[index,5,1]-tetr_dat[index,1,1])*(point_num/(num_base_samp_points+1))
-    shared_arr[threadIdx().x,2]= (tetr_dat[index,5,2]-tetr_dat[index,1,2])*(point_num/(num_base_samp_points+1))
-    shared_arr[threadIdx().x,3]= (tetr_dat[index,5,3]-tetr_dat[index,1,3])*(point_num/(num_base_samp_points+1))
+    shared_arr[threadIdx().x,1]= (tetr_dat[index,5,1]-tetr_dat[index,1,1])*Float32(point_num/(num_base_samp_points+1))
+    shared_arr[threadIdx().x,2]= (tetr_dat[index,5,2]-tetr_dat[index,1,2])*Float32(point_num/(num_base_samp_points+1))
+    shared_arr[threadIdx().x,3]= (tetr_dat[index,5,3]-tetr_dat[index,1,3])*Float32(point_num/(num_base_samp_points+1))
   
     ##calculate weight of the point
     #first distance from next and previous point on the line between sv center and triangle center
@@ -805,9 +786,9 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,s
     # we can assume that sv center location is 0.0,0.0,0.0 as we need only diffrences 
     for triangle_corner_num in UInt8(1):UInt8(3)
         #distance to the line between sv center and the  corner
-        var1+=sqrt((shared_arr[threadIdx().x,1] -(tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,1])*(point_num/(num_base_samp_points+1)))^2
-                        +(shared_arr[threadIdx().x,1] -(tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,2])*(point_num/(num_base_samp_points+1)))^2
-                        +(shared_arr[threadIdx().x,1] -(tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,3])*(point_num/(num_base_samp_points+1)))^2
+        var1+=sqrt((shared_arr[threadIdx().x,1] -(tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,1])*Float32(point_num/(num_base_samp_points+1)))^2
+                        +(shared_arr[threadIdx().x,1] -(tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,2])*Float32(point_num/(num_base_samp_points+1)))^2
+                        +(shared_arr[threadIdx().x,1] -(tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,3])*Float32(point_num/(num_base_samp_points+1)))^2
         ) 
     end#for triangle_corner_num     
   
@@ -864,36 +845,397 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,s
 
     # end#for num_base_samp_points
 
-  # ##### now we need to calculate the additional sample points that are branching out from the last main sample point
-  # @loopinfo unroll for n_add_samp in UInt8(1):UInt8(num_additional_samp_points)
-  #   @loopinfo unroll for triangle_corner_num in UInt8(1):UInt8(3)
 
-  #         #now we need to get diffrence between the last main sample point and the triangle corner
-  #         shared_arr[threadIdx().x,1]=(tetr_dat[index,triangle_corner_num+1,1]-out_sampled_points[index,num_base_samp_points,3])*(n_add_samp/(num_additional_samp_points+1))
-  #         shared_arr[threadIdx().x,2]=(tetr_dat[index,triangle_corner_num+1,2]-out_sampled_points[index,num_base_samp_points,4])*(n_add_samp/(num_additional_samp_points+1))
-  #         shared_arr[threadIdx().x,3]=(tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[index,num_base_samp_points,5])*(n_add_samp/(num_additional_samp_points+1))
+                                                 
+  return nothing
+end
 
 
-  #         out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=sqrt( shared_arr[threadIdx().x,1]^2+shared_arr[threadIdx().x,2]^2+shared_arr[threadIdx().x,3]^2)
-  #         ##time to get value by interpolation and save it to the out_sampled_points
-  #         #now we get the location of sample point
-  #         shared_arr[threadIdx().x,1]= out_sampled_points[index,num_base_samp_points,3]+shared_arr[threadIdx().x,1]
-  #         shared_arr[threadIdx().x,2]= out_sampled_points[index,num_base_samp_points,4]+shared_arr[threadIdx().x,2]
-  #         shared_arr[threadIdx().x,3]= out_sampled_points[index,num_base_samp_points,5]+shared_arr[threadIdx().x,3]
+"""
+we artificially set num_additional_samp_points to 2 and num_base_samp_points to 3
 
-  #         #performing interpolation result is in var2 and it get data from shared_arr
-  #         @threeDLinInterpol(source_arr)
-  #         #saving the result of interpolated value to the out_sampled_points
-  #         out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=var2
-  #         # #saving sample points coordinates
-  #         out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[threadIdx().x,1]
-  #         out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[threadIdx().x,2]
-  #         out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,5]=shared_arr[threadIdx().x,3]
+only additional sample points
+
+"""
+function point_info_kern_add_a(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points)
+ 
+  # source_arr=CUDA.Const(source_arr)
+  # control_points=CUDA.Const(control_points)
+  # sv_centers=CUDA.Const(sv_centers)
+
+  # shared_arr = CuStaticSharedArray(Float32, (CUDA.blockDim_x(),3))
+  shared_arr = CuStaticSharedArray(Float32, (128,3))
+  index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
+
+ 
+  var1=0.0
+  var2=0.0
+  var3=0.0
+
+  #we iterate over rest of points in main sample points
 
 
 
-  #     end #for triangle_corner_num
-  # end #for n_add_samp
+
+    # end#for num_base_samp_points
+
+  ##### now we need to calculate the additional sample points that are branching out from the last main sample point
+  n_add_samp=1
+  triangle_corner_num=1
+          #now we need to get diffrence between the last main sample point and the triangle corner
+          shared_arr[threadIdx().x,1]=(tetr_dat[index,triangle_corner_num+1,1]-out_sampled_points[index,num_base_samp_points,3])*Float32(n_add_samp/(num_additional_samp_points+1))
+          shared_arr[threadIdx().x,2]=(tetr_dat[index,triangle_corner_num+1,2]-out_sampled_points[index,num_base_samp_points,4])*Float32(n_add_samp/(num_additional_samp_points+1))
+          shared_arr[threadIdx().x,3]=(tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[index,num_base_samp_points,5])*Float32(n_add_samp/(num_additional_samp_points+1))
+
+
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=sqrt( shared_arr[threadIdx().x,1]^2+shared_arr[threadIdx().x,2]^2+shared_arr[threadIdx().x,3]^2)
+          ##time to get value by interpolation and save it to the out_sampled_points
+          #now we get the location of sample point
+          shared_arr[threadIdx().x,1]= out_sampled_points[index,num_base_samp_points,3]+shared_arr[threadIdx().x,1]
+          shared_arr[threadIdx().x,2]= out_sampled_points[index,num_base_samp_points,4]+shared_arr[threadIdx().x,2]
+          shared_arr[threadIdx().x,3]= out_sampled_points[index,num_base_samp_points,5]+shared_arr[threadIdx().x,3]
+
+          #performing interpolation result is in var2 and it get data from shared_arr
+          # ########## interpolation
+          var1=Float32(0.0)
+          var2=Float32(0.0)
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var2=var2/var1
+          # ########## end interpolation
+          
+          #saving the result of interpolated value to the out_sampled_points
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=var2
+          # #saving sample points coordinates
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[threadIdx().x,1]
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[threadIdx().x,2]
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,5]=shared_arr[threadIdx().x,3]
+
+          n_add_samp=1
+          triangle_corner_num=2
+                  #now we need to get diffrence between the last main sample point and the triangle corner
+                  shared_arr[threadIdx().x,1]=(tetr_dat[index,triangle_corner_num+1,1]-out_sampled_points[index,num_base_samp_points,3])*Float32(n_add_samp/(num_additional_samp_points+1))
+                  shared_arr[threadIdx().x,2]=(tetr_dat[index,triangle_corner_num+1,2]-out_sampled_points[index,num_base_samp_points,4])*Float32(n_add_samp/(num_additional_samp_points+1))
+                  shared_arr[threadIdx().x,3]=(tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[index,num_base_samp_points,5])*Float32(n_add_samp/(num_additional_samp_points+1))
+        
+        
+                  out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=sqrt( shared_arr[threadIdx().x,1]^2+shared_arr[threadIdx().x,2]^2+shared_arr[threadIdx().x,3]^2)
+                  ##time to get value by interpolation and save it to the out_sampled_points
+                  #now we get the location of sample point
+                  shared_arr[threadIdx().x,1]= out_sampled_points[index,num_base_samp_points,3]+shared_arr[threadIdx().x,1]
+                  shared_arr[threadIdx().x,2]= out_sampled_points[index,num_base_samp_points,4]+shared_arr[threadIdx().x,2]
+                  shared_arr[threadIdx().x,3]= out_sampled_points[index,num_base_samp_points,5]+shared_arr[threadIdx().x,3]
+        
+                  #performing interpolation result is in var2 and it get data from shared_arr
+                  # ########## interpolation
+                  var1=Float32(0.0)
+                  var2=Float32(0.0)
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var2=var2/var1
+                  # ########## end interpolation
+                  
+                  #saving the result of interpolated value to the out_sampled_points
+                  out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=var2
+                  # #saving sample points coordinates
+                  out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[threadIdx().x,1]
+                  out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[threadIdx().x,2]
+                  out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,5]=shared_arr[threadIdx().x,3]
+                  n_add_samp=1
+                  triangle_corner_num=3
+                          #now we need to get diffrence between the last main sample point and the triangle corner
+                          shared_arr[threadIdx().x,1]=(tetr_dat[index,triangle_corner_num+1,1]-out_sampled_points[index,num_base_samp_points,3])*Float32(n_add_samp/(num_additional_samp_points+1))
+                          shared_arr[threadIdx().x,2]=(tetr_dat[index,triangle_corner_num+1,2]-out_sampled_points[index,num_base_samp_points,4])*Float32(n_add_samp/(num_additional_samp_points+1))
+                          shared_arr[threadIdx().x,3]=(tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[index,num_base_samp_points,5])*Float32(n_add_samp/(num_additional_samp_points+1))
+                
+                
+                          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=sqrt( shared_arr[threadIdx().x,1]^2+shared_arr[threadIdx().x,2]^2+shared_arr[threadIdx().x,3]^2)
+                          ##time to get value by interpolation and save it to the out_sampled_points
+                          #now we get the location of sample point
+                          shared_arr[threadIdx().x,1]= out_sampled_points[index,num_base_samp_points,3]+shared_arr[threadIdx().x,1]
+                          shared_arr[threadIdx().x,2]= out_sampled_points[index,num_base_samp_points,4]+shared_arr[threadIdx().x,2]
+                          shared_arr[threadIdx().x,3]= out_sampled_points[index,num_base_samp_points,5]+shared_arr[threadIdx().x,3]
+                
+                          #performing interpolation result is in var2 and it get data from shared_arr
+                          # ########## interpolation
+                          var1=Float32(0.0)
+                          var2=Float32(0.0)
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var2=var2/var1
+                          # ########## end interpolation
+                          
+                          #saving the result of interpolated value to the out_sampled_points
+                          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=var2
+                          # #saving sample points coordinates
+                          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[threadIdx().x,1]
+                          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[threadIdx().x,2]
+                          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,5]=shared_arr[threadIdx().x,3]
+                          return nothing
+
+
+end
+
+                          
+function point_info_kern_add_b(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points)
+
+  # source_arr=CUDA.Const(source_arr)
+  # control_points=CUDA.Const(control_points)
+  # sv_centers=CUDA.Const(sv_centers)
+
+  # shared_arr = CuStaticSharedArray(Float32, (CUDA.blockDim_x(),3))
+  shared_arr = CuStaticSharedArray(Float32, (128,3))
+  index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
+
+  
+  var1=0.0
+  var2=0.0
+  var3=0.0
+
+  ##### now we need to calculate the additional sample points that are branching out from the last main sample point
+  n_add_samp=2
+  triangle_corner_num=1
+          #now we need to get diffrence between the last main sample point and the triangle corner
+          shared_arr[threadIdx().x,1]=(tetr_dat[index,triangle_corner_num+1,1]-out_sampled_points[index,num_base_samp_points,3])*Float32(n_add_samp/(num_additional_samp_points+1))
+          shared_arr[threadIdx().x,2]=(tetr_dat[index,triangle_corner_num+1,2]-out_sampled_points[index,num_base_samp_points,4])*Float32(n_add_samp/(num_additional_samp_points+1))
+          shared_arr[threadIdx().x,3]=(tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[index,num_base_samp_points,5])*Float32(n_add_samp/(num_additional_samp_points+1))
+
+
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=sqrt( shared_arr[threadIdx().x,1]^2+shared_arr[threadIdx().x,2]^2+shared_arr[threadIdx().x,3]^2)
+          ##time to get value by interpolation and save it to the out_sampled_points
+          #now we get the location of sample point
+          shared_arr[threadIdx().x,1]= out_sampled_points[index,num_base_samp_points,3]+shared_arr[threadIdx().x,1]
+          shared_arr[threadIdx().x,2]= out_sampled_points[index,num_base_samp_points,4]+shared_arr[threadIdx().x,2]
+          shared_arr[threadIdx().x,3]= out_sampled_points[index,num_base_samp_points,5]+shared_arr[threadIdx().x,3]
+
+          #performing interpolation result is in var2 and it get data from shared_arr
+          # ########## interpolation
+          var1=Float32(0.0)
+          var2=Float32(0.0)
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+          var2=var2/var1
+          # ########## end interpolation
+          
+          #saving the result of interpolated value to the out_sampled_points
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=var2
+          # #saving sample points coordinates
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[threadIdx().x,1]
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[threadIdx().x,2]
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,5]=shared_arr[threadIdx().x,3]
+
+          n_add_samp=2
+          triangle_corner_num=2
+                  #now we need to get diffrence between the last main sample point and the triangle corner
+                  shared_arr[threadIdx().x,1]=(tetr_dat[index,triangle_corner_num+1,1]-out_sampled_points[index,num_base_samp_points,3])*Float32(n_add_samp/(num_additional_samp_points+1))
+                  shared_arr[threadIdx().x,2]=(tetr_dat[index,triangle_corner_num+1,2]-out_sampled_points[index,num_base_samp_points,4])*Float32(n_add_samp/(num_additional_samp_points+1))
+                  shared_arr[threadIdx().x,3]=(tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[index,num_base_samp_points,5])*Float32(n_add_samp/(num_additional_samp_points+1))
+        
+        
+                  out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=sqrt( shared_arr[threadIdx().x,1]^2+shared_arr[threadIdx().x,2]^2+shared_arr[threadIdx().x,3]^2)
+                  ##time to get value by interpolation and save it to the out_sampled_points
+                  #now we get the location of sample point
+                  shared_arr[threadIdx().x,1]= out_sampled_points[index,num_base_samp_points,3]+shared_arr[threadIdx().x,1]
+                  shared_arr[threadIdx().x,2]= out_sampled_points[index,num_base_samp_points,4]+shared_arr[threadIdx().x,2]
+                  shared_arr[threadIdx().x,3]= out_sampled_points[index,num_base_samp_points,5]+shared_arr[threadIdx().x,3]
+        
+                  #performing interpolation result is in var2 and it get data from shared_arr
+                  # ########## interpolation
+                  var1=Float32(0.0)
+                  var2=Float32(0.0)
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                  var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                  var2=var2/var1
+                  # ########## end interpolation
+                  
+                  #saving the result of interpolated value to the out_sampled_points
+                  out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=var2
+                  # #saving sample points coordinates
+                  out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[threadIdx().x,1]
+                  out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[threadIdx().x,2]
+                  out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,5]=shared_arr[threadIdx().x,3]
+                  n_add_samp=2
+                  triangle_corner_num=3
+                          #now we need to get diffrence between the last main sample point and the triangle corner
+                          shared_arr[threadIdx().x,1]=(tetr_dat[index,triangle_corner_num+1,1]-out_sampled_points[index,num_base_samp_points,3])*Float32(n_add_samp/(num_additional_samp_points+1))
+                          shared_arr[threadIdx().x,2]=(tetr_dat[index,triangle_corner_num+1,2]-out_sampled_points[index,num_base_samp_points,4])*Float32(n_add_samp/(num_additional_samp_points+1))
+                          shared_arr[threadIdx().x,3]=(tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[index,num_base_samp_points,5])*Float32(n_add_samp/(num_additional_samp_points+1))
+                
+                
+                          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=sqrt( shared_arr[threadIdx().x,1]^2+shared_arr[threadIdx().x,2]^2+shared_arr[threadIdx().x,3]^2)
+                          ##time to get value by interpolation and save it to the out_sampled_points
+                          #now we get the location of sample point
+                          shared_arr[threadIdx().x,1]= out_sampled_points[index,num_base_samp_points,3]+shared_arr[threadIdx().x,1]
+                          shared_arr[threadIdx().x,2]= out_sampled_points[index,num_base_samp_points,4]+shared_arr[threadIdx().x,2]
+                          shared_arr[threadIdx().x,3]= out_sampled_points[index,num_base_samp_points,5]+shared_arr[threadIdx().x,3]
+                
+                          #performing interpolation result is in var2 and it get data from shared_arr
+                          # ########## interpolation
+                          var1=Float32(0.0)
+                          var2=Float32(0.0)
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((-0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.0)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.0)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((-0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((-0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.0))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.0)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((-0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((-0.50001))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.0))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.0))))]*(var3 ))
+                          var3=(1/((((shared_arr[threadIdx().x,1]-round(shared_arr[threadIdx().x,1]+((0.50001)) ))^2+(shared_arr[threadIdx().x,2]-round(shared_arr[threadIdx().x,2] +((0.50001))))^2+(shared_arr[threadIdx().x,3]-round(shared_arr[threadIdx().x,3]+((0.50001))))^2)^2  )+0.00000001));  var1=var1+var3 ;   var2=var2+(source_arr[Int(round(shared_arr[threadIdx().x,1]+((0.50001)))),Int(round(shared_arr[threadIdx().x,2]+((0.50001)))),Int(round(shared_arr[threadIdx().x,3]+((0.50001))))]*(var3 ))
+                          var2=var2/var1
+                          # ########## end interpolation
+                          
+                          #saving the result of interpolated value to the out_sampled_points
+                          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=var2
+                          # #saving sample points coordinates
+                          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[threadIdx().x,1]
+                          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[threadIdx().x,2]
+                          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,5]=shared_arr[threadIdx().x,3]
+
+                                                 
   return nothing
 end
 
