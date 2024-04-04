@@ -74,21 +74,12 @@ end
 
 threads_apply_w,blocks_apply_w=prepare_for_apply_weights_to_locs_kern(control_points_size,size(weights))
 
-
 control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CUDA.zeros(size(control_points)...),CuArray(weights),radiuss,threads_apply_w,blocks_apply_w)
+
+
+
+
 control_points=Array(control_points)
-
-
-# Compute the Jacobian
-# jacobian_result =Zygote.jacobian(call_apply_weights_to_locs_kern
-#                                     ,CuArray(control_points)
-#                                     ,CUDA.zeros(size(control_points)...)
-#                                     ,CuArray(weights),
-#                                     radiuss,threads_apply_w,blocks_apply_w)
-
-
-
-
 
 #how many main sample points we want to have between each triangle center and sv center in each tetrahedron
 num_base_samp_points=3
