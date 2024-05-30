@@ -19,19 +19,19 @@ using CUDA
 using Combinatorics
 
 
-includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
-includet("/media/jm/hddData/projects/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
+includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
+includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
 
 
 
 
-function flip_num(base_ind,tupl,ind)
-    arr=collect(tupl)
-    if(arr[ind]==base_ind[ind])
-        arr[ind]=base_ind[ind]+1
+function flip_num(base_ind, tupl, ind)
+    arr = collect(tupl)
+    if (arr[ind] == base_ind[ind])
+        arr[ind] = base_ind[ind] + 1
     else
-        arr[ind]=base_ind[ind]
-    end    
+        arr[ind] = base_ind[ind]
+    end
     return Tuple(arr)
 end
 
@@ -42,76 +42,67 @@ we can also find a point in the middle so it will be in lin_x if this common ind
 next if we have 1 it is pre and if 2 post
     control_points first dimension is lin_x, lin_y, lin_z, oblique
 """
-function get_linear_between(base_ind,ind_1,ind_2)
-    if(ind_1[1]==ind_2[1])
-        return control_points[ind_1[1],base_ind[2],base_ind[3],1,:]
+function get_linear_between(base_ind, ind_1, ind_2)
+    if (ind_1[1] == ind_2[1])
+        return control_points[ind_1[1], base_ind[2], base_ind[3], 1, :]
     end
-    if(ind_1[2]==ind_2[2])
-        return control_points[base_ind[1],ind_1[2],base_ind[3],2,:]
+    if (ind_1[2] == ind_2[2])
+        return control_points[base_ind[1], ind_1[2], base_ind[3], 2, :]
     end
 
-    return control_points[base_ind[1],base_ind[2],ind_1[3],3,:]
+    return control_points[base_ind[1], base_ind[2], ind_1[3], 3, :]
 end
 
 """
 get tetrahedron on the basis of the chosen corner (which is defined by some oblique point)
 control_points first dimension is lin_x, lin_y, lin_z, oblique
 """
-function get_tetr_a(control_points,base_ind,corner)
-    sv_center=Meshes.Point3(sv_centers[base_ind[1],base_ind[2],base_ind[3],:])
-    p_a=flip_num(base_ind,corner,1)
-    p_b=flip_num(base_ind,corner,2)
-    p_c=flip_num(base_ind,corner,3)
+function get_tetr_a(control_points, base_ind, corner)
+    sv_center = Meshes.Point3(sv_centers[base_ind[1], base_ind[2], base_ind[3], :])
+    p_a = flip_num(base_ind, corner, 1)
+    p_b = flip_num(base_ind, corner, 2)
+    p_c = flip_num(base_ind, corner, 3)
 
 
-    p_ab=get_linear_between(base_ind,p_a,p_b)
-    p_ac=get_linear_between(base_ind,p_a,p_c)
-    p_bc=get_linear_between(base_ind,p_b,p_c)
+    p_ab = get_linear_between(base_ind, p_a, p_b)
+    p_ac = get_linear_between(base_ind, p_a, p_c)
+    p_bc = get_linear_between(base_ind, p_b, p_c)
 
-    p_a=Meshes.Point3(control_points[p_a[1],p_a[2],p_a[3],4,:])
-    p_b=Meshes.Point3(control_points[p_b[1],p_b[2],p_b[3],4,:])
-    p_c=Meshes.Point3(control_points[p_c[1],p_c[2],p_c[3],4,:])
+    p_a = Meshes.Point3(control_points[p_a[1], p_a[2], p_a[3], 4, :])
+    p_b = Meshes.Point3(control_points[p_b[1], p_b[2], p_b[3], 4, :])
+    p_c = Meshes.Point3(control_points[p_c[1], p_c[2], p_c[3], 4, :])
 
 
-    p_ab=Meshes.Point3(p_ab)
-    p_ac=Meshes.Point3(p_ac)
-    p_bc=Meshes.Point3(p_bc)
+    p_ab = Meshes.Point3(p_ab)
+    p_ac = Meshes.Point3(p_ac)
+    p_bc = Meshes.Point3(p_bc)
 
-    corner=Meshes.Point3(control_points[corner[1],corner[2],corner[3],4,:])
+    corner = Meshes.Point3(control_points[corner[1], corner[2], corner[3], 4, :])
 
     # print("coo corner $(corner) p_a $(p_a) p_b $(p_b) p_c $(p_c) \n ")
 
     return [
-        Meshes.Tetrahedron(sv_center ,corner,p_a,p_ab)
-        ,Meshes.Tetrahedron(sv_center ,corner,p_ab,p_b)
-
-    ,Meshes.Tetrahedron(sv_center ,corner,p_b,p_bc)
-    ,Meshes.Tetrahedron(sv_center ,corner,p_bc,p_c)
-
-    ,Meshes.Tetrahedron(sv_center ,corner,p_a,p_ac)
-    ,Meshes.Tetrahedron(sv_center ,corner,p_ac,p_c)
-
-
-
-    ]
+        Meshes.Tetrahedron(sv_center, corner, p_a, p_ab), Meshes.Tetrahedron(sv_center, corner, p_ab, p_b)
+        , Meshes.Tetrahedron(sv_center, corner, p_b, p_bc), Meshes.Tetrahedron(sv_center, corner, p_bc, p_c)
+        , Meshes.Tetrahedron(sv_center, corner, p_a, p_ac), Meshes.Tetrahedron(sv_center, corner, p_ac, p_c)]
 end
 
 
 
-dims=(7,7,7)
-dims_plus=(dims[1]+1,dims[2]+1,dims[3]+1)
-radius=3.0
-diam=radius*2
-num_weights_per_point=6
-example_set_of_svs=initialize_centers_and_control_points(dims,radius)
-sv_centers,control_points=example_set_of_svs   # ,lin_x_add,lin_y_add,lin_z_add
+dims = (7, 7, 7)
+dims_plus = (dims[1] + 1, dims[2] + 1, dims[3] + 1)
+radius = 3.0
+diam = radius * 2
+num_weights_per_point = 6
+example_set_of_svs = initialize_centers_and_control_points(dims, radius)
+sv_centers, control_points = example_set_of_svs   # ,lin_x_add,lin_y_add,lin_z_add
 
 # control_points first dimension is lin_x, lin_y, lin_z, oblique
 # weights=zeros((dims_plus[1],dims_plus[2],dims_plus[3],num_weights_per_point))
 weights = rand(dims_plus[1], dims_plus[2], dims_plus[3], num_weights_per_point)
-weights=weights.-0.5
-weights=(weights).*100
-weights = tanh.(weights*0.02)
+weights = weights .- 0.5
+weights = (weights) .* 100
+weights = tanh.(weights * 0.02)
 
 
 # #reshape for broadcast
@@ -128,47 +119,45 @@ weights = tanh.(weights*0.02)
 
 function get_tetrahedrons_of_sv(base_ind)
     return [
-        get_tetr_a(control_points,base_ind,(base_ind[1],base_ind[2],base_ind[3]))
-        ,get_tetr_a(control_points,base_ind,(base_ind[1]+1,base_ind[2]+1,base_ind[3]))
-        ,get_tetr_a(control_points,base_ind,(base_ind[1],base_ind[2]+1,base_ind[3]+1))
-        ,get_tetr_a(control_points,base_ind,(base_ind[1]+1,base_ind[2],base_ind[3]+1))
+        get_tetr_a(control_points, base_ind, (base_ind[1], base_ind[2], base_ind[3])), get_tetr_a(control_points, base_ind, (base_ind[1] + 1, base_ind[2] + 1, base_ind[3])), get_tetr_a(control_points, base_ind, (base_ind[1], base_ind[2] + 1, base_ind[3] + 1)), get_tetr_a(control_points, base_ind, (base_ind[1] + 1, base_ind[2], base_ind[3] + 1))
     ]
 end #get_tetrahedrons_of_sv
 
-tetrs= [get_tetrahedrons_of_sv((1,1,1))
-        # ,get_tetrahedrons_of_sv((2,1,1))
-        # ,get_tetrahedrons_of_sv((1,2,1))
-        # ,get_tetrahedrons_of_sv((1,1,2))
-        
-        # ,get_tetrahedrons_of_sv((1,2,2))
-        # ,get_tetrahedrons_of_sv((2,2,1))
-        # ,get_tetrahedrons_of_sv((1,2,1))
-        # ,get_tetrahedrons_of_sv((2,2,2))
+tetrs = [
+    get_tetrahedrons_of_sv((1, 1, 1))
+    # ,get_tetrahedrons_of_sv((2,1,1))
+    # ,get_tetrahedrons_of_sv((1,2,1))
+    # ,get_tetrahedrons_of_sv((1,1,2))
 
-            ]
+    # ,get_tetrahedrons_of_sv((1,2,2))
+    # ,get_tetrahedrons_of_sv((2,2,1))
+    # ,get_tetrahedrons_of_sv((1,2,1))
+    # ,get_tetrahedrons_of_sv((2,2,2))
+
+]
 tetrs = collect(Iterators.flatten(tetrs))
 tetrs = collect(Iterators.flatten(tetrs))
-viz(tetrs, color = 1:length(tetrs))
+viz(tetrs, color=1:length(tetrs))
 
 # tetrs=cat(tetrs,tetrs_b,tetrs_c,tetrs_d,dims=1)
 
 function get_faces_verticies(t)
-    verts=collect(t.vertices)
+    verts = collect(t.vertices)
     vert_combs = collect(combinations(verts, 3))
-    faces= map(pointss->Meshes.Ngon(pointss[1],pointss[2],pointss[3]), vert_combs)
-    return verts,faces
+    faces = map(pointss -> Meshes.Ngon(pointss[1], pointss[2], pointss[3]), vert_combs)
+    return verts, faces
 end
 
-all_faces_verticies=map(get_faces_verticies,tetrs)
-all_verts,all_faces=invert(all_faces_verticies)
+all_faces_verticies = map(get_faces_verticies, tetrs)
+all_verts, all_faces = invert(all_faces_verticies)
 all_verts = collect(Iterators.flatten(all_verts))
 all_faces = collect(Iterators.flatten(all_faces))
 
 
 
-function isIn_any_vert_or_face(point,verts,faces)
+function isIn_any_vert_or_face(point, verts, faces)
     for v in verts
-        if v==point
+        if v == point
             return true
         end
     end
@@ -176,30 +165,30 @@ function isIn_any_vert_or_face(point,verts,faces)
         if point ∈ f
             print("*")
             return true
-            
+
         end
     end
     return false
 end
 
-pp=sv_centers[1,1,1,:]
-pp=Meshes.Point3(pp[1]+0.12,pp[2]+0.1,pp[3]+0.123)
+pp = sv_centers[1, 1, 1, :]
+pp = Meshes.Point3(pp[1] + 0.12, pp[2] + 0.1, pp[3] + 0.123)
 pp
 
-isIn_any_vert_or_face(pp,all_verts,all_faces)
+isIn_any_vert_or_face(pp, all_verts, all_faces)
 
 
 pp ∈ all_faces[5]
 
 
-diam=3
-for i in range(Int(diam),stop=Int(diam)*2,step=0.2)
-    for j in range(Int(diam),stop=Int(diam)*2,step=0.2)
-        for k in range(Int(diam),stop=Int(diam)*2,step=0.2)
+diam = 3
+for i in range(Int(diam), stop=Int(diam) * 2, step=0.2)
+    for j in range(Int(diam), stop=Int(diam) * 2, step=0.2)
+        for k in range(Int(diam), stop=Int(diam) * 2, step=0.2)
             # print("i $(i) j $(j) k $(k) \n")
-            pp=Meshes.Point3(1,j,k)
+            pp = Meshes.Point3(1, j, k)
 
-            isIn_any_vert_or_face(pp,all_verts,tetrs)
+            isIn_any_vert_or_face(pp, all_verts, tetrs)
 
             # print("is_point_in_array $(is_point_in_array(i,j,k,control_points)) \n")
         end
@@ -211,23 +200,23 @@ get_faces_verticies(t1)
 
 
 tetrs = collect(Iterators.flatten(tetrs))
-viz(tetrs, color = 1:length(tetrs))
+viz(tetrs, color=1:length(tetrs))
 
 
-trianglee=Meshes.Ngon(Meshes.Point3(5.0,4.0,4.0),Meshes.Point3(6.0,4.0,4.0),Meshes.Point3(5.0,7.0,4.0))
+trianglee = Meshes.Ngon(Meshes.Point3(5.0, 4.0, 4.0), Meshes.Point3(6.0, 4.0, 4.0), Meshes.Point3(5.0, 7.0, 4.0))
 
 
 
 
-t1=tetrs[1]
+t1 = tetrs[1]
 
 
-verts=collect(t1.vertices)
+verts = collect(t1.vertices)
 vert_combs = collect(combinations(verts, 3))
 # combinationss = collect(Combinatorics.combinations([1,2,3,4], 3))
 
 
-pp1=Meshes.Point3(5.1,4.0,4.0)
+pp1 = Meshes.Point3(5.1, 4.0, 4.0)
 sv_center ∈ t1
 pp1 ∈ t1
 pp1 ∈ trianglee
@@ -391,9 +380,9 @@ if we will have futher problems with tetrahedrons intersections we can probably 
 # is_point_in_array(x,y,z,lin_z_add)
 
 
-function project_point_onto_line(a::Tuple{Float64, Float64, Float64}, 
-    b::Tuple{Float64, Float64, Float64}, 
-    c::Tuple{Float64, Float64, Float64})
+function project_point_onto_line(a::Tuple{Float64,Float64,Float64},
+    b::Tuple{Float64,Float64,Float64},
+    c::Tuple{Float64,Float64,Float64})
     # Convert points to vectors
     a_vec = [a...]
     b_vec = [b...]

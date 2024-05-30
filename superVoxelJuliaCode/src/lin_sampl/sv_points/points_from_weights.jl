@@ -25,6 +25,7 @@ using Revise
 using Images, ImageFiltering
 
 
+# add Revise,LLVMLoopInfo,Meshes,LinearAlgebra,GLMakie,Combinatorics,SplitApplyCombine,CUDA,Combinatorics,Random,Statistics,ChainRulesCore,ChainRulesCore, Zygote, CUDA, Enzyme, KernelAbstractions, Lux, LuxCUDA, FillArrays, LinearAlgebra,  Images, ImageFiltering,Optimisers,NNlib, Plots
 function get_point_on_a_line(vertex_0, vertex_1, weight)
     diff_x = vertex_1[1] - vertex_0[1]
     diff_y = vertex_1[2] - vertex_0[2]
@@ -52,8 +53,7 @@ function apply_weights_to_locs(control_points, weights, radius)
 end #apply_weights_to_locs
 
 function apply_weights_to_locs_kern(control_points, control_points_out, weights, radius::Float32
-    , cp_x::UInt32,cp_y::UInt32,cp_z::UInt32
-    )
+    , cp_x::UInt32,cp_y::UInt32,cp_z::UInt32)
 
     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y()))

@@ -51,9 +51,7 @@ end
 used to get approximation of local variance
 """
 macro get_interpolated_diff(source_arr,a,b,c)
-  # @cuprint("sh1=",shared_arr[threadIdx().x,1],"\n")
-  # @cuprint("sh2=",shared_arr[threadIdx().x,2],"\n")
-  # @cuprint("sh3=",shared_arr[threadIdx().x,3],"\n")
+
   return  esc(quote       
       ((($source_arr[Int(round(shared_arr[threadIdx().x,1]+($a))),Int(round(shared_arr[threadIdx().x,2]+($b))),Int(round(shared_arr[threadIdx().x,3]+($c)))])-var2)^2)*((@get_dist($a,$b,$c)) )
 end)
