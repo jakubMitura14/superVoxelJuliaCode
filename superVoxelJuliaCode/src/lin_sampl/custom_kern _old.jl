@@ -35,7 +35,7 @@ macro get_dist(a,b,c)
 end
 
 """
-get interpolated value at place
+get interpolated value at point
 """
 macro get_interpolated_val(source_arr,a,b,c)
 
@@ -150,8 +150,8 @@ function is created to find ith sample point when max is is the number of main s
 
   num_additional_samp_points - how many additional sample points we want to have between the last main sample point and the verticies of the triangle that we used for it
 """
-function point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points)
- 
+function set_tetr_dat_kern(tetr_dat,tetr_dat_out,source_arr,control_points,sv_centers)
+
   source_arr=CUDA.Const(source_arr)
   control_points=CUDA.Const(control_points)
   sv_centers=CUDA.Const(sv_centers)
@@ -173,13 +173,14 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,s
       shared_arr[threadIdx().x,axis]=sv_centers[Int(tetr_dat[index,1,1]),Int(tetr_dat[index,1,2]),Int(tetr_dat[index,1,3]),axis]
   end#for axis
   @loopinfo unroll for axis in UInt8(1):UInt8(3)
-      tetr_dat[index,1,axis]=shared_arr[threadIdx().x,axis] #populate tetr dat wth coordinates of sv center
+    tetr_dat_out[index,1,axis]=shared_arr[threadIdx().x,axis] #populate tetr dat wth coordinates of sv center
   end#for axis
   #performing interpolation result is in var2 and it get data from shared_arr
   @threeDLinInterpol(source_arr)
   #saving the result of sv center value
-  tetr_dat[index,1,4]=var2
+  tetr_dat_out[index,1,4]=var2
 
+  #get the coordinates of the triangle corners and save them to tetr_dat_out
   @loopinfo unroll for triangle_corner_num in UInt8(2):UInt8(4)
   
       for axis in UInt8(1):UInt8(3)
@@ -187,28 +188,35 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,control_points,s
           
       end#for axis
       for axis in UInt8(1):UInt8(3)
-          tetr_dat[index,triangle_corner_num,axis]=shared_arr[threadIdx().x,axis] #populate tetr dat wth coordinates of triangle corners
+        tetr_dat_out[index,triangle_corner_num,axis]=shared_arr[threadIdx().x,axis] #populate tetr dat wth coordinates of triangle corners
       end#for axis
       #performing interpolation result is in var2 and it get data from shared_arr
       @threeD_loc_var(source_arr)
       #saving the result of control point value
-      tetr_dat[index,triangle_corner_num,4]=var2
+      tetr_dat_out[index,triangle_corner_num,4]=var2
   end#for triangle_corner_num
 
   #get the center of the triangle
   @loopinfo unroll for triangle_corner_num in UInt8(2):UInt8(3)#we do not not need to loop over last triangle as it is already in the shared memory
       #we add up x,y,z info of all triangles and in the end we divide by 3 to get the center
       for axis in UInt8(1):UInt8(3)
-          shared_arr[threadIdx().x,axis]+=tetr_dat[index,triangle_corner_num,axis] 
+          shared_arr[threadIdx().x,axis]+=tetr_dat_out[index,triangle_corner_num,axis] 
       end#for axis
   end#for triangle_corner_num
   for axis in UInt8(1):UInt8(3)
       shared_arr[threadIdx().x,axis]=shared_arr[threadIdx().x,axis]/3
-      tetr_dat[index,5,axis]=shared_arr[threadIdx().x,axis]
+      tetr_dat_out[index,5,axis]=shared_arr[threadIdx().x,axis]
   end#for axis
   @threeD_loc_var(source_arr)
   #saving the result of centroid value
-  tetr_dat[index,5,4]=var2
+  tetr_dat_out[index,5,4]=var2
+
+
+end
+
+
+
+function point_info_kern(tetr_dat,out_sampled_points,source_arr,num_base_samp_points,num_additional_samp_points)
 
   var1=0.0
   var2=0.0

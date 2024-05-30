@@ -108,7 +108,7 @@ function ChainRulesCore.rrule(::typeof(call_apply_weights_to_locs_kern), control
 
     function kernel1_pullback(d_control_points_out)
 
-        d_weights = CUDA.ones(size(weights)...)
+        d_weights = CUDA.zeros(size(weights)...)
         sizz = size(control_points)
         # @cuda threads = threads blocks = blocks apply_weights_to_locs_kern_deff(control_points,CuArray(collect(d_control_points_out)),weights,d_weights,radius
         # ,(UInt32(sizz[1]),UInt32(sizz[2]),UInt32(sizz[3])))
