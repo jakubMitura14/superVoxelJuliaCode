@@ -25,7 +25,7 @@ using Revise
 using Images, ImageFiltering
 
 
-# add Revise,LLVMLoopInfo,Meshes,LinearAlgebra,GLMakie,Combinatorics,SplitApplyCombine,CUDA,Combinatorics,Random,Statistics,ChainRulesCore,ChainRulesCore, Zygote, CUDA, Enzyme, KernelAbstractions, Lux, LuxCUDA, FillArrays, LinearAlgebra,  Images, ImageFiltering,Optimisers,NNlib, Plots
+# add EnzymeTestUtils,ChainRulesTestUtils,Revise,LLVMLoopInfo,Meshes,LinearAlgebra,GLMakie,Combinatorics,SplitApplyCombine,CUDA,Combinatorics,Random,Statistics,ChainRulesCore,ChainRulesCore, Zygote, CUDA, Enzyme, KernelAbstractions, Lux, LuxCUDA, FillArrays, LinearAlgebra,  Images, ImageFiltering,Optimisers,NNlib, Plots
 function get_point_on_a_line(vertex_0, vertex_1, weight)
     diff_x = vertex_1[1] - vertex_0[1]
     diff_y = vertex_1[2] - vertex_0[2]
