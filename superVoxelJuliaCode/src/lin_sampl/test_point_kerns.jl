@@ -47,16 +47,16 @@ weights = rand(dims_plus[1], dims_plus[2], dims_plus[3], num_weights_per_point)
 
 
 
-weights = ones(size(weights)...) .* 0.5
+# weights = ones(size(weights)...) .* 0.5
 
-control_points_non_modified = copy(control_points)
+# control_points_non_modified = copy(control_points)
 
-control_points_size = size(control_points)
+# control_points_size = size(control_points)
 
-threads_apply_w, blocks_apply_w = prepare_for_apply_weights_to_locs_kern(control_points_size, size(weights))
+# threads_apply_w, blocks_apply_w = prepare_for_apply_weights_to_locs_kern(control_points_size, size(weights))
 
-# control_points = call_apply_weights_to_locs_kern(CuArray(control_points), CUDA.zeros(size(control_points)...), CuArray(weights), radiuss, threads_apply_w, blocks_apply_w)
-control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(copy(control_points)),CuArray(weights),radiuss,threads_apply_w,blocks_apply_w)
+# # control_points = call_apply_weights_to_locs_kern(CuArray(control_points), CUDA.zeros(size(control_points)...), CuArray(weights), radiuss, threads_apply_w, blocks_apply_w)
+# control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(copy(control_points)),CuArray(weights),radiuss,threads_apply_w,blocks_apply_w)
 
 
 """
@@ -69,22 +69,37 @@ interpolation check - chek weather the value we got from interpolation make sens
     weather value is approximately equal to the value of the point
 """
 
-function interpolation_kernel(d_data::CuDeviceArray{Float32, 3}, x::Float32, y::Float32, z::Float32, d_result::CuDeviceArray{Float32, 1})
-    idx = threadIdx().x
-    if idx == 1
-        @threeDLinInterpol(d_data)
+function interpolation_kernel(source_arr
+    , x::Float32, y::Float32, z::Float32, d_result)
+
+    index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
+    var1=0.0
+    var2=0.0
+    var3=0.0
+    shared_arr = CuStaticSharedArray(Float32, (256,3))
+    shared_arr[threadIdx().x,1] = x
+    shared_arr[threadIdx().x,2] = y
+    shared_arr[threadIdx().x,3] = z
+    if index == 1
+        @threeDLinInterpol(source_arr)
         d_result[1] = var2
     end
-    return
+    return nothing
 end
 
-function trilinear_interpolation(data::Array{Float32, 3}, x::Float32, y::Float32, z::Float32)
-    d_data = CuArray(data)
-    d_result = CUDA.zeros(Float32, 1)
-    @cuda threads=1 interpolation_kernel(d_data, x, y, z, d_result)
+function trilinear_interpolation( x::Float64, y::Float64, z::Float64,data)
+    source_arr = CuArray(Float32.(data))
+    d_result = CUDA.zeros(Float32, (2))
+    @cuda threads=(1) blocks=(1) interpolation_kernel(source_arr, Float32(x), Float32(y), Float32(z), d_result)
     return Array(d_result)[1]
 end
 
+
+data = ones(10, 10, 10)
+data[1:5, :, :] .= 0
+r=trilinear_interpolation(5.0, 5.0, 5.0, data)
+r=trilinear_interpolation(7.0, 7.0, 7.0, data)
+trilinear_interpolation(5.5, 5.5, 5.5, data) ≈ 0.5
 
 @testset "Interpolation Tests" begin
     # Test 1
@@ -130,17 +145,24 @@ variance check - check weather the variance of the values that we get from inter
     a bit closer to ones part
    """
 function variance_check_kernel(d_data::CuDeviceArray{Float32, 3}, x::Float32, y::Float32, z::Float32, d_result::CuDeviceArray{Float32, 1})
-    idx = threadIdx().x
-    if idx == 1
+    index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
+    var1=0.0
+    var2=0.0
+    var3=0.0
+    shared_arr = CuStaticSharedArray(Float32, (256,3))
+    shared_arr[threadIdx().x,1] = x
+    shared_arr[threadIdx().x,2] = y
+    shared_arr[threadIdx().x,3] = z
+    if index == 1
         d_result[1] = @threeD_loc_var(d_data, x, y, z)
     end
     return
 end
 
-function variance_check(data::Array{Float32, 3}, x::Float32, y::Float32, z::Float32)
+function variance_check(data::Array{Float32, 3}, x::Float64, y::Float64, z::Float64)
     d_data = CuArray(data)
     d_result = CUDA.zeros(Float32, 1)
-    @cuda threads=1 variance_check_kernel(d_data, x, y, z, d_result)
+    @cuda threads=1 variance_check_kernel(d_data, Float32(x), Float32(y), Float32(z), d_result)
     return Array(d_result)[1]
 end
 
@@ -200,6 +222,7 @@ tetr_dat_out = zeros(size(tetr_dat))
     @testset "interpolation tests" begin
         # Check if the interpolated value is close to the original value
         for i in 1:size(tetr_dat_out, 1)
+            # todo use trilinear_interpolation
             @test isapprox(tetr_dat_out[i, :, 4], source_arr[i, :, :]; atol=1e-5)
         end
     end
@@ -207,6 +230,8 @@ tetr_dat_out = zeros(size(tetr_dat))
     @testset "centroid tests" begin
         # Calculate the centroid of the tetrahedron base
         for i in 1:size(tetr_dat_out, 1)
+            # todo use trilinear_interpolation
+
             centroid = sum(tetr_dat_out[i, 2:4, 1:3], dims=1) / 3
             @test tetr_dat_out[i, 5, 1:3] == centroid
         end
@@ -250,6 +275,8 @@ additional_sample_points = rand(10, 10, 10, 3)
         # 1) Check if the base sample points are on the line between the center of the triangle and the center of the super voxel
         @test all(isapprox.(base_sample_points, sv_centers, atol=1e-5))
         # 2) Check if the interpolated value of the sampled points agrees with interpolations checks
+        # todo use trilinear_interpolation
+
         @test all(isapprox.(base_sample_points, control_points, atol=1e-5))
         # 3) Check if weight associated with sample point is proportional to the distance between them
         @test all(isapprox.(base_sample_points, tetr_dat_out, atol=1e-5))
@@ -258,6 +285,7 @@ additional_sample_points = rand(10, 10, 10, 3)
         # 4) Check if they are on the line between the last base sample point and corners of the base of the tetrahedron
         @test all(isapprox.(additional_sample_points, base_sample_points[end, :, :, :], atol=1e-5))
         # 5) Check if the interpolation value of the sampled points agrees with interpolations checks
+        # todo use trilinear_interpolation       
         @test all(isapprox.(additional_sample_points, control_points, atol=1e-5))
         # 6) Check if weight associated with sample point is proportional to the distance between them
         @test all(isapprox.(additional_sample_points, tetr_dat_out, atol=1e-5))
@@ -269,3 +297,69 @@ end
 visualization
 visualize the points with weights as balls and the line between the center of the triangle and the center of the super voxel plus lines and balls for base and additional sample points
 """
+
+
+############################
+
+using Interpolations
+function scale(itp::AbstractInterpolation{T,N,IT}, ranges::Vararg{AbstractRange,N}) where {T,N,IT}
+    # overwriting this function becouse check_ranges giving error
+    # check_ranges(itpflag(itp), axes(itp), ranges)
+    ScaledInterpolation{T,N,typeof(itp),IT,typeof(ranges)}(itp, ranges)
+end
+
+function interpolate_my(point,input_array,input_array_spacing)
+
+    old_size=size(input_array)
+    itp = interpolate(input_array, BSpline(Linear()))
+    #we indicate on each axis the spacing from area we are samplingA
+    A_x1 = 1:input_array_spacing[1]:(old_size[1]+input_array_spacing[1]*old_size[1])
+    A_x2 = 1:input_array_spacing[2]:(old_size[2]+input_array_spacing[2]*old_size[2])
+    A_x3 = 1:input_array_spacing[3]:(old_size[3]+input_array_spacing[3]*old_size[3])
+    
+    itp=extrapolate(itp, 0.0)   
+    itp = scale(itp, A_x1, A_x2,A_x3)
+    # Create the new voxel data
+    return itp(point[1],point[2],point[3])
+end#interpolate_my
+
+
+
+function trilinear_interpolation_kernel(point,input_array,input_array_spacing,d_result)
+
+
+    xd = (point[1] - floor(Int, point[1])) / (ceil(Int, point[1]) - floor(Int, point[1]))
+
+    c011 = input_array[floor(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])]
+    c111 = input_array[ceil(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])]
+
+
+    c00 = input_array[floor(Int, point[1]), floor(Int, point[2]), floor(Int, point[3])]*(1 - xd) + input_array[ceil(Int, point[1]), floor(Int, point[2]), floor(Int, point[3])]*xd
+    c01 = input_array[floor(Int, point[1]), floor(Int, point[2]), ceil(Int, point[3])]*(1 - xd) + input_array[ceil(Int, point[1]), floor(Int, point[2]), ceil(Int, point[3])]*xd
+    c10 = input_array[floor(Int, point[1]), ceil(Int, point[2]), floor(Int, point[3])]*(1 - xd) + input_array[ceil(Int, point[1]), ceil(Int, point[2]), floor(Int, point[3])]*xd
+    c11 = c011*(1 - xd) + c111*xd
+
+    yd = (point[2] - floor(Int, point[2])) / (ceil(Int, point[2]) - floor(Int, point[2]))
+
+    c0 = c00*(1 - yd) + c10*yd
+    c1 = c01*(1 - yd) + c11*yd
+
+    zd = (point[3] - floor(Int, point[3])) / (ceil(Int, point[3]) - floor(Int, point[3]))
+
+    c = c0*(1 - zd) + c1*zd
+
+    d_result[1] = c
+
+    return nothing
+end
+
+
+input_array=rand(10,10,10)
+point=[5.5,5.5,5.5]
+input_array_spacing=[1,1,1]
+gold_res=interpolate_my(point,input_array,input_array_spacing)
+
+d_result=zeros(2)
+trilinear_interpolation_kernel(point,input_array,input_array_spacing,d_result)
+d_result[1]
+gold_res ≈ d_result[1]
