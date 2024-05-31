@@ -330,14 +330,11 @@ function trilinear_interpolation_kernel(point,input_array,input_array_spacing,d_
 
     xd = (point[1] - floor(Int, point[1])) / (ceil(Int, point[1]) - floor(Int, point[1]))
 
-    c011 = input_array[floor(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])]
-    c111 = input_array[ceil(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])]
-
 
     c00 = input_array[floor(Int, point[1]), floor(Int, point[2]), floor(Int, point[3])]*(1 - xd) + input_array[ceil(Int, point[1]), floor(Int, point[2]), floor(Int, point[3])]*xd
     c01 = input_array[floor(Int, point[1]), floor(Int, point[2]), ceil(Int, point[3])]*(1 - xd) + input_array[ceil(Int, point[1]), floor(Int, point[2]), ceil(Int, point[3])]*xd
     c10 = input_array[floor(Int, point[1]), ceil(Int, point[2]), floor(Int, point[3])]*(1 - xd) + input_array[ceil(Int, point[1]), ceil(Int, point[2]), floor(Int, point[3])]*xd
-    c11 = c011*(1 - xd) + c111*xd
+    c11 = input_array[floor(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])]*(1 - xd) + input_array[ceil(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])]*xd
 
     yd = (point[2] - floor(Int, point[2])) / (ceil(Int, point[2]) - floor(Int, point[2]))
 
