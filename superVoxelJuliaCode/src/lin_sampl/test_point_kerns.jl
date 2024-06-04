@@ -308,6 +308,51 @@ function scale(itp::AbstractInterpolation{T,N,IT}, ranges::Vararg{AbstractRange,
     ScaledInterpolation{T,N,typeof(itp),IT,typeof(ranges)}(itp, ranges)
 end
 
+# @inline function coordslookup(flags, ranges, xs)
+#     print("\n ffffffffffff flags $(flags) ranges $(ranges) xs $(xs) \n ")
+#     item = coordlookup(getfirst(flags), ranges[1], xs[1])
+#     (item, coordslookup(getrest(flags), Base.tail(ranges), Base.tail(xs))...)
+# end
+# itpflag(sitp::ScaledInterpolation) = itpflag(sitp.itp)
+
+# function (sitp::ScaledInterpolation{T,N})(xs::Vararg{Number,N}) where {T,N}
+#     print("\n sssssssssssssss sitp.itp $(xs) \n")
+#     @boundscheck (checkbounds(Bool, sitp, xs...) || Base.throw_boundserror(sitp, xs))
+#     xl = maybe_clamp(sitp.itp, coordslookup(itpflag(sitp.itp), sitp.ranges, xs))
+#     @inbounds sitp.itp(xl...)
+# end
+abstract type Flag end
+
+
+getfirst(f::Flag) = f
+getfirst(t::Tuple) = t[1]
+getfirst(t) = t
+getrest(f::Flag) = f
+getrest(f) = f
+getrest(t::Tuple) = Base.tail(t)
+
+
+coordslookup(::Any, ::Tuple{}, ::Tuple{}) = ()
+
+coordlookup(::NoInterp, r, i) = i
+coordlookup(x, r, i) = i
+coordlookup(::Flag, r, x) = coordlookup(r, x)
+
+coordlookup(r::AbstractUnitRange, x) = (x - first(r))/oneunit(eltype(r)) + one(eltype(r))
+# coordlookup(i::Bool, r::AbstractRange, x) = i ? coordlookup(r, x) : convert(typeof(coordlookup(r,x)), x)
+coordlookup(r::StepRange, x) = (x - r.start) / r.step + one(eltype(r))
+
+coordlookup(r::AbstractRange, x) = (x - first(r)) / step(r) + one(eltype(r))
+
+@inline function coordslookup(flags, ranges, xs)
+    item = coordlookup(getfirst(flags), ranges[1], xs[1])
+    (item, coordslookup(getrest(flags), Base.tail(ranges), Base.tail(xs))...)
+end
+
+# maybe_clamp(itp, xs) = maybe_clamp(BoundsCheckStyle(itp), itp, xs)
+# maybe_clamp(::NeedsCheck, itp, xs) = map(clamp, xs, lbounds(itp), ubounds(itp))
+# maybe_clamp(::CheckWillPass, itp, xs) = xs
+
 function interpolate_my(point,input_array,input_array_spacing)
 
     old_size=size(input_array)
@@ -320,6 +365,12 @@ function interpolate_my(point,input_array,input_array_spacing)
     itp=extrapolate(itp, 0.0)   
     itp = scale(itp, A_x1, A_x2,A_x3)
     # Create the new voxel data
+    # xis = to_indices(itp, (point[1],point[2],point[3]))
+    # xis = coordslookup(itp.itp.itp.it, itp.ranges, (point[1],point[2],point[3]))
+    # print("\n xis $(xis) \n")
+    # print("itp.itp(point[1],point[2],point[3]) $(itp.itp(point[1],point[2],point[3])) \n ")
+    # print("itp(point[1],point[2],point[3]) $(itp(point[1],point[2],point[3])) \n ")
+    # print("itp.itp(xis[1],xis[2],xis[3]) $(itp.itp(xis[1],xis[2],xis[3])) \n ")
     return itp(point[1],point[2],point[3])
 end#interpolate_my
 
@@ -327,8 +378,12 @@ end#interpolate_my
 
 function trilinear_interpolation_kernel(point,input_array,input_array_spacing,d_result)
 
+    point[1]=point[1]
+    point[2]=point[2]
+    point[3]=point[3]
 
-    xd = (point[1] - floor(Int, point[1])) / (ceil(Int, point[1]) - floor(Int, point[1]))
+    xd = ((point[1] - floor(Int, point[1])) / (ceil(Int, point[1]) - floor(Int, point[1])))
+    xd = ((point[1] - floor(Int, point[1])) / (ceil(Int, point[1]) - floor(Int, point[1])))
 
 
     c00 = input_array[floor(Int, point[1]), floor(Int, point[2]), floor(Int, point[3])]*(1 - xd) + input_array[ceil(Int, point[1]), floor(Int, point[2]), floor(Int, point[3])]*xd
@@ -336,12 +391,13 @@ function trilinear_interpolation_kernel(point,input_array,input_array_spacing,d_
     c10 = input_array[floor(Int, point[1]), ceil(Int, point[2]), floor(Int, point[3])]*(1 - xd) + input_array[ceil(Int, point[1]), ceil(Int, point[2]), floor(Int, point[3])]*xd
     c11 = input_array[floor(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])]*(1 - xd) + input_array[ceil(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])]*xd
 
-    yd = (point[2] - floor(Int, point[2])) / (ceil(Int, point[2]) - floor(Int, point[2]))
+    yd = ((point[2] - floor(Int, point[2])) / (ceil(Int, point[2]) - floor(Int, point[2])))
 
     c0 = c00*(1 - yd) + c10*yd
     c1 = c01*(1 - yd) + c11*yd
 
-    zd = (point[3] - floor(Int, point[3])) / (ceil(Int, point[3]) - floor(Int, point[3]))
+    zd = ((point[3] - floor(Int, point[3])) / (ceil(Int, point[3]) - floor(Int, point[3])))
+    # zd = ((point[3] - floor(Int, point[3])) / (ceil(Int, point[3]) - floor(Int, point[3])))
 
     c = c0*(1 - zd) + c1*zd
 
@@ -352,8 +408,15 @@ end
 
 
 input_array=rand(10,10,10)
-point=[5.5,5.5,5.5]
-input_array_spacing=[1,1,1]
+# input_array=ones(10,10,10)
+# input_array[:,:,5].=2
+# input_array[6,:,:].=2
+
+point=[5.5,5.5,5.75]
+# point=[5.5,5.5,5.5]
+# input_array_spacing=[1.0,1.2,1.3]
+input_array_spacing=[1.0,1.0,1.0]
+
 gold_res=interpolate_my(point,input_array,input_array_spacing)
 
 d_result=zeros(2)
