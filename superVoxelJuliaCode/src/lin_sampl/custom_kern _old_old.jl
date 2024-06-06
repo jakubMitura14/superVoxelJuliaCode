@@ -113,6 +113,7 @@ end
 
 
 
+
 """
 each tetrahedron will have a set of sample points that are on the line between sv center and triangle center
 and additional one between corner of the triangle and the last main sample point 
@@ -149,7 +150,7 @@ function is created to find ith sample point when max is is the number of main s
 
   num_additional_samp_points - how many additional sample points we want to have between the last main sample point and the verticies of the triangle that we used for it
 """
-function set_tetr_dat_kern_forward(tetr_dat,tetr_dat_out,source_arr,control_points,sv_centers)
+function set_tetr_dat_kern(tetr_dat,tetr_dat_out,source_arr,control_points,sv_centers)
 
   source_arr=CUDA.Const(source_arr)
   control_points=CUDA.Const(control_points)
@@ -168,49 +169,16 @@ function set_tetr_dat_kern_forward(tetr_dat,tetr_dat_out,source_arr,control_poin
 
   #TODO try also calculating local directional variance of the source_arr (so iterate only over x y or z axis); local entrophy
   #setting sv centers data
-  shared_arr[threadIdx().x,1]=sv_centers[Int(tetr_dat[index,1,1]),Int(tetr_dat[index,1,2]),Int(tetr_dat[index,1,3]),1]
-  shared_arr[threadIdx().x,2]=sv_centers[Int(tetr_dat[index,1,1]),Int(tetr_dat[index,1,2]),Int(tetr_dat[index,1,3]),2]
-  shared_arr[threadIdx().x,3]=sv_centers[Int(tetr_dat[index,1,1]),Int(tetr_dat[index,1,2]),Int(tetr_dat[index,1,3]),3]
-
-
-  tetr_dat_out[index,1,1]=shared_arr[threadIdx().x,1] #populate tetr dat wth coordinates of sv center
-  tetr_dat_out[index,1,2]=shared_arr[threadIdx().x,2] #populate tetr dat wth coordinates of sv center
-  tetr_dat_out[index,1,3]=shared_arr[threadIdx().x,3] #populate tetr dat wth coordinates of sv center
-
+  @loopinfo unroll for axis in UInt8(1):UInt8(3)
+      shared_arr[threadIdx().x,axis]=sv_centers[Int(tetr_dat[index,1,1]),Int(tetr_dat[index,1,2]),Int(tetr_dat[index,1,3]),axis]
+  end#for axis
+  @loopinfo unroll for axis in UInt8(1):UInt8(3)
+    tetr_dat_out[index,1,axis]=shared_arr[threadIdx().x,axis] #populate tetr dat wth coordinates of sv center
+  end#for axis
   #performing interpolation result is in var2 and it get data from shared_arr
-
+  @threeDLinInterpol(source_arr)
   #saving the result of sv center value
-  ###interpolate
-  tetr_dat_out[index,1,4]=(((
-    source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1])))) +
-    source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1])))
-    )
-      *
-      (1 - (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2])))) +
-      (source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
-       +
-       source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
-      *
-      (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2]))))
-     *
-     (1 - (shared_arr[threadIdx().x,3] - Int(floor( shared_arr[threadIdx().x,3]))))
-     +
-     ((source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
-       +
-       source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
-      *
-      (1 - (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2])))) +
-      (source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
-       +
-       source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
-      *
-      (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2]))))
-     *
-     (shared_arr[threadIdx().x,3] - Int(floor( shared_arr[threadIdx().x,3]))))
-
-
-  ### end interpolate
-
+  tetr_dat_out[index,1,4]=var2
 
   #get the coordinates of the triangle corners and save them to tetr_dat_out
   @loopinfo unroll for triangle_corner_num in UInt8(2):UInt8(4)
@@ -243,7 +211,7 @@ function set_tetr_dat_kern_forward(tetr_dat,tetr_dat_out,source_arr,control_poin
   #saving the result of centroid value
   tetr_dat_out[index,5,4]=var2
 
-  return nothing
+
 end
 
 

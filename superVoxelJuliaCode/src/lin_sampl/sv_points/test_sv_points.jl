@@ -25,84 +25,119 @@ includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_
 
 
 
-function flip_num(base_ind, tupl, ind)
-    arr = collect(tupl)
-    if (arr[ind] == base_ind[ind])
-        arr[ind] = base_ind[ind] + 1
-    else
-        arr[ind] = base_ind[ind]
-    end
-    return Tuple(arr)
-end
+# function flip_num(base_ind, tupl, ind)
+#     arr = collect(tupl)
+#     if (arr[ind] == base_ind[ind])
+#         arr[ind] = base_ind[ind] + 1
+#     else
+#         arr[ind] = base_ind[ind]
+#     end
+#     return Tuple(arr)
+# end
 
-"""
-we can identify the line between two corners that go obliquely through the wall of the cube
-it connects points that has 2 coordinates diffrent and one the same 
-we can also find a point in the middle so it will be in lin_x if this common index is 1 and in lin_y if it is 2 and lin_z if 3
-next if we have 1 it is pre and if 2 post
-    control_points first dimension is lin_x, lin_y, lin_z, oblique
-"""
-function get_linear_between(base_ind, ind_1, ind_2)
-    if (ind_1[1] == ind_2[1])
-        return control_points[ind_1[1], base_ind[2], base_ind[3], 1, :]
-    end
-    if (ind_1[2] == ind_2[2])
-        return control_points[base_ind[1], ind_1[2], base_ind[3], 2, :]
-    end
+# """
+# we can identify the line between two corners that go obliquely through the wall of the cube
+# it connects points that has 2 coordinates diffrent and one the same 
+# we can also find a point in the middle so it will be in lin_x if this common index is 1 and in lin_y if it is 2 and lin_z if 3
+# next if we have 1 it is pre and if 2 post
+#     control_points first dimension is lin_x, lin_y, lin_z, oblique
+# """
+# function get_linear_between(base_ind, ind_1, ind_2)
+#     if (ind_1[1] == ind_2[1])
+#         return control_points[ind_1[1], base_ind[2], base_ind[3], 1, :]
+#     end
+#     if (ind_1[2] == ind_2[2])
+#         return control_points[base_ind[1], ind_1[2], base_ind[3], 2, :]
+#     end
 
-    return control_points[base_ind[1], base_ind[2], ind_1[3], 3, :]
-end
+#     return control_points[base_ind[1], base_ind[2], ind_1[3], 3, :]
+# end
 
-"""
-get tetrahedron on the basis of the chosen corner (which is defined by some oblique point)
-control_points first dimension is lin_x, lin_y, lin_z, oblique
-"""
-function get_tetr_a(control_points, base_ind, corner)
-    sv_center = Meshes.Point3(sv_centers[base_ind[1], base_ind[2], base_ind[3], :])
-    p_a = flip_num(base_ind, corner, 1)
-    p_b = flip_num(base_ind, corner, 2)
-    p_c = flip_num(base_ind, corner, 3)
-
-
-    p_ab = get_linear_between(base_ind, p_a, p_b)
-    p_ac = get_linear_between(base_ind, p_a, p_c)
-    p_bc = get_linear_between(base_ind, p_b, p_c)
-
-    p_a = Meshes.Point3(control_points[p_a[1], p_a[2], p_a[3], 4, :])
-    p_b = Meshes.Point3(control_points[p_b[1], p_b[2], p_b[3], 4, :])
-    p_c = Meshes.Point3(control_points[p_c[1], p_c[2], p_c[3], 4, :])
-
-
-    p_ab = Meshes.Point3(p_ab)
-    p_ac = Meshes.Point3(p_ac)
-    p_bc = Meshes.Point3(p_bc)
-
-    corner = Meshes.Point3(control_points[corner[1], corner[2], corner[3], 4, :])
-
-    # print("coo corner $(corner) p_a $(p_a) p_b $(p_b) p_c $(p_c) \n ")
-
-    return [
-        Meshes.Tetrahedron(sv_center, corner, p_a, p_ab), Meshes.Tetrahedron(sv_center, corner, p_ab, p_b)
-        , Meshes.Tetrahedron(sv_center, corner, p_b, p_bc), Meshes.Tetrahedron(sv_center, corner, p_bc, p_c)
-        , Meshes.Tetrahedron(sv_center, corner, p_a, p_ac), Meshes.Tetrahedron(sv_center, corner, p_ac, p_c)]
-end
-
-
-
-dims = (7, 7, 7)
-dims_plus = (dims[1] + 1, dims[2] + 1, dims[3] + 1)
-radius = 3.0
-diam = radius * 2
-num_weights_per_point = 6
-example_set_of_svs = initialize_centers_and_control_points(dims, radius)
-sv_centers, control_points = example_set_of_svs   # ,lin_x_add,lin_y_add,lin_z_add
-
+# """
+# get tetrahedron on the basis of the chosen corner (which is defined by some oblique point)
 # control_points first dimension is lin_x, lin_y, lin_z, oblique
-# weights=zeros((dims_plus[1],dims_plus[2],dims_plus[3],num_weights_per_point))
-weights = rand(dims_plus[1], dims_plus[2], dims_plus[3], num_weights_per_point)
-weights = weights .- 0.5
-weights = (weights) .* 100
-weights = tanh.(weights * 0.02)
+# """
+# function get_tetr_a(control_points, base_ind, corner)
+#     sv_center = Meshes.Point3(sv_centers[base_ind[1], base_ind[2], base_ind[3], :])
+#     p_a = flip_num(base_ind, corner, 1)
+#     p_b = flip_num(base_ind, corner, 2)
+#     p_c = flip_num(base_ind, corner, 3)
+
+
+#     p_ab = get_linear_between(base_ind, p_a, p_b)
+#     p_ac = get_linear_between(base_ind, p_a, p_c)
+#     p_bc = get_linear_between(base_ind, p_b, p_c)
+
+#     p_a = Meshes.Point3(control_points[p_a[1], p_a[2], p_a[3], 4, :])
+#     p_b = Meshes.Point3(control_points[p_b[1], p_b[2], p_b[3], 4, :])
+#     p_c = Meshes.Point3(control_points[p_c[1], p_c[2], p_c[3], 4, :])
+
+
+#     p_ab = Meshes.Point3(p_ab)
+#     p_ac = Meshes.Point3(p_ac)
+#     p_bc = Meshes.Point3(p_bc)
+
+#     corner = Meshes.Point3(control_points[corner[1], corner[2], corner[3], 4, :])
+
+#     # print("coo corner $(corner) p_a $(p_a) p_b $(p_b) p_c $(p_c) \n ")
+
+#     return [
+#         Meshes.Tetrahedron(sv_center, corner, p_a, p_ab), Meshes.Tetrahedron(sv_center, corner, p_ab, p_b)
+#         , Meshes.Tetrahedron(sv_center, corner, p_b, p_bc), Meshes.Tetrahedron(sv_center, corner, p_bc, p_c)
+#         , Meshes.Tetrahedron(sv_center, corner, p_a, p_ac), Meshes.Tetrahedron(sv_center, corner, p_ac, p_c)]
+# end
+
+
+radiuss = Float32(4.0)
+diam = radiuss * 2
+num_weights_per_point = 6
+a = 36
+image_shape = (a, a, a)
+
+example_set_of_svs = initialize_centers_and_control_points(image_shape, radiuss)
+sv_centers, control_points, tetrs, dims = example_set_of_svs
+size(tetrs)
+
+
+
+
+
+
+
+#### getting data about first supervoxel (first 24 tetrahedrons in tetrs)
+function fill_tetrahedron_data(tetr_dat, sv_centers,control_points,index)
+    center=map(axis-> sv_centers[Int(tetr_dat[index,1,1]),Int(tetr_dat[index,1,2]),Int(tetr_dat[index,1,3]),axis],[1,2,3])
+    corners=map( corner_num->
+      map(axis-> control_points[Int(tetr_dat[index,corner_num,1]),Int(tetr_dat[index,corner_num,2]),Int(tetr_dat[index,corner_num,3]),Int(tetr_dat[index,corner_num,4]),axis],[1,2,3])
+      ,[2,3,4])
+    corners = [center,corners...]
+    return corners
+end
+
+function get_tetrahedrons_from_corners(corners)
+    points = map(el->Meshes.Point((el[1],el[2],el[3])),corners)
+    return Meshes.Tetrahedron(points...)
+end
+first_sv_tetrs= map(index->fill_tetrahedron_data(tetrs, sv_centers,control_points,index),1:24)
+first_sv_tetrs=map(get_tetrahedrons_from_corners,first_sv_tetrs)
+
+viz(first_sv_tetrs, color=1:length(first_sv_tetrs))
+
+curr_sv=sv_centers[1, 1, 1, :]
+curr_tetr=tetrs[1:24,:,:]
+
+index=1
+
+
+
+curr_tetr[4,:,:]
+
+# # control_points first dimension is lin_x, lin_y, lin_z, oblique
+# # weights=zeros((dims_plus[1],dims_plus[2],dims_plus[3],num_weights_per_point))
+# weights = rand(dims_plus[1], dims_plus[2], dims_plus[3], num_weights_per_point)
+# weights = weights .- 0.5
+# weights = (weights) .* 100
+# weights = tanh.(weights * 0.02)
 
 
 # #reshape for broadcast

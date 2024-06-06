@@ -148,10 +148,6 @@ function get_tetr_triangles_in_corner(base_ind,corner)
         ,[sv_center;;corner;;p_ac;;p_c;;dummy] 
     ]
 
-    # res=permutedims(res, (2, 1))
-    # print("uuuuuuuuu $(size(res))")
-    # res=reshape(io,(5,3,6))    
-    # res=permutedims(res, (3,1,2))
     res=map(el-> permutedims(el, (2, 1)) ,res)
     res=map(el-> reshape(el, (1, size(el)...)) ,res)
     res=vcat(res...)
