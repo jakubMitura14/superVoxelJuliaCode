@@ -168,12 +168,6 @@ function set_tetr_dat_kern_forward(tetr_dat,tetr_dat_out,source_arr,control_poin
   shared_arr = CuStaticSharedArray(Float32, (256,4))
   index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
 
-  
-  #local variables are reused
-  var1=0.0
-  var2=0.0
-  var3=0.0
-
   #TODO try also calculating local directional variance of the source_arr (so iterate only over x y or z axis); local entrophy
   #setting sv centers data
   shared_arr[threadIdx().x,1]=sv_centers[Int(tetr_dat[index,1,1]),Int(tetr_dat[index,1,2]),Int(tetr_dat[index,1,3]),1]
@@ -213,9 +207,9 @@ function set_tetr_dat_kern_forward(tetr_dat,tetr_dat_out,source_arr,control_poin
   #get the center of the triangle
   @loopinfo unroll for triangle_corner_num in UInt8(2):UInt8(3)#we do not not need to loop over last triangle as it is already in the shared memory
       #we add up x,y,z info of all triangles and in the end we divide by 3 to get the center
-      for axis in UInt8(1):UInt8(3)
-          shared_arr[threadIdx().x,axis]+=tetr_dat_out[index,triangle_corner_num,axis] 
-      end#for axis
+        shared_arr[threadIdx().x,1]+=tetr_dat_out[index,triangle_corner_num,1] 
+        shared_arr[threadIdx().x,2]+=tetr_dat_out[index,triangle_corner_num,2] 
+        shared_arr[threadIdx().x,3]+=tetr_dat_out[index,triangle_corner_num,3] 
   end#for triangle_corner_num
   for axis in UInt8(1):UInt8(3)
       shared_arr[threadIdx().x,axis]=shared_arr[threadIdx().x,axis]/3
@@ -229,17 +223,21 @@ end
 
 
 
-function point_info_kern(tetr_dat,out_sampled_points,source_arr,num_base_samp_points,num_additional_samp_points)
-
+function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base_samp_points,num_additional_samp_points)
+  shared_arr = CuStaticSharedArray(Float32, (256,4))
+  index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
   var1=0.0
   var2=0.0
-  #we iterate over rest of points in main sample points
+
+  # we iterate over rest of points in main sample points
   @loopinfo unroll for point_num in UInt8(1):UInt8(num_base_samp_points)
 
       #we get the diffrence between the sv center and the triangle center
-      shared_arr[threadIdx().x,1]= @get_diff_on_line_sv_tetr(1,5,point_num)
-      shared_arr[threadIdx().x,2]=@get_diff_on_line_sv_tetr(2,5,point_num)
-      shared_arr[threadIdx().x,3]=@get_diff_on_line_sv_tetr(3,5,point_num)
+      shared_arr[threadIdx().x,1]= ((tetr_dat[index,5,1]-tetr_dat[index,1,1])*(point_num/(num_base_samp_points+1)))
+      shared_arr[threadIdx().x,2]=((tetr_dat[index,5,2]-tetr_dat[index,1,2])*(point_num/(num_base_samp_points+1)))
+      shared_arr[threadIdx().x,3]=((tetr_dat[index,5,3]-tetr_dat[index,1,3])*(point_num/(num_base_samp_points+1)))
+
+#((tetr_dat[$tetr_dat_coord,$coord_i]-tetr_dat[1,$coord_i])*($point_num/(num_base_samp_points+1)))
 
       ##calculate weight of the point
       #first distance from next and previous point on the line between sv center and triangle center
@@ -247,11 +245,17 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,num_base_samp_po
       #now we get the distance to the lines that get from sv center to the triangle corners - for simplicity
       # we can assume that sv center location is 0.0,0.0,0.0 as we need only diffrences 
       for triangle_corner_num in UInt8(1):UInt8(3)
-          #distance to the line between sv center and the  corner
-          var1+=sqrt((shared_arr[threadIdx().x,1] -@get_diff_on_line_sv_tetr(1,triangle_corner_num+1,point_num) )^2
-                         +(shared_arr[threadIdx().x,2] -@get_diff_on_line_sv_tetr(2,triangle_corner_num+1,point_num) )^2     
-                         +(shared_arr[threadIdx().x,3] -@get_diff_on_line_sv_tetr(3,triangle_corner_num+1,point_num) )^2     
+          #distance to the line between sv center and the  point
+          var1+=sqrt((shared_arr[threadIdx().x,1] - ((tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,1])*(point_num/(num_base_samp_points+1))))^2
+                         +(shared_arr[threadIdx().x,2] -((tetr_dat[index,triangle_corner_num+1,2]-tetr_dat[index,1,2])*(point_num/(num_base_samp_points+1))))^2     
+                         +(shared_arr[threadIdx().x,3] -((tetr_dat[index,triangle_corner_num+1,3]-tetr_dat[index,1,3])*(point_num/(num_base_samp_points+1))) )^2     
           ) 
+          # ((tetr_dat[$tetr_dat_coord,$coord_i]-tetr_dat[1,$coord_i])*($point_num/(num_base_samp_points+1)))
+
+          # var1+=sqrt((shared_arr[threadIdx().x,1] - @get_diff_on_line_sv_tetr(1,triangle_corner_num+1,point_num) )^2
+          #                +(shared_arr[threadIdx().x,2] -@get_diff_on_line_sv_tetr(2,triangle_corner_num+1,point_num) )^2     
+          #                +(shared_arr[threadIdx().x,3] -@get_diff_on_line_sv_tetr(3,triangle_corner_num+1,point_num) )^2     
+          # ) 
       end#for triangle_corner_num     
 
       #now as we had looked into distance to other points in 5 directions we divide by 5 and save it to the out_sampled_points
@@ -266,10 +270,12 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,num_base_samp_po
       #performing interpolation result is in var2 and it get data from shared_arr
       #saving the result of interpolated value to the out_sampled_points
       out_sampled_points[index,point_num,1]=unrolled_trilin_interpol(shared_arr,source_arr)
-      #saving sample points coordinates
+      #saving sample points coordinates mainly for debugging and visualizations
       out_sampled_points[index,point_num,3]=shared_arr[threadIdx().x,1]
       out_sampled_points[index,point_num,4]=shared_arr[threadIdx().x,2]
       out_sampled_points[index,point_num,5]=shared_arr[threadIdx().x,3]
+
+
 
 
   end#for num_base_samp_points
@@ -303,6 +309,8 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,num_base_samp_po
 
       end #for triangle_corner_num
   end #for n_add_samp
+
+
   return nothing
 end
 
