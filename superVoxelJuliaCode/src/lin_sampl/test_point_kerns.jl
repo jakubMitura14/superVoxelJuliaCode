@@ -521,13 +521,72 @@ function get_on_a_line(point_a,point_b,rel_distance)
             point_a[3]+(point_b[3]-point_a[3])*rel_distance]
 end #get_on_a_line    
 
-index=1
-num_point=1
-get_on_a_line(tetr_dat_out[index,1,:],tetr_dat_out[index,5,:],1/(num_base_samp_points+1))
+function get_line_diff(point_a,point_b,rel_distance)
+    return [(point_a[1]-point_b[1])*rel_distance,
+            (point_a[2]-point_b[2])*rel_distance,
+            (point_a[3]-point_b[3])*rel_distance],rel_distance
+end #get_on_a_line    
 
+# function get_on_a_line_b(point_a,point_b,rel_distance)
+#     return [point_a[1]+(point_b[1]-point_a[1])*rel_distance,
+#     point_a[2]+(point_b[2]-point_a[2])*rel_distance,
+#     point_a[3]+(point_b[3]-point_a[3])*rel_distance]
+# end #get_on_a_line    
+
+
+index=1
+pp=0
 for num_point in 1:num_base_samp_points
-    @test out_sampled_points[index,num_point,:][3:5]≈get_on_a_line(tetr_dat_out[index,1,:],tetr_dat_out[index,5,:],num_point/(num_base_samp_points+1))
+    pp=get_on_a_line(tetr_dat_out[index,1,:],tetr_dat_out[index,5,:],num_point/(num_base_samp_points+1))
+    print("\n pp $(pp)  \n ")
+    @test out_sampled_points[index,num_point,:][3:5]≈pp
 end
+##pp is last base sample point
+### testing additional sample points
+num_point=1
+# triangle_corner_num=1
+for triangle_corner_num in [1,2,3]
+    for num_point in [1,2]
+        pp2=get_on_a_line(pp,tetr_dat_out[index,triangle_corner_num+1,:],num_point/(num_additional_samp_points+1))
+        distst=get_line_diff(pp,tetr_dat_out[index,triangle_corner_num+1,:],num_point/(num_additional_samp_points+1))
+        print("\n pp2 $(pp2)  \n ")
+        @test out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+((num_point-1)*3),:][3:5]≈pp2
+        # @test out_sampled_points[index,6+num_point,:][3:5]≈pp2
+    end
+end
+out_sampled_points[1, :, :]
+tetr_dat_out[1,:,:]
+
+
+for index in 1:size(tetr_dat_out)[1]
+    pp=[]
+    ### testing base sample points
+    for num_point in 1:num_base_samp_points
+        pp=get_on_a_line(tetr_dat_out[index,1,:],tetr_dat_out[index,5,:],num_point/(num_base_samp_points+1))
+        @test out_sampled_points[index,num_point,:][3:5]≈pp
+        @test out_sampled_points[index,num_point,1] ≈trilinear_interpolation_kernel_cpu(pp, source_arr)
+
+    end
+    ##pp is last base sample point
+    ### testing additional sample points
+    for num_point in 1:num_additional_samp_points
+        for triangle_corner_num in UInt8(1):UInt8(3)
+            pp2=get_on_a_line(pp,tetr_dat_out[index,triangle_corner_num+1,:],num_point/(num_additional_samp_points+1))
+            # distst=get_line_diff(tetr_dat_out[index,triangle_corner_num+1,:],pp,num_point/(num_additional_samp_points+1))
+            # print("\n pppp $pp2 get_line_diff $(distst) \n")
+            @test out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+((num_point-1)*3),:][3:5]≈pp2
+            @test out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+((num_point-1)*3),1] ≈trilinear_interpolation_kernel_cpu(pp2, source_arr)
+
+
+            # @test out_sampled_points[index,6+num_point,:][3:5]≈pp2
+        end
+    end    
+
+end
+trilinear_interpolation_kernel_cpu(pp, source_arr)
+
+out_sampled_points[1, :, :]
+
 a
 # sv_tetrs[1]
 # Array(tetrs)[1,:,:]

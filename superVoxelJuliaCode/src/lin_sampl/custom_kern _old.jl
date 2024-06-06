@@ -250,12 +250,7 @@ function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base
                          +(shared_arr[threadIdx().x,2] -((tetr_dat[index,triangle_corner_num+1,2]-tetr_dat[index,1,2])*(point_num/(num_base_samp_points+1))))^2     
                          +(shared_arr[threadIdx().x,3] -((tetr_dat[index,triangle_corner_num+1,3]-tetr_dat[index,1,3])*(point_num/(num_base_samp_points+1))) )^2     
           ) 
-          # ((tetr_dat[$tetr_dat_coord,$coord_i]-tetr_dat[1,$coord_i])*($point_num/(num_base_samp_points+1)))
 
-          # var1+=sqrt((shared_arr[threadIdx().x,1] - @get_diff_on_line_sv_tetr(1,triangle_corner_num+1,point_num) )^2
-          #                +(shared_arr[threadIdx().x,2] -@get_diff_on_line_sv_tetr(2,triangle_corner_num+1,point_num) )^2     
-          #                +(shared_arr[threadIdx().x,3] -@get_diff_on_line_sv_tetr(3,triangle_corner_num+1,point_num) )^2     
-          # ) 
       end#for triangle_corner_num     
 
       #now as we had looked into distance to other points in 5 directions we divide by 5 and save it to the out_sampled_points
@@ -290,6 +285,11 @@ function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base
           shared_arr[threadIdx().x,3]=(tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[index,num_base_samp_points,5])*(n_add_samp/(num_additional_samp_points+1))
 
 
+
+          # out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[threadIdx().x,1]#TODO remove
+          # out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[threadIdx().x,2]#TODO remove
+          # out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,5]=shared_arr[threadIdx().x,3]#TODO remove
+
           out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=sqrt( shared_arr[threadIdx().x,1]^2+shared_arr[threadIdx().x,2]^2+shared_arr[threadIdx().x,3]^2)
           ##time to get value by interpolation and save it to the out_sampled_points
           #now we get the location of sample point
@@ -304,6 +304,10 @@ function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base
           out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[threadIdx().x,1]
           out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[threadIdx().x,2]
           out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,5]=shared_arr[threadIdx().x,3]
+
+
+
+
 
 
 
