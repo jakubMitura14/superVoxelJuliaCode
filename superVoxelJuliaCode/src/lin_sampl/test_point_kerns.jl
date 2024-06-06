@@ -379,9 +379,29 @@ end
     # @testset "is tetr dat out populated correctly" begin
         tetr_dat_out=Array(tetr_dat_out)
         for v in eachindex(sv_tetrs)
+            sum_x=0.0
+            sum_y=0.0
+            sum_z=0.0
             for p in eachindex(sv_tetrs[v])
+                ## test is the location of the tetrahedron points was updated correctly
                 @test sv_tetrs[v][p] == tetr_dat_out[v,p,:][1:3]
-            end    
+                ## check is interpolation of sv cenetr is correctly written
+                if(p==1)
+                    @test tetr_dat_out[v,p,4] ≈trilinear_interpolation_kernel_cpu(sv_tetrs[v][p], source_arr)
+                end
+                ## check is variance of other points is correctly written   
+                if(p>1)
+                    @test tetr_dat_out[v,p,4] ≈trilinear_variance_kernel_cpu(source_arr,sv_tetrs[v][p])
+                    sum_x+=sv_tetrs[v][p][1]
+                    sum_y+=sv_tetrs[v][p][2]
+                    sum_z+=sv_tetrs[v][p][3]
+                end    
+            end
+            ## check is centroid of the tetrahedron base is in the middle of the points of a tetrahedron base    
+            @test tetr_dat_out[v,5,1] ≈(sum_x/3)
+            @test tetr_dat_out[v,5,2] ≈(sum_y/3)
+            @test tetr_dat_out[v,5,3] ≈(sum_z/3)
+            @test tetr_dat_out[v,5,4] ≈trilinear_variance_kernel_cpu(source_arr,((sum_x/3),(sum_y/3),(sum_z/3)))
         end
     # end
 

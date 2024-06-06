@@ -34,28 +34,6 @@ macro get_dist(a,b,c)
 ))
 end
 
-"""
-get interpolated value at point
-"""
-macro get_interpolated_val(source_arr,a,b,c)
-
-  return  esc(quote       
-      var3=(@get_dist($a,$b,$c))
-      var1+=var3
-      ($source_arr[Int(round(shared_arr[threadIdx().x,1]+($a))),Int(round(shared_arr[threadIdx().x,2]+($b))),Int(round(shared_arr[threadIdx().x,3]+($c)))]*(var3 ))
-      
-    end)
-end
-
-"""
-used to get approximation of local variance
-"""
-macro get_interpolated_diff(source_arr,a,b,c)
-
-  return  esc(quote       
-      ((($source_arr[Int(round(shared_arr[threadIdx().x,1]+($a))),Int(round(shared_arr[threadIdx().x,2]+($b))),Int(round(shared_arr[threadIdx().x,3]+($c)))])-var2)^2)*((@get_dist($a,$b,$c)) )
-end)
-end
 
 """
 get a diffrence between coordinates in given axis of sv center and triangle center
@@ -67,50 +45,80 @@ end)
 end
 
 
+
 """
-simple kernel friendly interpolator - given float coordinates and source array will 
-1) look for closest integers in all directions and calculate the euclidean distance to it 
-2) calculate the weights for each of the 8 points in the cube around the pointadding more weight the closer the point is to integer coordinate
-"""  
-macro threeDLinInterpol(source_arr)
-  ## first we get the total distances of all points to be able to normalize it later
-  return  esc(quote
-  var1=0.0#
- 
-  var2=0.0
-  for a1 in -0.50001:0.50001:0.50001#@loopinfo unroll
-     for b1 in -0.50001:0.50001:0.50001
-       for c1 in -0.50001:0.50001:0.50001
-            var2+= @get_interpolated_val(source_arr,a1,b1,c1)
-          end
-      end
-  end        
-  var2=var2/var1
-  end)
+unrolled version of trilinear interpolation
+"""
+function unrolled_trilin_interpol(shared_arr,source_arr)
+  return (((
+    source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1])))) +
+    source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1])))
+    )
+      *
+      (1 - (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2])))) +
+      (source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
+       +
+       source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
+      *
+      (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2]))))
+     *
+     (1 - (shared_arr[threadIdx().x,3] - Int(floor( shared_arr[threadIdx().x,3]))))
+     +
+     ((source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
+       +
+       source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
+      *
+      (1 - (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2])))) +
+      (source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
+       +
+       source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
+      *
+      (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2]))))
+     *
+     (shared_arr[threadIdx().x,3] - Int(floor( shared_arr[threadIdx().x,3]))))
 end
 
 """
-get local estimation of variance of the source array near the point
+unrolled version of calculation of local variance based on trilinear interpolation
 """
-macro threeD_loc_var(source_arr)
-  ## first we get the total distances of all points to be able to normalize it later
-  return  esc(quote
-  @threeDLinInterpol(source_arr)
-
-  for a1 in -0.50001:0.50001:0.50001
-    for b1 in -0.50001:0.50001:0.50001
-      for c1 in -0.50001:0.50001:0.50001
-              var3+= @get_interpolated_diff(source_arr,a1,b1,c1)
-          end
-      end
-  end       
-  var2=var3/var1
-  end)
+function unrolled_trilin_variance(shared_arr,source_arr)
+  #first saving meaking mean 
+  shared_arr[threadIdx().x,4]= unrolled_trilin_interpol(shared_arr,source_arr)
+  return (((
+    ((source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))]-shared_arr[threadIdx().x,4])^2)
+    * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1])))) +
+    ((source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] -shared_arr[threadIdx().x,4])^2)
+    * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1])))
+    )
+      *
+      (1 - (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2])))) +
+      (((source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] -shared_arr[threadIdx().x,4])^2)
+      * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
+       +
+       ((source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] -shared_arr[threadIdx().x,4])^2)
+       * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
+      *
+      (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2]))))
+     *
+     (1 - (shared_arr[threadIdx().x,3] - Int(floor( shared_arr[threadIdx().x,3]))))
+     +
+     ((  ((source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] -shared_arr[threadIdx().x,4])^2)
+     * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
+       +
+       ((source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] -shared_arr[threadIdx().x,4])^2)
+       * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
+      *
+      (1 - (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2])))) +
+      (  ((source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] -shared_arr[threadIdx().x,4])^2)
+      * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
+       +
+       (( source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] -shared_arr[threadIdx().x,4])^2)
+       * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
+      *
+      (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2]))))
+     *
+     (shared_arr[threadIdx().x,3] - Int(floor( shared_arr[threadIdx().x,3]))))
 end
-
-
-
-
 
 
 """
@@ -157,7 +165,7 @@ function set_tetr_dat_kern_forward(tetr_dat,tetr_dat_out,source_arr,control_poin
 
 
   # shared_arr = CuStaticSharedArray(Float32, (CUDA.blockDim_x(),3))
-  shared_arr = CuStaticSharedArray(Float32, (256,3))
+  shared_arr = CuStaticSharedArray(Float32, (256,4))
   index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
 
   
@@ -181,32 +189,7 @@ function set_tetr_dat_kern_forward(tetr_dat,tetr_dat_out,source_arr,control_poin
 
   #saving the result of sv center value
   ###interpolate
-  tetr_dat_out[index,1,4]=(((
-    source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1])))) +
-    source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1])))
-    )
-      *
-      (1 - (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2])))) +
-      (source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
-       +
-       source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(floor( shared_arr[threadIdx().x,3]))] * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
-      *
-      (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2]))))
-     *
-     (1 - (shared_arr[threadIdx().x,3] - Int(floor( shared_arr[threadIdx().x,3]))))
-     +
-     ((source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
-       +
-       source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(floor( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
-      *
-      (1 - (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2])))) +
-      (source_arr[Int(floor( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] * (1 - (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
-       +
-       source_arr[Int(ceil( shared_arr[threadIdx().x,1])), Int(ceil( shared_arr[threadIdx().x,2])), Int(ceil( shared_arr[threadIdx().x,3]))] * (shared_arr[threadIdx().x,1] - Int(floor( shared_arr[threadIdx().x,1]))))
-      *
-      (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2]))))
-     *
-     (shared_arr[threadIdx().x,3] - Int(floor( shared_arr[threadIdx().x,3]))))
+  tetr_dat_out[index,1,4]=unrolled_trilin_interpol(shared_arr,source_arr)
 
 
   ### end interpolate
@@ -215,17 +198,16 @@ function set_tetr_dat_kern_forward(tetr_dat,tetr_dat_out,source_arr,control_poin
   #get the coordinates of the triangle corners and save them to tetr_dat_out
   @loopinfo unroll for triangle_corner_num in UInt8(2):UInt8(4)
   
-      for axis in UInt8(1):UInt8(3)
-          shared_arr[threadIdx().x,axis]=control_points[Int(tetr_dat[index,triangle_corner_num,1]),Int(tetr_dat[index,triangle_corner_num,2]),Int(tetr_dat[index,triangle_corner_num,3]),Int(tetr_dat[index,triangle_corner_num,4]),axis]
+      shared_arr[threadIdx().x,1]=control_points[Int(tetr_dat[index,triangle_corner_num,1]),Int(tetr_dat[index,triangle_corner_num,2]),Int(tetr_dat[index,triangle_corner_num,3]),Int(tetr_dat[index,triangle_corner_num,4]),1]
+      shared_arr[threadIdx().x,2]=control_points[Int(tetr_dat[index,triangle_corner_num,1]),Int(tetr_dat[index,triangle_corner_num,2]),Int(tetr_dat[index,triangle_corner_num,3]),Int(tetr_dat[index,triangle_corner_num,4]),2]
+      shared_arr[threadIdx().x,3]=control_points[Int(tetr_dat[index,triangle_corner_num,1]),Int(tetr_dat[index,triangle_corner_num,2]),Int(tetr_dat[index,triangle_corner_num,3]),Int(tetr_dat[index,triangle_corner_num,4]),3]
           
-      end#for axis
-      for axis in UInt8(1):UInt8(3)
-        tetr_dat_out[index,triangle_corner_num,axis]=shared_arr[threadIdx().x,axis] #populate tetr dat wth coordinates of triangle corners
-      end#for axis
+      tetr_dat_out[index,triangle_corner_num,1]=shared_arr[threadIdx().x,1] #populate tetr dat wth coordinates of triangle corners
+      tetr_dat_out[index,triangle_corner_num,2]=shared_arr[threadIdx().x,2] #populate tetr dat wth coordinates of triangle corners
+      tetr_dat_out[index,triangle_corner_num,3]=shared_arr[threadIdx().x,3] #populate tetr dat wth coordinates of triangle corners
       #performing interpolation result is in var2 and it get data from shared_arr
-      @threeD_loc_var(source_arr)
       #saving the result of control point value
-      tetr_dat_out[index,triangle_corner_num,4]=var2
+      tetr_dat_out[index,triangle_corner_num,4]=unrolled_trilin_variance(shared_arr,source_arr)
   end#for triangle_corner_num
 
   #get the center of the triangle
@@ -239,9 +221,8 @@ function set_tetr_dat_kern_forward(tetr_dat,tetr_dat_out,source_arr,control_poin
       shared_arr[threadIdx().x,axis]=shared_arr[threadIdx().x,axis]/3
       tetr_dat_out[index,5,axis]=shared_arr[threadIdx().x,axis]
   end#for axis
-  @threeD_loc_var(source_arr)
   #saving the result of centroid value
-  tetr_dat_out[index,5,4]=var2
+  tetr_dat_out[index,5,4]=unrolled_trilin_variance(shared_arr,source_arr)
 
   return nothing
 end
@@ -283,9 +264,8 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,num_base_samp_po
       shared_arr[threadIdx().x,2]= tetr_dat[index,1,2]+shared_arr[threadIdx().x,2]
       shared_arr[threadIdx().x,3]= tetr_dat[index,1,3]+shared_arr[threadIdx().x,3]
       #performing interpolation result is in var2 and it get data from shared_arr
-      @threeDLinInterpol(source_arr)
       #saving the result of interpolated value to the out_sampled_points
-      out_sampled_points[index,point_num,1]=var2
+      out_sampled_points[index,point_num,1]=unrolled_trilin_interpol(shared_arr,source_arr)
       #saving sample points coordinates
       out_sampled_points[index,point_num,3]=shared_arr[threadIdx().x,1]
       out_sampled_points[index,point_num,4]=shared_arr[threadIdx().x,2]
@@ -312,9 +292,8 @@ function point_info_kern(tetr_dat,out_sampled_points,source_arr,num_base_samp_po
           shared_arr[threadIdx().x,3]= out_sampled_points[index,num_base_samp_points,5]+shared_arr[threadIdx().x,3]
 
           #performing interpolation result is in var2 and it get data from shared_arr
-          @threeDLinInterpol(source_arr)
           #saving the result of interpolated value to the out_sampled_points
-          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=var2
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,1]=unrolled_trilin_interpol(shared_arr,source_arr)
           # #saving sample points coordinates
           out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,3]=shared_arr[threadIdx().x,1]
           out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,4]=shared_arr[threadIdx().x,2]
