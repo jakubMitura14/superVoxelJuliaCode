@@ -515,8 +515,19 @@ out_sampled_points = Array(out_sampled_points)
 out_sampled_points[1, :, :]
 tetr_dat_out[1,:,:]
 
+function get_on_a_line(point_a,point_b,rel_distance)
+    return [point_a[1]+(point_b[1]-point_a[1])*rel_distance,
+            point_a[2]+(point_b[2]-point_a[2])*rel_distance,
+            point_a[3]+(point_b[3]-point_a[3])*rel_distance]
+end #get_on_a_line    
 
+index=1
+num_point=1
+get_on_a_line(tetr_dat_out[index,1,:],tetr_dat_out[index,5,:],1/(num_base_samp_points+1))
 
+for num_point in 1:num_base_samp_points
+    @test out_sampled_points[index,num_point,:][3:5]≈get_on_a_line(tetr_dat_out[index,1,:],tetr_dat_out[index,5,:],num_point/(num_base_samp_points+1))
+end
 a
 # sv_tetrs[1]
 # Array(tetrs)[1,:,:]
