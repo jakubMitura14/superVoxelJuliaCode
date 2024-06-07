@@ -245,10 +245,14 @@ function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base
       # we can assume that sv center location is 0.0,0.0,0.0 as we need only diffrences 
       for triangle_corner_num in UInt8(1):UInt8(3)
           #distance to the line between sv center and the  point
-          var1+=sqrt((shared_arr[threadIdx().x,1] - ((tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,1])*(point_num/(num_base_samp_points+1))))^2
-                         +(shared_arr[threadIdx().x,2] -((tetr_dat[index,triangle_corner_num+1,2]-tetr_dat[index,1,2])*(point_num/(num_base_samp_points+1))))^2     
-                         +(shared_arr[threadIdx().x,3] -((tetr_dat[index,triangle_corner_num+1,3]-tetr_dat[index,1,3])*(point_num/(num_base_samp_points+1))) )^2     
+          var1+=sqrt((shared_arr[threadIdx().x,1] - ((tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,1])))^2
+                         +(shared_arr[threadIdx().x,2] -((tetr_dat[index,triangle_corner_num+1,2]-tetr_dat[index,1,2])))^2     
+                         +(shared_arr[threadIdx().x,3] -((tetr_dat[index,triangle_corner_num+1,3]-tetr_dat[index,1,3])))^2     
           ) 
+          # var1+=sqrt((shared_arr[threadIdx().x,1] - ((tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,1])*(point_num/(num_base_samp_points+1))))^2
+          #                +(shared_arr[threadIdx().x,2] -((tetr_dat[index,triangle_corner_num+1,2]-tetr_dat[index,1,2])*(point_num/(num_base_samp_points+1))))^2     
+          #                +(shared_arr[threadIdx().x,3] -((tetr_dat[index,triangle_corner_num+1,3]-tetr_dat[index,1,3])*(point_num/(num_base_samp_points+1))) )^2     
+          # ) 
 
       end#for triangle_corner_num     
 
@@ -284,7 +288,7 @@ function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base
           shared_arr[threadIdx().x,3]=(tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[index,num_base_samp_points,5])*(n_add_samp/(num_additional_samp_points+1))
 
 
-          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=(4/3)*π*((sqrt( shared_arr[threadIdx().x,1]^2+shared_arr[threadIdx().x,2]^2+shared_arr[threadIdx().x,3]^2))^3)
+          out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+(n_add_samp-1)*3,2]=(4/3)*π*((sqrt( shared_arr[threadIdx().x,1]^2+shared_arr[threadIdx().x,2]^2+shared_arr[threadIdx().x,3]^2)/2)^3)
           ##time to get value by interpolation and save it to the out_sampled_points
           #now we get the location of sample point
           shared_arr[threadIdx().x,1]= out_sampled_points[index,num_base_samp_points,3]+shared_arr[threadIdx().x,1]

@@ -616,59 +616,89 @@ points=out_sampled_points[1, :, 2:5]
 sorted_by_volume
 sortperm(points[:, 1])
 
-process_points(out_sampled_points[1, :, 2:5])
+# process_points(out_sampled_points[1, :, 2:5])
 
-# given a matrix of shape """(n,4)""" where n is number of points first entry is its weight and last 3 coordinates in the 3d spacedirections
-#  ordering them from smallest weight to biggest ; then 
-# check is order consistent with objetive order - in objective order each point as a center of a sphere
-#  then iterate and on each iteration increase radius of a sphere by 0.05 and check weather the sphere we enlarged is intersecting
-# with any other sphere - if it is we stop growing this sphere ; we finish when all spheres intersected with some other 
-# we check weather spheres intersect by measuring the distance between their centers and checking if it is smaller than sum
-#     of their radii; then we order the points by their volume (calculated as volume of a sphere from radii) and check if the order is consistent with the order of the weights
-
-
-
-
-a
-# sv_tetrs[1]
-# Array(tetrs)[1,:,:]
-# sv_centers[1,1,1,:]
-
-# sv_tetrs[1][1]
-# tetr_dat_out[1,1,:][1:3]
-# @testset "is tetr dat out populated correctly" begin
-# tetr_dat_out=Array(tetr_dat_out)
-# for v in eachindex(sv_tetrs)
-#     sum_x=0.0
-#     sum_y=0.0
-#     sum_z=0.0
-#     for p in eachindex(sv_tetrs[v])
-#         ## test is the location of the tetrahedron points was updated correctly
-#         @test sv_tetrs[v][p] == tetr_dat_out[v,p,:][1:3]
-#         ## check is interpolation of sv cenetr is correctly written
-#         if(p==1)
-#             @test tetr_dat_out[v,p,4] ≈trilinear_interpolation_kernel_cpu(sv_tetrs[v][p], source_arr)
-#         end
-#         ## check is variance of other points is correctly written   
-#         if(p>1)
-#             @test tetr_dat_out[v,p,4] ≈trilinear_variance_kernel_cpu(source_arr,sv_tetrs[v][p])
-#             sum_x+=sv_tetrs[v][p][1]
-#             sum_y+=sv_tetrs[v][p][2]
-#             sum_z+=sv_tetrs[v][p][3]
-#         end    
-#     end
-#     ## check is centroid of the tetrahedron base is in the middle of the points of a tetrahedron base    
-#     @test tetr_dat_out[v,5,1] ≈(sum_x/3)
-#     @test tetr_dat_out[v,5,2] ≈(sum_y/3)
-#     @test tetr_dat_out[v,5,3] ≈(sum_z/3)
-#     @test tetr_dat_out[v,5,4] ≈trilinear_variance_kernel_cpu(source_arr,((sum_x/3),(sum_y/3),(sum_z/3)))
-# end
 
 
 """
 visualization
 visualize the points with weights as balls and the line between the center of the triangle and the center of the super voxel plus lines and balls for base and additional sample points
 """
+
+
+"""
+now we want to visualize the points that were selected for sampling and their weights
+    we will display their weights by the spheres of the radius equal to weight
+"""
+
+function radius_from_volume(volume)
+    return (3 * volume / (4 * π))^(1/3)
+end
+
+from_sampled_points=out_sampled_points[1,:,:]
+terr_dat_curr=tetr_dat_out[1,:,:]
+terr_dat_curr=terr_dat_curr[:,1:3]
+to_disp_points=false
+to_disp_tetr=true
+
+to_points=invert(splitdims(from_sampled_points))
+points_mesh_a=map(v-> Meshes.Point(v[3],v[4],v[5]),to_points)
+points_mesh_b=map(v-> Meshes.Point(v...),invert(splitdims(terr_dat_curr)))
+points_mesh=[points_mesh_a;points_mesh_b]
+
+spheres=map(v->Meshes.Sphere((v[3],v[4],v[5]), radius_from_volume(v[2])/2) ,to_points)
+# spheres=map(i->Meshes.Sphere((out_sampled_points[i,3],out_sampled_points[i,4],out_sampled_points[i,5]),out_sampled_points[i,2]/2),1:6)
+if (to_disp_points)
+    spheres=[spheres;points_mesh_b ]
+    viz(spheres, color = 1:length(spheres),alpha=collect(1:length(spheres)).*0.9)
+end
+
+first_sv_tetrs= map(index->fill_tetrahedron_data(tetrs, sv_centers,control_points,index),1:24)
+first_sv_tetrs=map(get_tetrahedrons_from_corners,first_sv_tetrs)
+if (to_disp_tetr)
+    spheres=[spheres;[first_sv_tetrs[1]] ]
+    viz(spheres, color = 1:length(spheres),alpha=collect(1:length(spheres)).*0.9)
+end
+# viz(points_mesh, color = 1:length(points_mesh))
+
+
+function cross_product(a::Vector{Float64}, b::Vector{Float64})::Vector{Float64}
+    return [a[2]*b[3] - a[3]*b[2], a[3]*b[1] - a[1]*b[3], a[1]*b[2] - a[2]*b[1]]
+end
+
+function normm(a::Vector{Float64})::Float64
+    return sqrt(sum([i^2 for i in a]))
+end
+
+function distance_point_to_line_gold(p::Vector{Float64}, l1::Vector{Float64}, l2::Vector{Float64})::Float64
+    return normm(cross_product(l2-l1, l1-p)) / norm(l2-l1)
+end
+
+p1=[2.5,5.7,1.8]
+p2=[1.4,5.1,2.3]
+p3=[2.2,3.4,5.1]
+
+[(p2[2]-p3[2])*(p2[3]-p1[3]) - (p2[3]-p3[3])*(p2[2]-p1[2])
+, (p2[3]-p3[3])*(p2[1]-p1[1]) - (p2[1]-p3[1])*(p2[3]-p1[3])
+, (p2[1]-p3[1])*(p2[2]-p1[2]) - (p2[2]-p3[2])*(p2[1]-p1[1])]
+
+
+[(p2[2]-p3[2])*(p2[3]-p1[3]) - (p2[3]-p3[3])*(p2[2]-p1[2])
+, (p2[3]-p3[3])*(p2[1]-p1[1]) - (p2[1]-p3[1])*(p2[3]-p1[3])
+, (p2[1]-p3[1])*(p2[2]-p1[2]) - (p2[2]-p3[2])*(p2[1]-p1[1])]
+
+
+[(p2[2]-p3[2])*(p2[3]-p1[3]) - (p2[3]-p3[3])*(p2[2]-p1[2])
+, (p2[3]-p3[3])*(p2[1]-p1[1]) - (p2[1]-p3[1])*(p2[3]-p1[3])
+, (p2[1]-p3[1])*(p2[2]-p1[2]) - (p2[2]-p3[2])*(p2[1]-p1[1])]
+
+
+
+
+cross_product(p2-p3, p2-p1)
+cross(p2-p3, p2-p1)
+
+distance_point_to_line(p1,p2,p3)
 
 
 
@@ -694,275 +724,3 @@ visualize the points with weights as balls and the line between the center of th
 #     viz(first_sv_tetrs, color=1:length(first_sv_tetrs))
 # end
 
-
-
-
-############################
-
-# using Interpolations,Test
-# function scale(itp::AbstractInterpolation{T,N,IT}, ranges::Vararg{AbstractRange,N}) where {T,N,IT}
-#     # overwriting this function becouse check_ranges giving error
-#     # check_ranges(itpflag(itp), axes(itp), ranges)
-#     ScaledInterpolation{T,N,typeof(itp),IT,typeof(ranges)}(itp, ranges)
-# end
-
-
-# function interpolate_my(point, input_array, input_array_spacing)
-
-#     old_size = size(input_array)
-#     itp = interpolate(input_array, BSpline(Linear()))
-#     #we indicate on each axis the spacing from area we are samplingA
-#     A_x1 = 1:input_array_spacing[1]:(old_size[1])
-#     A_x2 = 1:input_array_spacing[2]:(old_size[2])
-#     A_x3 = 1:input_array_spacing[3]:(old_size[3])
-
-#     itp = extrapolate(itp, 0.0)
-#     itp = scale(itp, A_x1, A_x2, A_x3)
-#     return itp(point[1], point[2], point[3])
-# end#interpolate_my
-
-
-
-
-
-
-# function trilinear_interpolation_kernel(point, input_array, input_array_spacing, d_result)
-
-#     c = (((
-#         input_array[floor(Int, point[1]), floor(Int, point[2]), floor(Int, point[3])] * (1 - (point[1] - floor(Int, point[1]))) +
-#         input_array[ceil(Int, point[1]), floor(Int, point[2]), floor(Int, point[3])] * (point[1] - floor(Int, point[1]))
-#         )
-#           *
-#           (1 - (point[2] - floor(Int, point[2]))) +
-#           (input_array[floor(Int, point[1]), ceil(Int, point[2]), floor(Int, point[3])] * (1 - (point[1] - floor(Int, point[1])))
-#            +
-#            input_array[ceil(Int, point[1]), ceil(Int, point[2]), floor(Int, point[3])] * (point[1] - floor(Int, point[1])))
-#           *
-#           (point[2] - floor(Int, point[2])))
-#          *
-#          (1 - (point[3] - floor(Int, point[3])))
-#          +
-#          ((input_array[floor(Int, point[1]), floor(Int, point[2]), ceil(Int, point[3])] * (1 - (point[1] - floor(Int, point[1])))
-#            +
-#            input_array[ceil(Int, point[1]), floor(Int, point[2]), ceil(Int, point[3])] * (point[1] - floor(Int, point[1])))
-#           *
-#           (1 - (point[2] - floor(Int, point[2]))) +
-#           (input_array[floor(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])] * (1 - (point[1] - floor(Int, point[1])))
-#            +
-#            input_array[ceil(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])] * (point[1] - floor(Int, point[1])))
-#           *
-#           (point[2] - floor(Int, point[2])))
-#          *
-#          (point[3] - floor(Int, point[3])))
-
-#     d_result[1] = c
-
-#     return c
-# end
-
-# function trilinear_variance_kernel_cpu(input_array,point)
-
-#     mean = (((
-#         input_array[floor(Int, point[1]), floor(Int, point[2]), floor(Int, point[3])]
-#          * (1 - (point[1] - floor(Int, point[1]))) +
-#         input_array[ceil(Int, point[1]), floor(Int, point[2]), floor(Int, point[3])]
-#          * (point[1] - floor(Int, point[1]))
-#         )
-#           *
-#           (1 - (point[2] - floor(Int, point[2]))) +
-#           (input_array[floor(Int, point[1]), ceil(Int, point[2]), floor(Int, point[3])]
-#            * (1 - (point[1] - floor(Int, point[1])))
-#            +
-#            input_array[ceil(Int, point[1]), ceil(Int, point[2]), floor(Int, point[3])]
-#             * (point[1] - floor(Int, point[1])))
-#           *
-#           (point[2] - floor(Int, point[2])))
-#          *
-#          (1 - (point[3] - floor(Int, point[3])))
-#          +
-#          ((input_array[floor(Int, point[1]), floor(Int, point[2]), ceil(Int, point[3])]
-#           * (1 - (point[1] - floor(Int, point[1])))
-#            +
-#            input_array[ceil(Int, point[1]), floor(Int, point[2]), ceil(Int, point[3])]
-#             * (point[1] - floor(Int, point[1])))
-#           *
-#           (1 - (point[2] - floor(Int, point[2]))) +
-#           (input_array[floor(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])]
-#            * (1 - (point[1] - floor(Int, point[1])))
-#            +
-#            input_array[ceil(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])]
-#             * (point[1] - floor(Int, point[1])))
-#           *
-#           (point[2] - floor(Int, point[2])))
-#          *
-#          (point[3] - floor(Int, point[3])))
-#     ############ variance
-#     variance = (((
-#         ((input_array[floor(Int, point[1]), floor(Int, point[2]), floor(Int, point[3])]-mean)^2)
-#          * (1 - (point[1] - floor(Int, point[1]))) +
-#         ((input_array[ceil(Int, point[1]), floor(Int, point[2]), floor(Int, point[3])]-mean)^2)
-#          * (point[1] - floor(Int, point[1]))
-#         )
-#           *
-#           (1 - (point[2] - floor(Int, point[2]))) +
-#           (((input_array[floor(Int, point[1]), ceil(Int, point[2]), floor(Int, point[3])]-mean)^2)
-#            * (1 - (point[1] - floor(Int, point[1])))
-#            +
-#            ((input_array[ceil(Int, point[1]), ceil(Int, point[2]), floor(Int, point[3])]-mean)^2)
-#             * (point[1] - floor(Int, point[1])))
-#           *
-#           (point[2] - floor(Int, point[2])))
-#          *
-#          (1 - (point[3] - floor(Int, point[3])))
-#          +
-#          ((((input_array[floor(Int, point[1]), floor(Int, point[2]), ceil(Int, point[3])]-mean)^2)
-#           * (1 - (point[1] - floor(Int, point[1])))
-#            +
-#            ((input_array[ceil(Int, point[1]), floor(Int, point[2]), ceil(Int, point[3])]-mean)^2)
-#             * (point[1] - floor(Int, point[1])))
-#           *
-#           (1 - (point[2] - floor(Int, point[2]))) +
-#           (((input_array[floor(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])]-mean)^2)
-#            * (1 - (point[1] - floor(Int, point[1])))
-#            +
-#            ((input_array[ceil(Int, point[1]), ceil(Int, point[2]), ceil(Int, point[3])]-mean)^2)
-#             * (point[1] - floor(Int, point[1])))
-#           *
-#           (point[2] - floor(Int, point[2])))
-#          *
-#          (point[3] - floor(Int, point[3])))
-
-
-
-#     # d_result[1] = variance
-
-#     return variance
-# end
-
-
-
-# @testset "Variance Tests cpu " begin
-#     data = ones(10, 10, 10)
-#     @test trilinear_variance_kernel_cpu(data, (5.5, 5.5, 5.5)) == 0
-
-#     data[5, 5, 5] = 2
-#     var1 = trilinear_variance_kernel_cpu(data, (5.5, 5.5, 5.5)) 
-#     @test var1 > 0
-
-#     data[6, 5, 5] = 3
-#     var2 = trilinear_variance_kernel_cpu(data, (5.5, 5.5, 5.5)) 
-#     @test var2 > var1
-
-#     data[5, 6, 5] = 4
-#     var3 = trilinear_variance_kernel_cpu(data, (5.5, 5.5, 5.5)) 
-#     @test var3 > var2
-
-#     data[5, 5, 6] = 5
-#     var4 = trilinear_variance_kernel_cpu(data, (5.5, 5.5, 5.5)) 
-#     @test var4 > var3
-
-#     data[6, 5, 6] = 6
-#     var5 = trilinear_variance_kernel_cpu(data, (5.5, 5.5, 5.5)) 
-#     @test var5 > var4
-
-#     data[5, 6, 6] = 7
-#     var6 = trilinear_variance_kernel_cpu(data, (5.5, 5.5, 5.5)) 
-#     @test var6 > var5
-
-#     data[6, 6, 5] = 8
-#     var7 = trilinear_variance_kernel_cpu(data, (5.5, 5.5, 5.5)) 
-#     @test var7 > var6
-
-#     data[6, 6, 6] = 11
-#     var8 = trilinear_variance_kernel_cpu(data, (5.5, 5.5, 5.5)) 
-#     @test var8 > var7
-
-
-#     data = ones(10, 10, 10)
-#     data[1:5, :, :] = rand(5, 10, 10)
-#     var_a= trilinear_variance_kernel_cpu(data, (5.1, 5.5, 5.5))
-#     var_b= trilinear_variance_kernel_cpu(data, (5.9, 5.5, 5.5))
-#     @test var_a > var_b
-
-#     data = ones(10, 10, 10)
-#     data[:, 1:5, :] = rand(10, 5, 10)
-#     var_a= trilinear_variance_kernel_cpu(data, (5.5, 5.1, 5.5))
-#     var_b= trilinear_variance_kernel_cpu(data, (5.5, 5.9, 5.5))
-#     @test var_a > var_b
-
-#     data = ones(10, 10, 10)
-#     data[:, :, 1:5] = rand(10, 10, 5)
-#     var_a= trilinear_variance_kernel_cpu(data, (5.5, 5.5, 5.1))
-#     var_b= trilinear_variance_kernel_cpu(data, (5.5, 5.5, 5.9))
-#     @test var_a > var_b
-
-
-
-# end
-
-
-# # ok so try to get a point quite close to the corner and check weater the influence of the corner opposite in given axis is getting smaller with increased relative spacing to other axes
-
-
-# input_array = rand(10, 10, 10)
-
-
-# input_array = reshape(collect(1:1000), (10, 10, 10))
-# point = [5.5, 5.5, 5.5]
-# input_array_spacing = [1.0, 1.0, 1.0]
-
-# input_array[5, 5, 5]#445
-# input_array[6, 5, 5]#446
-# input_array[5, 6, 5]#455
-# input_array[5, 5, 6]#545
-# input_array[5, 6, 6]#555
-# input_array[6, 6, 5]#456
-# input_array[6, 5, 6]#546
-# input_array[6, 6, 6]#556
-
-# gold_res = interpolate_my(point, input_array, input_array_spacing)#324.59
-
-# d_result = zeros(2)
-# trilinear_interpolation_kernel(point, input_array, input_array_spacing, d_result)
-# trilinear_variance_kernel(point, input_array, input_array_spacing, d_result)
-# d_result[1]
-# gold_res ≈ d_result[1]
-
-
-
-
-
-# input_array = reshape(collect(1:1000), (10, 10, 10))
-# point = [5.1, 5.6, 5.9]
-# input_array_spacing = [1.0, 1.0, 1.0]
-
-# input_array[5, 5, 5]#445
-# input_array[6, 5, 5]#446
-# input_array[5, 6, 5]#455
-# input_array[5, 5, 6]#545
-# input_array[5, 6, 6]#555
-# input_array[6, 6, 5]#456
-# input_array[6, 5, 6]#546
-# input_array[6, 6, 6]#556
-
-
-# trilinear_interpolation_kernel(point, input_array, input_array_spacing, d_result)
-
-# # trilinear_interpolation_kernel_scaled(point, input_array, input_array_spacing, d_result)
-
-
-# # input_array_spacing = [1.0, 1.0, 1.0]
-# # point[1]=5.1
-# # input_array_spacing[1]=2.0
-
-# # a=point[1] - floor(Int, point[1])
-# # rel_spac[1]=(input_array_spacing[1]/sum(input_array_spacing))*3
-# # b=a+0.5
-# # c=b^rel_spac[1]
-# # f=c+0.5
-# # # d=c0.5
-# # # e=d+0.5
-# # # f=c*rel_spac[1]
-# # round(f;digits=2)
-
-# # ((((((point[1] - floor(Int, point[1])) - 0.5)^2) / 0.5) + 0.5) * input_array_spacing[1])
