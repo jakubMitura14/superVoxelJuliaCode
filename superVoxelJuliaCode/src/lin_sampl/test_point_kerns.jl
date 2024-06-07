@@ -534,29 +534,6 @@ end #get_on_a_line
 # end #get_on_a_line    
 
 
-index=1
-pp=0
-for num_point in 1:num_base_samp_points
-    pp=get_on_a_line(tetr_dat_out[index,1,:],tetr_dat_out[index,5,:],num_point/(num_base_samp_points+1))
-    print("\n pp $(pp)  \n ")
-    @test out_sampled_points[index,num_point,:][3:5]≈pp
-end
-##pp is last base sample point
-### testing additional sample points
-num_point=1
-# triangle_corner_num=1
-for triangle_corner_num in [1,2,3]
-    for num_point in [1,2]
-        pp2=get_on_a_line(pp,tetr_dat_out[index,triangle_corner_num+1,:],num_point/(num_additional_samp_points+1))
-        distst=get_line_diff(pp,tetr_dat_out[index,triangle_corner_num+1,:],num_point/(num_additional_samp_points+1))
-        print("\n pp2 $(pp2)  \n ")
-        @test out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+((num_point-1)*3),:][3:5]≈pp2
-        # @test out_sampled_points[index,6+num_point,:][3:5]≈pp2
-    end
-end
-out_sampled_points[1, :, :]
-tetr_dat_out[1,:,:]
-
 
 for index in 1:size(tetr_dat_out)[1]
     pp=[]
@@ -583,9 +560,74 @@ for index in 1:size(tetr_dat_out)[1]
     end    
 
 end
-trilinear_interpolation_kernel_cpu(pp, source_arr)
 
-out_sampled_points[1, :, :]
+"""
+we can check weather the approximate weights makes sense in the calculated points by ordering them from smallest to biggest
+and checking is order consistent with objrctive order - objective order we will do by defining each sample point as a center of a sphere
+we will the iterate and on each iteration will increase radius of a sphere by 0.1 and check weather the sphere we enlarged is intersecting
+with any other sphere - if it is we stop growing this sphere ; we finish when all spheres intersected with some other 
+we check weather spheres intersect by measuring the distance between their centers and checking if it is smaller than sum
+     of their radii
+"""
+
+points=out_sampled_points[1, :, 2:5]
+
+# function process_points(points)
+    # Initialize radii and volumes
+    radii = zeros(size(points, 1))
+    is_ready=zeros(Bool,size(points, 1))
+    volumes = zeros(size(points, 1))
+
+    # Grow spheres until they all intersect with another sphere
+    while any(.!is_ready)
+    for i in 1:size(points)[1]
+        
+            # Increase radius
+            radii[i] += 0.05
+
+            # Check for intersection with other spheres
+            for j in 1:size(points)[1]
+                if i != j
+                    dist = sqrt(sum((points[i, 2:end] - points[j, 2:end]).^2))
+                    if dist < radii[i] + radii[j]
+                        is_ready[i]=true
+                        is_ready[j]=true
+                    end
+                end
+            end
+
+            # Calculate volume
+            volumes[i] = 4/3 * pi * radii[i]^3
+
+            # If all spheres have intersected with another, break the loop
+            if all(radii .> 0)
+                break
+            end
+        end
+    end
+
+    # Sort points by volume and check if the order is consistent with the order of the weights
+    sorted_by_volume = sortperm(volumes)
+    is_consistent = all(sorted_by_volume .== sortperm(points[:, 1]))
+
+    # return is_consistent
+# end
+
+sorted_by_volume
+sortperm(points[:, 1])
+
+process_points(out_sampled_points[1, :, 2:5])
+
+# given a matrix of shape """(n,4)""" where n is number of points first entry is its weight and last 3 coordinates in the 3d spacedirections
+#  ordering them from smallest weight to biggest ; then 
+# check is order consistent with objetive order - in objective order each point as a center of a sphere
+#  then iterate and on each iteration increase radius of a sphere by 0.05 and check weather the sphere we enlarged is intersecting
+# with any other sphere - if it is we stop growing this sphere ; we finish when all spheres intersected with some other 
+# we check weather spheres intersect by measuring the distance between their centers and checking if it is smaller than sum
+#     of their radii; then we order the points by their volume (calculated as volume of a sphere from radii) and check if the order is consistent with the order of the weights
+
+
+
 
 a
 # sv_tetrs[1]
