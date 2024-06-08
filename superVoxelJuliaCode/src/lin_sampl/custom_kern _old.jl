@@ -304,9 +304,9 @@ function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base
     @loopinfo unroll for triangle_corner_num in UInt8(1):UInt8(3)
 
           #now we need to get diffrence between the last main sample point and the triangle corner
-          shared_arr[threadIdx().x,1]=(tetr_dat[index,triangle_corner_num+1,1]-out_sampled_points[index,num_base_samp_points,3])*(1/(num_additional_samp_points+1))
-          shared_arr[threadIdx().x,2]=(tetr_dat[index,triangle_corner_num+1,2]-out_sampled_points[index,num_base_samp_points,4])*(1/(num_additional_samp_points+1))
-          shared_arr[threadIdx().x,3]=(tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[index,num_base_samp_points,5])*(1/(num_additional_samp_points+1))
+          shared_arr[threadIdx().x,1]=((tetr_dat[index,triangle_corner_num+1,1]-out_sampled_points[index,num_base_samp_points,3])/(num_additional_samp_points+1))
+          shared_arr[threadIdx().x,2]=((tetr_dat[index,triangle_corner_num+1,2]-out_sampled_points[index,num_base_samp_points,4])/(num_additional_samp_points+1))
+          shared_arr[threadIdx().x,3]=((tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[index,num_base_samp_points,5])/(num_additional_samp_points+1))
 
           #### calculate weight of the point 
           #first we get distance to the previous and next point on the line between the last main sample point and the triangle corner
@@ -318,6 +318,7 @@ function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base
           ### now we get the distance of a point to lines joining the corner toward which current line is going and all other verticies of tetrahedron
           for tetr_dat_index in UInt8(1):UInt8(4)
             if(tetr_dat_index!=(triangle_corner_num+1) ) #this is the corner we are going to in the line for additional sampling points
+              # shared_arr[threadIdx().x,4]+=(tetr_dat[index,triangle_corner_num+1,2]-tetr_dat[index,tetr_dat_index,2]- shared_arr[threadIdx().x,2])
               shared_arr[threadIdx().x,4]+=sqrt(((((tetr_dat[index,triangle_corner_num+1,2]-tetr_dat[index,tetr_dat_index,2])*(tetr_dat[index,triangle_corner_num+1,3]-shared_arr[threadIdx().x,3]) - (tetr_dat[index,triangle_corner_num+1,3]-tetr_dat[index,tetr_dat_index,3])*(tetr_dat[index,triangle_corner_num+1,2]-shared_arr[threadIdx().x,2]))^2)+
                 (((tetr_dat[index,triangle_corner_num+1,3]-tetr_dat[index,tetr_dat_index,3])*(tetr_dat[index,triangle_corner_num+1,1]-shared_arr[threadIdx().x,1]) - (tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,tetr_dat_index,1])*(tetr_dat[index,triangle_corner_num+1,3]-shared_arr[threadIdx().x,3]))^2)+
                 ((tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,tetr_dat_index,1])*(tetr_dat[index,triangle_corner_num+1,2]-shared_arr[threadIdx().x,2]) - (tetr_dat[index,triangle_corner_num+1,2]-tetr_dat[index,tetr_dat_index,2])*(tetr_dat[index,triangle_corner_num+1,1]-shared_arr[threadIdx().x,1]))^2)) / sqrt((tetr_dat[index,tetr_dat_index,2]-tetr_dat[index,triangle_corner_num+1,2])^2+(tetr_dat[index,tetr_dat_index,3]-tetr_dat[index,triangle_corner_num+1,3])^2+(tetr_dat[index,tetr_dat_index,1]-tetr_dat[index,triangle_corner_num+1,1])^2)

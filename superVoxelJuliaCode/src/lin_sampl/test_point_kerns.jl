@@ -583,6 +583,25 @@ for index in 1:size(tetr_dat_out)[1]
             @test out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+((num_point-1)*3),:][3:5]≈pp2
             @test out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+((num_point-1)*3),1] ≈trilinear_interpolation_kernel_cpu(pp2, source_arr)
 
+            aa=[1,2,3,4]
+            aa=deleteat!(aa,triangle_corner_num+1)
+
+            rrr=norm((tetr_dat_out[index,triangle_corner_num+1,1:3]-pp)./(num_additional_samp_points+1) )*2
+            for ii in aa
+                rrr+=distance_point_to_line_gold(pp2,tetr_dat_out[index,ii,1:3],tetr_dat_out[index,triangle_corner_num+1,1:3])
+            end
+
+            rr=((( rrr)/5)^3)
+
+            
+            
+            @test isapprox(rr,out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+((num_point-1)*3),2], atol=0.001)
+            # @test isapprox(((((norm((tetr_dat_out[index,triangle_corner_num+1,1:3]-pp)./(num_additional_samp_points+1) )*2)+
+            # distance_point_to_line_gold(pp,tetr_dat_out[index,aa[1],1:3],tetr_dat_out[index,triangle_corner_num+1,1:3])+
+            # distance_point_to_line_gold(pp,tetr_dat_out[index,aa[2],1:3],tetr_dat_out[index,triangle_corner_num+1,1:3])+
+            # distance_point_to_line_gold(pp,tetr_dat_out[index,aa[3],1:3],tetr_dat_out[index,triangle_corner_num+1,1:3]) 
+            # )/5)^3),out_sampled_points[index,(num_base_samp_points+triangle_corner_num)+((num_point-1)*3),2], atol=0.001)
+
 
             # @test out_sampled_points[index,6+num_point,:][3:5]≈pp2
         end
