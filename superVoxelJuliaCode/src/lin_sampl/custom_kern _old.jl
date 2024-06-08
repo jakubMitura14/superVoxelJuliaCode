@@ -238,6 +238,7 @@ function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base
   shared_arr = CuStaticSharedArray(Float32, (256,4))
   index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
 
+  
   # we iterate over rest of points in main sample points
   @loopinfo unroll for point_num in UInt8(1):UInt8(num_base_samp_points)
 
@@ -257,25 +258,28 @@ function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base
       #now we get the distance to the lines that get from sv center to the triangle corners - for simplicity
       # we can assume that sv center location is 0.0,0.0,0.0 as we need only diffrences 
       #now we get the location of sample point
-      
+
       shared_arr[threadIdx().x,1]= tetr_dat[index,1,1]+(shared_arr[threadIdx().x,1]*point_num)
       shared_arr[threadIdx().x,2]= tetr_dat[index,1,2]+(shared_arr[threadIdx().x,2]*point_num)
       shared_arr[threadIdx().x,3]= tetr_dat[index,1,3]+(shared_arr[threadIdx().x,3]*point_num)
-
       for triangle_corner_num in UInt8(1):UInt8(3)
+        #if it is last point from base sample points we need to measure its distance to the first additional sample points not to the lines between sv center and triangle corners
+        if(point_num==num_base_samp_points)
+          shared_arr[threadIdx().x,4]+=sqrt( (tetr_dat[index,triangle_corner_num+1,1]-out_sampled_points[index,num_base_samp_points,3])
+                  *(1/(num_additional_samp_points+1))^2
+                  +(tetr_dat[index,triangle_corner_num+1,2]-out_sampled_points[index,num_base_samp_points,4])
+                  *(1/(num_additional_samp_points+1))
+                  ^2+(tetr_dat[index,triangle_corner_num+1,3]-out_sampled_points[index,num_base_samp_points,5])
+                  *(1/(num_additional_samp_points+1))^2)
+        else  
           #distance to the line between sv center and the one of triangle corners (triangle that is a base of tetrahedron)
           #in all cases line start as sv center and end as triangle corner and a point is current point in shared memory
           shared_arr[threadIdx().x,4]+=sqrt(((((tetr_dat[index,1,2]-tetr_dat[index,triangle_corner_num+1,2])*(tetr_dat[index,1,3]-shared_arr[threadIdx().x,3]) - (tetr_dat[index,1,3]-tetr_dat[index,triangle_corner_num+1,3])*(tetr_dat[index,1,2]-shared_arr[threadIdx().x,2]))^2)+
               (((tetr_dat[index,1,3]-tetr_dat[index,triangle_corner_num+1,3])*(tetr_dat[index,1,1]-shared_arr[threadIdx().x,1]) - (tetr_dat[index,1,1]-tetr_dat[index,triangle_corner_num+1,1])*(tetr_dat[index,1,3]-shared_arr[threadIdx().x,3]))^2)+
               ((tetr_dat[index,1,1]-tetr_dat[index,triangle_corner_num+1,1])*(tetr_dat[index,1,2]-shared_arr[threadIdx().x,2]) - (tetr_dat[index,1,2]-tetr_dat[index,triangle_corner_num+1,2])*(tetr_dat[index,1,1]-shared_arr[threadIdx().x,1]))^2)) / sqrt((tetr_dat[index,triangle_corner_num+1,2]-tetr_dat[index,1,2])^2+(tetr_dat[index,triangle_corner_num+1,3]-tetr_dat[index,1,3])^2+(tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,1])^2)
-
-          # var1+=sqrt((shared_arr[threadIdx().x,1] - ((tetr_dat[index,triangle_corner_num+1,1]-tetr_dat[index,1,1])*(point_num/(num_base_samp_points+1))))^2
-          #                +(shared_arr[threadIdx().x,2] -((tetr_dat[index,triangle_corner_num+1,2]-tetr_dat[index,1,2])*(point_num/(num_base_samp_points+1))))^2     
-          #                +(shared_arr[threadIdx().x,3] -((tetr_dat[index,triangle_corner_num+1,3]-tetr_dat[index,1,3])*(point_num/(num_base_samp_points+1))) )^2     
-          # ) 
-
+        end#if else point_num==num_base_samp_points  
       end#for triangle_corner_num   
-      
+    
 
       #now as we had looked into distance to other points in 5 directions we divide by 5 and save it to the out_sampled_points
       out_sampled_points[index,point_num,2]= ((shared_arr[threadIdx().x,4]/5)^3)
