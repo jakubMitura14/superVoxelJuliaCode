@@ -251,7 +251,6 @@ function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base
 
       ##calculate weight of the point
       #first distance from next and previous point on the line between sv center and triangle center
-      # shared_arr[threadIdx().x,5]=(tetr_dat[index,5,1]-tetr_dat[index,1,1]) +((tetr_dat[index,5,2]-tetr_dat[index,1,2]))+(tetr_dat[index,5,3]-tetr_dat[index,1,3]) #distance between main sample points (two times for distance to previous and next)
       shared_arr[threadIdx().x,4]=sqrt((shared_arr[threadIdx().x,1])^2 +(shared_arr[threadIdx().x,2])^2+(shared_arr[threadIdx().x,3])^2)*2 #distance between main sample points (two times for distance to previous and next)
       #now we get the distance to the lines that get from sv center to the triangle corners - for simplicity
       # we can assume that sv center location is 0.0,0.0,0.0 as we need only diffrences 
@@ -283,7 +282,6 @@ function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base
       #now as we had looked into distance to other points in 5 directions we divide by 5 and save it to the out_sampled_points
       # out_sampled_points[index,point_num,2]= ((shared_arr[threadIdx().x,4]/5)^3)
       out_sampled_points[index,point_num,2]= (((shared_arr[threadIdx().x,4])/5)^3)
-      # out_sampled_points[index,point_num,2]= (((shared_arr[threadIdx().x,4])/5)^3)
 
     
       ##time to get value by interpolation and save it to the out_sampled_points

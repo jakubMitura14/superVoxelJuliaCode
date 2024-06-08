@@ -555,11 +555,11 @@ for index in 1:size(tetr_dat_out)[1]
         if(num_point==num_base_samp_points)
 
 
-            # @test isapprox(((((norm((tetr_dat_out[index,1,1:3]-(tetr_dat_out[index,5,1:3]))./(num_base_samp_points+1) )*2)+
-            #     (norm((pp-(tetr_dat_out[index,2,1:3])).*(1/(num_additional_samp_points+1)) ))+
-            #     (norm((pp-(tetr_dat_out[index,3,1:3])).*(1/(num_additional_samp_points+1)) ))+
-            #     (norm((pp-(tetr_dat_out[index,4,1:3])).*(1/(num_additional_samp_points+1)) ))
-            #     )/5)^3),out_sampled_points[index,num_point,2], atol=0.001)
+            @test isapprox(((((norm((tetr_dat_out[index,1,1:3]-(tetr_dat_out[index,5,1:3]))./(num_base_samp_points+1) )*2)+
+                (norm((pp-(tetr_dat_out[index,2,1:3])).*(1/(num_additional_samp_points+1)) ))+
+                (norm((pp-(tetr_dat_out[index,3,1:3])).*(1/(num_additional_samp_points+1)) ))+
+                (norm((pp-(tetr_dat_out[index,4,1:3])).*(1/(num_additional_samp_points+1)) ))
+                )/5)^3),out_sampled_points[index,num_point,2], atol=0.001)
         else
 
             @test isapprox(((((norm((tetr_dat_out[index,1,1:3]-(tetr_dat_out[index,5,1:3]))./(num_base_samp_points+1) )*2)+
