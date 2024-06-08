@@ -533,7 +533,17 @@ end #get_on_a_line
 #     point_a[3]+(point_b[3]-point_a[3])*rel_distance]
 # end #get_on_a_line    
 
+function cross_product(a, b)
+    return [a[2]*b[3] - a[3]*b[2], a[3]*b[1] - a[1]*b[3], a[1]*b[2] - a[2]*b[1]]
+end
 
+function normm(a)
+    return sqrt(sum([i^2 for i in a]))
+end
+
+function distance_point_to_line_gold(p, l1, l2)
+    return normm(cross_product(l2-l1, l1-p)) / norm(l2-l1)
+end
 
 for index in 1:size(tetr_dat_out)[1]
     pp=[]
@@ -541,8 +551,27 @@ for index in 1:size(tetr_dat_out)[1]
     for num_point in 1:num_base_samp_points
         pp=get_on_a_line(tetr_dat_out[index,1,:],tetr_dat_out[index,5,:],num_point/(num_base_samp_points+1))
         @test out_sampled_points[index,num_point,:][3:5]≈pp
-        @test out_sampled_points[index,num_point,1] ≈trilinear_interpolation_kernel_cpu(pp, source_arr)
+        @test isapprox(out_sampled_points[index,num_point,1], trilinear_interpolation_kernel_cpu(pp, source_arr), atol=0.001)
+        if(num_point==num_base_samp_points)
 
+
+            # @test isapprox(((((norm((tetr_dat_out[index,1,1:3]-(tetr_dat_out[index,5,1:3]))./(num_base_samp_points+1) )*2)+
+            #     (norm((pp-(tetr_dat_out[index,2,1:3])).*(1/(num_additional_samp_points+1)) ))+
+            #     (norm((pp-(tetr_dat_out[index,3,1:3])).*(1/(num_additional_samp_points+1)) ))+
+            #     (norm((pp-(tetr_dat_out[index,4,1:3])).*(1/(num_additional_samp_points+1)) ))
+            #     )/5)^3),out_sampled_points[index,num_point,2], atol=0.001)
+        else
+
+            @test isapprox(((((norm((tetr_dat_out[index,1,1:3]-(tetr_dat_out[index,5,1:3]))./(num_base_samp_points+1) )*2)+
+            distance_point_to_line_gold(pp,tetr_dat_out[index,1,1:3],tetr_dat_out[index,2,1:3])+
+            distance_point_to_line_gold(pp,tetr_dat_out[index,1,1:3],tetr_dat_out[index,3,1:3])+
+            distance_point_to_line_gold(pp,tetr_dat_out[index,1,1:3],tetr_dat_out[index,4,1:3]) 
+            )/5)^3),out_sampled_points[index,num_point,2], atol=0.001)
+
+
+        end
+
+            
     end
     ##pp is last base sample point
     ### testing additional sample points
@@ -662,17 +691,7 @@ end
 # viz(points_mesh, color = 1:length(points_mesh))
 
 
-function cross_product(a::Vector{Float64}, b::Vector{Float64})::Vector{Float64}
-    return [a[2]*b[3] - a[3]*b[2], a[3]*b[1] - a[1]*b[3], a[1]*b[2] - a[2]*b[1]]
-end
 
-function normm(a::Vector{Float64})::Float64
-    return sqrt(sum([i^2 for i in a]))
-end
-
-function distance_point_to_line_gold(p::Vector{Float64}, l1::Vector{Float64}, l2::Vector{Float64})::Float64
-    return normm(cross_product(l2-l1, l1-p)) / norm(l2-l1)
-end
 
 # p1=[2.5,5.7,1.8]
 # p2=[1.4,5.1,2.3]
