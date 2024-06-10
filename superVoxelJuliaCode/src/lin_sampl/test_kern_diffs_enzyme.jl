@@ -16,6 +16,11 @@ using Logging, FiniteDifferences, FiniteDiff
 using Interpolations,Dates
 import CUDA
 using KernelAbstractions
+using LLVMLoopInfo
+
+# ]add Revise, CUDA, Meshes, GLMakie, Combinatorics, SplitApplyCombine, ChainRulesCore, ChainRulesTestUtils, EnzymeTestUtils, Logging, FiniteDifferences, FiniteDiff, Interpolations, Dates, KernelAbstractions
+
+
 includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
 includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
 
@@ -57,17 +62,21 @@ source_arr=rand(Float32, image_shape)
 tetr_dat_out = zeros(size(tetrs))
 
 
-threads_point_info,blocks_point_info,pad_point_info=prepare_for_set_tetr_dat(size(tetrs))
+# threads_point_info,blocks_point_info,pad_point_info=prepare_for_set_tetr_dat(size(tetrs))
 tetr_dat=CuArray(Float32.(tetrs))
 source_arr=CuArray(Float32.(source_arr))
 control_points=CuArray(Float32.(control_points))
 sv_centers=CuArray(Float32.(sv_centers))
 
+tetr_dat_out = CUDA.zeros(size(tetr_dat)...)
+
+# call_set_tetr_dat_kern(tetr_dat, source_arr, control_points, sv_centers)
+
 function get_current_time()
     return Dates.now()
 end
 current_time = get_current_time()
-a, a_pullback = rrule(call_set_tetr_dat_kern, tetr_dat, source_arr, control_points, sv_centers, threads_point_info, blocks_point_info, pad_point_info);
+a, a_pullback = rrule(call_set_tetr_dat_kern, tetr_dat, tetr_dat_out,source_arr, control_points, sv_centers);
 a_pullback(tetr_dat)
 
 println("Time taken (minutes): ", Dates.value(get_current_time() - current_time)/ 60000.0)
@@ -77,5 +86,9 @@ println("Time taken (minutes): ", Dates.value(get_current_time() - current_time)
 # Dates.value(a)/60000.0
 # a/60000.0
 
-using Pkg
-Pkg.add(url="https://github.com/JuliaGPU/KernelAbstractions.jl")
+# using Pkg
+# Pkg.add(url="https://github.com/EnzymeAD/Enzyme.jl.git")
+# Pkg.add(url="https://github.com/JuliaGPU/KernelAbstractions.jl")
+
+
+# ahead of the time compilation julia 11 https://docs.julialang.org/en/v1.11-dev/devdocs/aot/
