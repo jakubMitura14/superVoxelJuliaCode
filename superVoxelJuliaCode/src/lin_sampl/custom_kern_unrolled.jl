@@ -52,18 +52,16 @@ function is created to find ith sample point when max is is the number of main s
 
   num_additional_samp_points - how many additional sample points we want to have between the last main sample point and the verticies of the triangle that we used for it
 """
-@kernel function set_tetr_dat_kern_unrolled(@Const(tetr_dat),tetr_dat_out,@Const(source_arr),@Const(control_points),@Const(sv_centers))
+# @kernel function set_tetr_dat_kern_unrolled(@Const(tetr_dat),tetr_dat_out,@Const(source_arr),@Const(control_points),@Const(sv_centers))
+function set_tetr_dat_kern_unrolled(tetr_dat,tetr_dat_out,source_arr,control_points,sv_centers)
 
-  # source_arr=CUDA.Const(source_arr)
-  # control_points=CUDA.Const(control_points)
-  # sv_centers=CUDA.Const(sv_centers)
-
-
-  # shared_arr = CuStaticSharedArray(Float32, (CUDA.blockDim_x(),3))
-  # shared_arr = CuStaticSharedArray(Float32, (256,4))
-  shared_arr = @localmem Float32 (@groupsize()[1], 4) 
+  source_arr=CUDA.Const(source_arr)
+  control_points=CUDA.Const(control_points)
+  sv_centers=CUDA.Const(sv_centers)
+  shared_arr = CuStaticSharedArray(Float32, (256,4))
+  # shared_arr = @localmem Float32 (@groupsize()[1], 4) 
   # index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
-  index = @index(Global)
+  # index = @index(Global)
 
   #TODO try also calculating local directional variance of the source_arr (so iterate only over x y or z axis); local entrophy
   #setting sv centers data
@@ -420,15 +418,16 @@ function is created to find ith sample point when max is is the number of main s
       (shared_arr[threadIdx().x,2] - Int(floor( shared_arr[threadIdx().x,2]))))
      *
      (shared_arr[threadIdx().x,3] - Int(floor( shared_arr[threadIdx().x,3]))))
-    # return nothing
+    return nothing
 end
 
 
-@kernel function point_info_kern_unrolled(@Const(tetr_dat),out_sampled_points  ,@Const(source_arr),num_base_samp_points,num_additional_samp_points)
-  # shared_arr = CuStaticSharedArray(Float32, (256,4))
-  # index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
-  shared_arr = @localmem Float32 (@groupsize()[1], 4) 
-  index = @index(Global)
+# @kernel function point_info_kern_unrolled(@Const(tetr_dat),out_sampled_points  ,@Const(source_arr),num_base_samp_points,num_additional_samp_points)
+function point_info_kern_unrolled(tetr_dat,out_sampled_points  ,source_arr,num_base_samp_points,num_additional_samp_points)
+  shared_arr = CuStaticSharedArray(Float32, (256,4))
+  index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
+  # shared_arr = @localmem Float32 (@groupsize()[1], 4) 
+  # index = @index(Global)
 
   #we get the diffrence between the sv center and the triangle center
   shared_arr[threadIdx().x,1]= ((tetr_dat[index,5,1]-tetr_dat[index,1,1])/(3+1))
@@ -1263,7 +1262,7 @@ end
 
 
 
-    # return nothing
+    return nothing
 
 end
 

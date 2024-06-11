@@ -808,14 +808,11 @@ function test_point_info_kern_unrolled()
     threads_point_info, blocks_point_info, pad_point_info = prepare_for_set_tetr_dat(size(tetrs))
     tetr_dat_out = call_set_tetr_dat_kern_test(tetrs, source_arr, control_points, sv_centers, threads_point_info, blocks_point_info, pad_point_info)
 
-
     threads_point_info, blocks_point_info, pad_point_info = prepare_for_point_info_kern(size(tetrs))
     out_sampled_points = call_point_info_kern_test_unrolled(tetr_dat_out, source_arr, control_points, threads_point_info, blocks_point_info, pad_point_info, num_base_samp_points, num_additional_samp_points)
 
-
     tetr_dat_out = Array(tetr_dat_out)
-
-
+    
     index = 1
     point_num = 1
     point_coords = (((tetr_dat_out[index, 5, 1] - tetr_dat_out[index, 1, 1]) * (point_num / (num_base_samp_points + 1))),
