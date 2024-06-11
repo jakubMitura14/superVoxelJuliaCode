@@ -1508,7 +1508,7 @@ d_sv_centers = CUDA.zeros(size(sv_centers)...)
 ### execute kernel no autodiff
 @cuda threads = threads_point_info blocks = blocks_point_info set_tetr_dat_kern_unrolled(tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers,max_index)
 @cuda threads = threads_point_info blocks = blocks_point_info point_info_kern_unrolled(tetr_dat_out,out_sampled_points  ,source_arr,num_base_samp_points,num_additional_samp_points,max_index)
-
+tetr_dat=tetr_dat_out
 ### execute kernel with autodiff
 
 function set_tetr_dat_kern_deff(tetr_dat,d_tetr_dat, tetr_dat_out, d_tetr_dat_out, source_arr,d_source_arr, control_points,d_control_points, sv_centers,d_sv_centers,max_index)
@@ -1535,7 +1535,6 @@ current_time = get_current_time()
 @cuda threads = threads_point_info blocks = blocks_point_info set_point_info_kern_deff(tetr_dat,d_tetr_dat, out_sampled_points, d_out_sampled_points, source_arr,d_source_arr, num_base_samp_points,num_additional_samp_points,max_index)
 
 println("Time taken bigger kernel (minutes): ", Dates.value(get_current_time() - current_time)/ 60000.0)
-
 
 
 
