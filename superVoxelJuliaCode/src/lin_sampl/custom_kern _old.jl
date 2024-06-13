@@ -157,7 +157,7 @@ function is created to find ith sample point when max is is the number of main s
 
   num_additional_samp_points - how many additional sample points we want to have between the last main sample point and the verticies of the triangle that we used for it
 """
-function set_tetr_dat_kern_forward(tetr_dat,tetr_dat_out,source_arr,control_points,sv_centers)
+function set_tetr_dat_kern_forward(tetr_dat,tetr_dat_out,source_arr,control_points,sv_centers,max_index)
 
   source_arr=CUDA.Const(source_arr)
   control_points=CUDA.Const(control_points)
@@ -167,6 +167,10 @@ function set_tetr_dat_kern_forward(tetr_dat,tetr_dat_out,source_arr,control_poin
   # shared_arr = CuStaticSharedArray(Float32, (CUDA.blockDim_x(),3))
   shared_arr = CuStaticSharedArray(Float32, (256,4))
   index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
+
+  if(index>max_index)
+    return nothing
+  end
 
   #TODO try also calculating local directional variance of the source_arr (so iterate only over x y or z axis); local entrophy
   #setting sv centers data
@@ -223,11 +227,14 @@ end
 
 
 
-function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base_samp_points,num_additional_samp_points)
+function point_info_kern_forward(tetr_dat,out_sampled_points,source_arr,num_base_samp_points,num_additional_samp_points,max_index)
   shared_arr = CuStaticSharedArray(Float32, (256,4))
   index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
 
-  
+  if(index>max_index)
+    return nothing
+  end
+
   # we iterate over rest of points in main sample points
   @loopinfo unroll for point_num in UInt8(1):UInt8(num_base_samp_points)
 

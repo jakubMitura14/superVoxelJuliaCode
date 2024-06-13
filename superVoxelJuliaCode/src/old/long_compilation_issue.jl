@@ -1469,8 +1469,6 @@ function prepare_for_kern(tetr_dat_shape)
 end
 
 
-
-
 radiuss = Float32(4.0)
 diam = radiuss * 2
 num_weights_per_point = 6
@@ -1527,7 +1525,7 @@ end
 
 
 current_time = get_current_time() 
-@cuda threads = threads_point_info blocks = blocks_point_info set_tetr_dat_kern_deff(tetr_dat,d_tetr_dat, tetr_dat_out, d_tetr_dat_out, source_arr,d_source_arr, control_points,d_control_points, sv_centers,d_sv_centers,max_index)
+# @cuda threads = threads_point_info blocks = blocks_point_info set_tetr_dat_kern_deff(tetr_dat,d_tetr_dat, tetr_dat_out, d_tetr_dat_out, source_arr,d_source_arr, control_points,d_control_points, sv_centers,d_sv_centers,max_index)
 
 println("Time taken smaller kernel (minutes): ", Dates.value(get_current_time() - current_time)/ 60000.0) #15.297383333333334
 
