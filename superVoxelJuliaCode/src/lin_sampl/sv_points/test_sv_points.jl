@@ -19,8 +19,8 @@ using CUDA
 using Combinatorics
 
 
-includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
-includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
 
 
 
@@ -105,32 +105,31 @@ size(tetrs)
 
 
 #### getting data about first supervoxel (first 24 tetrahedrons in tetrs)
-function fill_tetrahedron_data(tetr_dat, sv_centers,control_points,index)
-    center=map(axis-> sv_centers[Int(tetr_dat[index,1,1]),Int(tetr_dat[index,1,2]),Int(tetr_dat[index,1,3]),axis],[1,2,3])
-    corners=map( corner_num->
-      map(axis-> control_points[Int(tetr_dat[index,corner_num,1]),Int(tetr_dat[index,corner_num,2]),Int(tetr_dat[index,corner_num,3]),Int(tetr_dat[index,corner_num,4]),axis],[1,2,3])
-      ,[2,3,4])
-    corners = [center,corners...]
+function fill_tetrahedron_data(tetr_dat, sv_centers, control_points, index)
+    center = map(axis -> sv_centers[Int(tetr_dat[index, 1, 1]), Int(tetr_dat[index, 1, 2]), Int(tetr_dat[index, 1, 3]), axis], [1, 2, 3])
+    corners = map(corner_num ->
+            map(axis -> control_points[Int(tetr_dat[index, corner_num, 1]), Int(tetr_dat[index, corner_num, 2]), Int(tetr_dat[index, corner_num, 3]), Int(tetr_dat[index, corner_num, 4]), axis], [1, 2, 3]), [2, 3, 4])
+    corners = [center, corners...]
     return corners
 end
 
 function get_tetrahedrons_from_corners(corners)
-    points = map(el->Meshes.Point((el[1],el[2],el[3])),corners)
+    points = map(el -> Meshes.Point((el[1], el[2], el[3])), corners)
     return Meshes.Tetrahedron(points...)
 end
-first_sv_tetrs= map(index->fill_tetrahedron_data(tetrs, sv_centers,control_points,index),1:24)
-first_sv_tetrs=map(get_tetrahedrons_from_corners,first_sv_tetrs)
+first_sv_tetrs = map(index -> fill_tetrahedron_data(tetrs, sv_centers, control_points, index), 1:24)
+first_sv_tetrs = map(get_tetrahedrons_from_corners, first_sv_tetrs)
 
 viz(first_sv_tetrs, color=1:length(first_sv_tetrs))
 
-curr_sv=sv_centers[1, 1, 1, :]
-curr_tetr=tetrs[1:24,:,:]
+curr_sv = sv_centers[1, 1, 1, :]
+curr_tetr = tetrs[1:24, :, :]
 
-index=1
+index = 1
 
 
 
-curr_tetr[4,:,:]
+curr_tetr[4, :, :]
 
 # # control_points first dimension is lin_x, lin_y, lin_z, oblique
 # # weights=zeros((dims_plus[1],dims_plus[2],dims_plus[3],num_weights_per_point))

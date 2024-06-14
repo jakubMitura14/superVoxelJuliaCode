@@ -4,15 +4,15 @@ using KernelAbstractions
 using Zygote, Lux, LuxCUDA
 using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
-using FillArrays
+
 using LinearAlgebra
-using Images, ImageFiltering
+
 using Revise
 
 Enzyme.API.strictAliasing!(false)# taken from here https://github.com/EnzymeAD/Enzyme.jl/issues/1159
 
 
-includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern.jl")
 
 function point_info_kern_deff(tetr_dat, d_tetr_dat, out_sampled_points, d_out_sampled_points, source_arr, d_source_arr, control_points, d_control_points, sv_centers, d_sv_centers, num_base_samp_points, num_additional_samp_points
 )

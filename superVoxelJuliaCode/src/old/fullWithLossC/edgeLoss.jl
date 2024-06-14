@@ -15,7 +15,7 @@ using KernelAbstractions
 using Zygote, Lux
 using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
-using FillArrays
+
 
 # rng = Random.default_rng()
 # Nx, Ny, Nz = 8, 8, 8

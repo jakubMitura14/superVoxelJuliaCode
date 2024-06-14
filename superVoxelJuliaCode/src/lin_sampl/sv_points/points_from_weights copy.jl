@@ -12,24 +12,24 @@
 
 # """
 using Pkg
-using ChainRulesCore,Zygote,CUDA,Enzyme
+using ChainRulesCore, Zygote, CUDA, Enzyme
 # using CUDAKernels
 using KernelAbstractions
 # using KernelGradients
-using Zygote, Lux,LuxCUDA
+using Zygote, Lux, LuxCUDA
 using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
-using FillArrays
+
 using LinearAlgebra
 using Revise
-using Images,ImageFiltering
 
 
-function  get_point_on_a_line(vertex_0,vertex_1,weight)
-    diff_x=vertex_1[1]-vertex_0[1]
-    diff_y=vertex_1[2]-vertex_0[2]
-    diff_z=vertex_1[3]-vertex_0[3]
-    return [vertex_0[1]+(diff_x*weight),vertex_0[2]+(diff_y*weight),vertex_0[3]+(diff_z*weight)]
+
+function get_point_on_a_line(vertex_0, vertex_1, weight)
+    diff_x = vertex_1[1] - vertex_0[1]
+    diff_y = vertex_1[2] - vertex_0[2]
+    diff_z = vertex_1[3] - vertex_0[3]
+    return [vertex_0[1] + (diff_x * weight), vertex_0[2] + (diff_y * weight), vertex_0[3] + (diff_z * weight)]
 end
 
 """
@@ -54,24 +54,24 @@ morover basic control points that are modified by this function are independent 
 #     ]
 # end #apply_weights_to_locs
 
-function apply_weights_to_locs_kern(control_points,weights,radius,control_points_size)
+function apply_weights_to_locs_kern(control_points, weights, radius, control_points_size)
     # z = div((threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())),(control_points_size[1]*control_points_size[2]))
     # y = div((threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))-(z*(control_points_size[1]*control_points_size[2])) , (control_points_size[1]))
     # x = ((threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))-(z*(control_points_size[1]*control_points_size[2]))-(y*(control_points_size[1]) ) )
 
-    x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
-    y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y())) 
-    z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z())) 
+    x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
+    y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y()))
+    z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z()))
 
-    if(x<=control_points_size[1] && y<=control_points_size[2] && z<=control_points_size[3])
+    if (x <= control_points_size[1] && y <= control_points_size[2] && z <= control_points_size[3])
         # control_points[x,y,z,1,1]=control_points[x,y,z,1,1]+weights[x,y,z,1]*radius#lin_x
         # control_points[x,y,z,2,2]=control_points[x,y,z,2,2]+weights[x,y,z,2]*radius#lin_y
         # control_points[x,y,z,3,3]=control_points[x,y,z,3,3]+weights[x,y,z,3]*radius#lin_z
-        
+
         # control_points[x,y,z,4,1]=control_points[x,y,z,4,1]+weights[x,y,z,4]*radius
         # control_points[x,y,z,4,2]=control_points[x,y,z,4,2]+weights[x,y,z,5]*radius
         # control_points[x,y,z,4,3]=control_points[x,y,z,4,3]+weights[x,y,z,6]*radius
-    end    
+    end
 
     return nothing
 
@@ -80,49 +80,49 @@ end #apply_weights_to_locs
 ############################# Enzyme differentiation
 
 
-function apply_weights_to_locs_kern_deff(control_points,d_control_points,weights,d_weights,radius)
+function apply_weights_to_locs_kern_deff(control_points, d_control_points, weights, d_weights, radius)
 
-    Enzyme.autodiff_deferred(Reverse,apply_weights_to_locs_kern, Const, Duplicated(control_points, d_control_points),Duplicated(weights, d_weights),Const(radius),Const(size(control_points)) )
+    Enzyme.autodiff_deferred(Reverse, apply_weights_to_locs_kern, Const, Duplicated(control_points, d_control_points), Duplicated(weights, d_weights), Const(radius), Const(size(control_points)))
     return nothing
 end
 
 
-function call_apply_weights_to_locs_kern(control_points,weights,radius,threads,blocks)
+function call_apply_weights_to_locs_kern(control_points, weights, radius, threads, blocks)
 
-    @cuda threads = threads blocks = blocks apply_weights_to_locs_kern(control_points,weights,radius,size(control_points))
+    @cuda threads = threads blocks = blocks apply_weights_to_locs_kern(control_points, weights, radius, size(control_points))
     return control_points
 end
 
 
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(call_apply_weights_to_locs_kern),control_points,weights,radius,threads,blocks)
-    
+function ChainRulesCore.rrule(::typeof(call_apply_weights_to_locs_kern), control_points, weights, radius, threads, blocks)
 
-    control_points_out = call_apply_weights_to_locs_kern(control_points,weights,radius,threads,blocks)
+
+    control_points_out = call_apply_weights_to_locs_kern(control_points, weights, radius, threads, blocks)
 
     function kernel1_pullback(d_control_points_out)
 
         d_weights = CUDA.ones(size(d_weights))
 
-        @cuda threads = threads blocks = blocks apply_weights_to_locs_kern_deff(control_points,CuArray(collect(d_control_points_out)),weights,d_weights,radius)
+        @cuda threads = threads blocks = blocks apply_weights_to_locs_kern_deff(control_points, CuArray(collect(d_control_points_out)), weights, d_weights, radius)
 
-        return d_control_points,d_weights,NoTangent(),NoTangent(),NoTangent()
-    end   
+        return d_control_points, d_weights, NoTangent(), NoTangent(), NoTangent()
+    end
     return control_points_out, kernel1_pullback
 
 end
 
 
 ############## lux definitions
-struct Points_weights_str<: Lux.AbstractExplicitLayer
+struct Points_weights_str <: Lux.AbstractExplicitLayer
     radius::Int
     threads::Tuple{Int,Int,Int}
     blocks::Tuple{Int,Int,Int}
 end
 
-function Points_weights(radius,threads,blocks)
-    return Points_weights_str(radius,threads,blocks)
+function Points_weights(radius, threads, blocks)
+    return Points_weights_str(radius, threads, blocks)
 end
 
 function Lux.initialparameters(rng::AbstractRNG, l::Points_weights_str)
@@ -130,12 +130,12 @@ function Lux.initialparameters(rng::AbstractRNG, l::Points_weights_str)
 end
 
 function Lux.initialstates(::AbstractRNG, l::Points_weights_str)::NamedTuple
-    return (radius =l.radius,threads=l.threads,blocks=l.blocks )
+    return (radius=l.radius, threads=l.threads, blocks=l.blocks)
 end
 
 function (l::Points_weights_str)(x, ps, st::NamedTuple)
-    control_points,weights= x
-    return call_apply_weights_to_locs_kern(control_points,weights,st.radius,st.threads,st.blocks),st
+    control_points, weights = x
+    return call_apply_weights_to_locs_kern(control_points, weights, st.radius, st.threads, st.blocks), st
 end
 
 
@@ -182,7 +182,7 @@ end
 #     """
 #     p0=get_point_on_a_line_b(vertex_a,vertex_b,edge_weights[0])
 #     p1=get_point_on_a_line_b(vertex_c,vertex_d,edge_weights[1])
-    
+
 #     p2=get_point_on_a_line_b(vertex_a,vertex_d,edge_weights[2])
 #     p3=get_point_on_a_line_b(vertex_b,vertex_c,edge_weights[3])
 
@@ -197,15 +197,15 @@ end
 #     a1 = B[1] - A[1]
 #     b1 = A[0] - B[0]
 #     c1 = a1*(A[0]) + b1*(A[1])
- 
+
 #     # Line CD represented as a2x + b2y = c2
 #     a2 = D[1] - C[1]
 #     b2 = C[0] - D[0]
 #     c2 = a2*(C[0]) + b2*(C[1])
-    
+
 
 #     determinant = (a1*b2 - a2*b1)+0.000000000001
-    
+
 #     # if (determinant == 0):
 #     #     # The lines are parallel. This is simplified
 #     #     # by returning a pair of FLT_MAX

@@ -13,25 +13,25 @@ using Test
 using ChainRulesTestUtils
 using EnzymeTestUtils
 using Logging, FiniteDifferences, FiniteDiff
-using Interpolations,Dates
+using Interpolations, Dates
 import CUDA
 using KernelAbstractions
 using LLVMLoopInfo
 
-# ]add Revise, CUDA, Meshes, GLMakie, Combinatorics, SplitApplyCombine, ChainRulesCore, ChainRulesTestUtils, EnzymeTestUtils, Logging, FiniteDifferences, FiniteDiff, Interpolations, Dates, KernelAbstractions
+# ]add LLVMLoopInfo,Plots,Optimisers,Revise,Zygote,Lux,cuDNN,NNlib ,LuxCUDA,Enzyme,CUDA, Meshes, GLMakie, Combinatorics, SplitApplyCombine, ChainRulesCore, ChainRulesTestUtils, EnzymeTestUtils, Logging, FiniteDifferences, FiniteDiff, Interpolations, Dates, KernelAbstractions
 
 
-includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
-includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
 
-includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern_unrolled.jl")
-# includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point.jl")
-# includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point_add_a.jl")
-# includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point_add_b.jl")
-includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_tetr.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern_unrolled.jl")
+# includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point.jl")
+# includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point_add_a.jl")
+# includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point_add_b.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_tetr.jl")
 
-includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern _old.jl")
-includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/utils_lin_sampl.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern _old.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/utils_lin_sampl.jl")
 
 
 function prepare_for_set_tetr_dat(tetr_dat_shape)
@@ -58,15 +58,15 @@ image_shape = (a, a, a)
 example_set_of_svs = initialize_centers_and_control_points(image_shape, radiuss)
 sv_centers, control_points, tetrs, dims = example_set_of_svs
 #here we get all tetrahedrons mapped to non modified locations
-source_arr=rand(Float32, image_shape)
+source_arr = rand(Float32, image_shape)
 tetr_dat_out = zeros(size(tetrs))
 
 
 # threads_point_info,blocks_point_info,pad_point_info=prepare_for_set_tetr_dat(size(tetrs))
-tetr_dat=CuArray(Float32.(tetrs))
-source_arr=CuArray(Float32.(source_arr))
-control_points=CuArray(Float32.(control_points))
-sv_centers=CuArray(Float32.(sv_centers))
+tetr_dat = CuArray(Float32.(tetrs))
+source_arr = CuArray(Float32.(source_arr))
+control_points = CuArray(Float32.(control_points))
+sv_centers = CuArray(Float32.(sv_centers))
 
 tetr_dat_out = CUDA.zeros(size(tetr_dat)...)
 
@@ -76,10 +76,10 @@ function get_current_time()
     return Dates.now()
 end
 current_time = get_current_time()
-a, a_pullback = rrule(call_set_tetr_dat_kern, tetr_dat, tetr_dat_out,source_arr, control_points, sv_centers);
+a, a_pullback = rrule(call_set_tetr_dat_kern, tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers);
 a_pullback(tetr_dat)
 
-println("Time taken (minutes): ", Dates.value(get_current_time() - current_time)/ 60000.0)
+println("Time taken (minutes): ", Dates.value(get_current_time() - current_time) / 60000.0)
 
 # r=get_current_time()
 # a=(get_current_time()-r)
@@ -92,3 +92,5 @@ println("Time taken (minutes): ", Dates.value(get_current_time() - current_time)
 
 
 # ahead of the time compilation julia 11 https://docs.julialang.org/en/v1.11-dev/devdocs/aot/
+
+#/home/jakubmitura/.juliaup/bin/julia

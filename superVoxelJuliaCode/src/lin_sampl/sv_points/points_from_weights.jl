@@ -19,10 +19,10 @@ using KernelAbstractions
 using Zygote, Lux, LuxCUDA
 using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
-using FillArrays
+
 using LinearAlgebra
 using Revise
-using Images, ImageFiltering
+
 
 
 # add EnzymeTestUtils,ChainRulesTestUtils,Revise,LLVMLoopInfo,Meshes,LinearAlgebra,GLMakie,Combinatorics,SplitApplyCombine,CUDA,Combinatorics,Random,Statistics,ChainRulesCore,ChainRulesCore, Zygote, CUDA, Enzyme, KernelAbstractions, Lux, LuxCUDA, FillArrays, LinearAlgebra,  Images, ImageFiltering,Optimisers,NNlib, Plots
@@ -52,13 +52,12 @@ function apply_weights_to_locs(control_points, weights, radius)
     ]
 end #apply_weights_to_locs
 
-function apply_weights_to_locs_kern(control_points, control_points_out, weights, radius::Float32
-    , cp_x::UInt32,cp_y::UInt32,cp_z::UInt32)
+function apply_weights_to_locs_kern(control_points, control_points_out, weights, radius::Float32, cp_x::UInt32, cp_y::UInt32, cp_z::UInt32)
 
     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y()))
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z()))
-    
+
     if (x <= cp_x && y <= cp_y && z <= cp_z)
         # control_points[x, y, z, 1, 1] = 1 #+ weights[x, y, z, 1] * radius#lin_x
 
@@ -77,34 +76,28 @@ end #apply_weights_to_locs
 ############################# Enzyme differentiation
 
 
-function apply_weights_to_locs_kern_deff(control_points, d_control_points, control_points_out_in, d_control_points_out_in
-    , weights, d_weights, radius::Float32, cp_x::UInt32,cp_y::UInt32,cp_z::UInt32)
+function apply_weights_to_locs_kern_deff(control_points, d_control_points, control_points_out_in, d_control_points_out_in, weights, d_weights, radius::Float32, cp_x::UInt32, cp_y::UInt32, cp_z::UInt32)
 
-    Enzyme.autodiff_deferred(Enzyme.Reverse, apply_weights_to_locs_kern, Const, Duplicated(control_points, d_control_points)
-    , Duplicated(control_points_out_in, d_control_points_out_in), Duplicated(weights, d_weights), Const(radius)
-    , Const(cp_x)
-    , Const(cp_y)
-    , Const(cp_z)
+    Enzyme.autodiff_deferred(Enzyme.Reverse, apply_weights_to_locs_kern, Const, Duplicated(control_points, d_control_points), Duplicated(control_points_out_in, d_control_points_out_in), Duplicated(weights, d_weights), Const(radius), Const(cp_x), Const(cp_y), Const(cp_z)
     )
     return nothing
 end
 
 
-function call_apply_weights_to_locs_kern(control_points,control_points_out, weights, radius, threads, blocks)
+function call_apply_weights_to_locs_kern(control_points, control_points_out, weights, radius, threads, blocks)
     # control_points_out = CUDA.zeros(size(control_points))
-    @cuda threads = threads blocks = blocks apply_weights_to_locs_kern(control_points, control_points_out,weights, radius
-    , UInt32(size(control_points)[1]), UInt32(size(control_points)[2]), UInt32(size(control_points)[3])   )
-    
-    
+    @cuda threads = threads blocks = blocks apply_weights_to_locs_kern(control_points, control_points_out, weights, radius, UInt32(size(control_points)[1]), UInt32(size(control_points)[2]), UInt32(size(control_points)[3]))
+
+
     return control_points_out
 end
 
 control_points_out_in
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(call_apply_weights_to_locs_kern), control_points,control_points_out, weights, radius, threads, blocks)
+function ChainRulesCore.rrule(::typeof(call_apply_weights_to_locs_kern), control_points, control_points_out, weights, radius, threads, blocks)
 
-    control_points_out = call_apply_weights_to_locs_kern(control_points,control_points_out, weights, radius, threads, blocks)
+    control_points_out = call_apply_weights_to_locs_kern(control_points, control_points_out, weights, radius, threads, blocks)
 
     function kernel1_pullback(d_control_points_out)
 
@@ -116,17 +109,14 @@ function ChainRulesCore.rrule(::typeof(call_apply_weights_to_locs_kern), control
         # d_control_points_out = CUDA.ones(sizz...)
         d_control_points = CUDA.ones(sizz...)
 
-#@device_code_warntype
+        #@device_code_warntype
         @cuda threads = threads blocks = blocks apply_weights_to_locs_kern_deff(
-            control_points,d_control_points  
-            , control_points_out, CuArray(collect(d_control_points_out))
-            , weights, d_weights
-            , radius, UInt32(sizz[1]), UInt32(sizz[2]), UInt32(sizz[3]))
-        
+            control_points, d_control_points, control_points_out, CuArray(collect(d_control_points_out)), weights, d_weights, radius, UInt32(sizz[1]), UInt32(sizz[2]), UInt32(sizz[3]))
+
         #     print("eeeeee $(sum(control_points_out))")
 
         # return NoTangent(),d_control_points_out,d_control_points_out_in,d_weights,NoTangent(),NoTangent(),NoTangent()
-        return NoTangent(),d_control_points,CuArray(collect(d_control_points_out)), d_weights, NoTangent(), NoTangent(), NoTangent()
+        return NoTangent(), d_control_points, CuArray(collect(d_control_points_out)), d_weights, NoTangent(), NoTangent(), NoTangent()
     end
 
     return control_points_out, kernel1_pullback

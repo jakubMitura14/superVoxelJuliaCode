@@ -12,20 +12,20 @@ using ChainRulesCore
 using Test
 using ChainRulesTestUtils
 using EnzymeTestUtils
-using Logging,FiniteDifferences,FiniteDiff
-includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
-includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
+using Logging, FiniteDifferences, FiniteDiff
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
 
-# includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern.jl")
-# includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point.jl")
-# includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point_add_a.jl")
-# includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point_add_b.jl")
-# includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_tetr.jl")
+# includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern.jl")
+# includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point.jl")
+# includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point_add_a.jl")
+# includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point_add_b.jl")
+# includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_tetr.jl")
 
-includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern _old.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern _old.jl")
 
 
-includet("/home/jm/projects_new/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/utils_lin_sampl.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/utils_lin_sampl.jl")
 
 
 radiuss = Float32(4.0)
@@ -56,7 +56,7 @@ control_points_size = size(control_points)
 threads_apply_w, blocks_apply_w = prepare_for_apply_weights_to_locs_kern(control_points_size, size(weights))
 
 # control_points = call_apply_weights_to_locs_kern(CuArray(control_points), CUDA.zeros(size(control_points)...), CuArray(weights), radiuss, threads_apply_w, blocks_apply_w)
-control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(copy(control_points)),CuArray(weights),radiuss,threads_apply_w,blocks_apply_w)
+control_points = call_apply_weights_to_locs_kern(CuArray(control_points), CuArray(copy(control_points)), CuArray(weights), radiuss, threads_apply_w, blocks_apply_w)
 
 # """
 # this function test single point in the control_points and check weather change in value is correct generally if weight is 
@@ -65,22 +65,22 @@ control_points=call_apply_weights_to_locs_kern(CuArray(control_points),CuArray(c
 # """
 @testset "Control Point Tests" begin
 
-    function test_control_point(cart_index,axes_of_change,point_ind,weight,radius,control_points,control_points_non_modified)
-        old_p=control_points_non_modified[cart_index[1],cart_index[2],cart_index[3],point_ind,:,:]
-        new_p=control_points[cart_index[1],cart_index[2],cart_index[3],point_ind,:,:]
-        changes=[0.0,0.0,0.0]
+    function test_control_point(cart_index, axes_of_change, point_ind, weight, radius, control_points, control_points_non_modified)
+        old_p = control_points_non_modified[cart_index[1], cart_index[2], cart_index[3], point_ind, :, :]
+        new_p = control_points[cart_index[1], cart_index[2], cart_index[3], point_ind, :, :]
+        changes = [0.0, 0.0, 0.0]
         for ax in axes_of_change
-            changes[ax]=weight*radius
+            changes[ax] = weight * radius
         end
-        old_p=old_p.+changes
-        return @test old_p==new_p
+        old_p = old_p .+ changes
+        return @test old_p == new_p
     end
 
-    for cart in [(1,1,1),(2,2,2)]
-        test_control_point((1,1,1),(1),1,0.5,radiuss,Array(control_points),Array(control_points_non_modified))
-        test_control_point((1,1,1),(2),2,0.5,radiuss,Array(control_points),Array(control_points_non_modified))
-        test_control_point((1,1,1),(3),3,0.5,radiuss,Array(control_points),Array(control_points_non_modified))
-        test_control_point((1,1,1),(1,2,3),4,0.5,radiuss,Array(control_points),Array(control_points_non_modified))
+    for cart in [(1, 1, 1), (2, 2, 2)]
+        test_control_point((1, 1, 1), (1), 1, 0.5, radiuss, Array(control_points), Array(control_points_non_modified))
+        test_control_point((1, 1, 1), (2), 2, 0.5, radiuss, Array(control_points), Array(control_points_non_modified))
+        test_control_point((1, 1, 1), (3), 3, 0.5, radiuss, Array(control_points), Array(control_points_non_modified))
+        test_control_point((1, 1, 1), (1, 2, 3), 4, 0.5, radiuss, Array(control_points), Array(control_points_non_modified))
     end
 end
 

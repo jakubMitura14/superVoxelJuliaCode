@@ -16,7 +16,7 @@ using KernelAbstractions
 using Zygote, Lux
 using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
-using FillArrays
+
 
 rng = Random.default_rng()
 

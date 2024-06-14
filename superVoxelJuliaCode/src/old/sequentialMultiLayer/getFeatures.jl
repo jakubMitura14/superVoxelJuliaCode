@@ -7,7 +7,7 @@ using KernelAbstractions
 using Zygote, Lux
 using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
-using FillArrays
+
 """
 utility macro to iterate in given range around given voxel
 """

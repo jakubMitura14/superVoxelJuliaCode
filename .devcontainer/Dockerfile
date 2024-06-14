@@ -2,16 +2,17 @@
 # ARG IMAGE=nvidia/cuda:12.1.1-devel-ubuntu20.04
 # FROM nvidia/cudagl:11.3.0-devel
 # FROM nvidia/cuda:11.2.2-cudnn8-devel-ubuntu20.04
-# FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04
 # FROM nvidia/cuda:12.1.1-devel-ubuntu20.04
-FROM nvidia/cuda:12.1.1-devel-ubuntu20.04
+# FROM nvidia/cuda:12.1.1-devel-ubuntu20.04
 
 # ARG JULIA_RELEASE=1.10
 # ARG JULIA_VERSION=1.10.0
 
 
-ARG JULIA_RELEASE=1.9
-ARG JULIA_VERSION=1.9.0-rc3
+ARG JULIA_RELEASE=1.10
+ARG JULIA_VERSION=1.10.4
+# ARG JULIA_VERSION=1.9.0-rc3
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -135,15 +136,15 @@ RUN apt-get install --yes --no-install-recommends wget build-essential libcurl4 
     ./configure --with-openssl && make && make install
 
 
-COPY Project.toml Manifest.toml LocalPreferences.toml /usr/local/share/julia/environments/v${JULIA_RELEASE}/
+# COPY Project.toml Manifest.toml LocalPreferences.toml /usr/local/share/julia/environments/v${JULIA_RELEASE}/
 
-RUN JULIA_DEPOT_PATH=/usr/local/share/julia \ 
-    julia -e 'using Pkg; Pkg.Registry.update(); Pkg.instantiate(); Pkg.API.precompile()'
+# RUN JULIA_DEPOT_PATH=/usr/local/share/julia \ 
+#     julia -e 'using Pkg; Pkg.Registry.update(); Pkg.instantiate(); Pkg.API.precompile()'
 
 # # generate the device runtime library for all known and supported devices
 # # XXX: this doesn't precompile into the system depot anymore
-RUN JULIA_DEPOT_PATH=/usr/local/share/julia \ 
-    julia -e 'using CUDA; CUDA.precompile_runtime()'
+# RUN JULIA_DEPOT_PATH=/usr/local/share/julia \ 
+#     julia -e 'using CUDA; CUDA.precompile_runtime()'
 
 # the system depot contains precompiled packages, but its global environment cannot be
 # active at the same time of the user environment. we solve this by using a startup script

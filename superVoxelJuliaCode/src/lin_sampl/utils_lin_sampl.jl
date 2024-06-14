@@ -1,5 +1,6 @@
 using Pkg
 using ChainRulesCore,Zygote,CUDA,Enzyme
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
 
 """
 calculates optimal number of threads and blocks for given kernel

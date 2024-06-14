@@ -1,11 +1,11 @@
-using ChainRulesCore,Zygote,CUDA,Enzyme
+using ChainRulesCore, Zygote, CUDA, Enzyme
 # using CUDAKernels
 using KernelAbstractions
 # using KernelGradients
 using Zygote, Lux
 using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
-using FillArrays
+
 
 function mul_kernel(A)
     i = threadIdx().x
@@ -30,14 +30,14 @@ function ChainRulesCore.rrule(::typeof(calltestKern), A)
         blocks = (2, 2, 2)
         dp = CUDA.ones(size(p))
         dA = CUDA.ones(size(A))
-        @cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, CuArray(collect(dAout)),Nxa,Nya,Nza)
+        @cuda threads = threads blocks = blocks testKernDeff(A, dA, p, dp, Aout, CuArray(collect(dAout)), Nxa, Nya, Nza)
 
         f̄ = NoTangent()
         x̄ = dA
         ȳ = dp
-        
-        return f̄, x̄, ȳ,NoTangent(),NoTangent(),NoTangent()
-    end   
+
+        return f̄, x̄, ȳ, NoTangent(), NoTangent(), NoTangent()
+    end
     return Aout, call_test_kernel1_pullback
 
 end
@@ -47,11 +47,11 @@ end
 # maximum(ress[1])
 # maximum(ress[2])
 
-ress=Zygote.jacobian(calltestKern,A,p,Nx )
+ress = Zygote.jacobian(calltestKern, A, p, Nx)
 
 
-function KernelA(confA::Int,Nxa,Nya,Nza)
-    return KernelAstr(confA,Nxa,Nya,Nza)
+function KernelA(confA::Int, Nxa, Nya, Nza)
+    return KernelAstr(confA, Nxa, Nya, Nza)
 end
 
 

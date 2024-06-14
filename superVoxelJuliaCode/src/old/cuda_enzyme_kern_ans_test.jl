@@ -9,16 +9,17 @@ using ChainRulesCore, Zygote, CUDA, Enzyme, Test
 
 @kernel function example_kenr(@Const(A),A_out)
 
-    index = @index(Global)
+    # index = @index(Global)
+    index = @index(Global, Cartesian)
+    @print("\n index $(index[1]) $(index[2]) $(index[3]) $(index[4])\n")
     shared_arr = @localmem Float32 (@groupsize()[1], 1)
-    shared_arr[@index(Local, Linear)] = A[index]
-    A_out[index] = shared_arr[@index(Local, Linear), 1]
-    index = @index(Global)
+    shared_arr[@index(Local, Linear)] = A[index[1]]
+    A_out[index[1]] = shared_arr[@index(Local, Linear), 1]
 end
 
 function call_example(A,A_out)
     dev = get_backend(A)
-    example_kenr(dev, 256)(A,A_out, ndrange=(size(A)[1]))
+    example_kenr(dev, 256)(A,A_out, ndrange=(size(A)[1],3,6,4))
     KernelAbstractions.synchronize(dev)
     return nothing
 end
