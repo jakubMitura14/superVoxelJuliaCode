@@ -14,7 +14,7 @@ using ChainRulesTestUtils
 using EnzymeTestUtils
 using Logging, FiniteDifferences, FiniteDiff
 using Interpolations
-using KernelAbstractions
+using KernelAbstractions,Dates
 includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
 includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/points_from_weights.jl")
 includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern_unrolled.jl")
@@ -58,29 +58,31 @@ we want to associate with given point in the image so after iterating through sa
     shared_arr[@index(Local, Linear), 4] = 0.0
 
 
+    # we need to look over not cartesian indicies of new array and check just is a point in a given 
+    # tetrahedron next we can additionally use it to make sure that sample popints are always inside sv
     for i in range(1, (len_coords - 1))
         if (image_cartesian[index, 1] == floor(coords[1, i]))
-            shared_arr[@index(Local, Linear), 1] = floor(coords[1, i])
+            shared_arr[@index(Local, Linear), 1] = 1.0
         end
 
         if (image_cartesian[index, 1] == ceil(coords[1, i]))
-            shared_arr[@index(Local, Linear), 1] = ceil(coords[1, i])
+            shared_arr[@index(Local, Linear), 1] = 1.0
         end
 
         if (image_cartesian[index, 2] == floor(coords[2, i]))
-            shared_arr[@index(Local, Linear), 2] = floor(coords[1, 2])
+            shared_arr[@index(Local, Linear), 2] = 1.0
         end
 
         if (image_cartesian[index, 2] == ceil(coords[2, i]))
-            shared_arr[@index(Local, Linear), 2] = ceil(coords[2, i])
+            shared_arr[@index(Local, Linear), 2] = 1.0
         end
 
         if (image_cartesian[index, 3] == floor(coords[3, i]))
-            shared_arr[@index(Local, Linear), 3] = floor(coords[3, i])
+            shared_arr[@index(Local, Linear), 3] = 1.0
         end
 
         if (image_cartesian[index, 3] == ceil(coords[3, i]))
-            shared_arr[@index(Local, Linear), 3] = ceil(coords[3, i])
+            shared_arr[@index(Local, Linear), 3] = 1.0
         end
 
 
@@ -91,6 +93,12 @@ we want to associate with given point in the image so after iterating through sa
             # @print("   **i $i $(@index(Local, Linear))   **")
             res[index] += (coords[4, i] * (((image_cartesian[index, 1] - coords[1, i])^2) + ((image_cartesian[index, 2] - coords[2, i])^2) + ((image_cartesian[index, 3] - coords[3, i])^2)))
         end
+
+        shared_arr[@index(Local, Linear), 1] = 0.0
+        shared_arr[@index(Local, Linear), 2] = 0.0
+        shared_arr[@index(Local, Linear), 3] = 0.0
+        shared_arr[@index(Local, Linear), 4] = 0.0
+
     end
     if (res[index] > 0.5)
         # @print("  $(res[index])  "  )
@@ -98,6 +106,15 @@ we want to associate with given point in the image so after iterating through sa
     end
 
 end#inverse_interp_kern
+
+function threaded_map(f, max_index,out)
+    # out = similar(arr)
+    Threads.@threads for i in 1:max_index
+        out[i] = f(i)
+    end
+    return out
+end
+
 
 """
 given radiuss of the supervoxel and the size of the image we want to create (cube with edge lenth a) 
@@ -108,14 +125,14 @@ function create_synth_image_for_test(radiuss,a)
     diam = radiuss * 2
     num_weights_per_point = 6
     image_shape = (a, a, a)
-
-    print("\n uuuuuuuuuuuuuuuuuuuuuuu -2 \n")
+    # initialization of data structures
+    # print("\n uuuuuu 1 \n");current_time = get_current_time() 
+    
     example_set_of_svs = initialize_centers_and_control_points(image_shape, radiuss)
-    print("\n uuuuuuuuuuuuuuuuuuuuuuu -1 \n")
-
     sv_centers, control_points, tetrs, dims = example_set_of_svs
     source_arr = rand(Float32, image_shape)
     num_base_samp_points, num_additional_samp_points = 3, 2
+    # print("\n uuuuuu 2 min: $( Dates.value(get_current_time() - current_time)/ 60000.0) \n");current_time = get_current_time() 
 
 
     #get the number of threads and blocks needed for the kernel
@@ -128,45 +145,47 @@ function create_synth_image_for_test(radiuss,a)
     control_points = CuArray(Float32.(control_points))
     source_arr = CuArray(Float32.(source_arr))
     tetr_dat_out = CuArray(Float32.(tetrs))
+    # print("\n uuuuuu 3 min: $( Dates.value(get_current_time() - current_time)/ 60000.0) \n");current_time = get_current_time() 
 
     out_sampled_points = CUDA.zeros((size(tetr_dat)[1], num_base_samp_points + (3 * num_additional_samp_points), 5))
-    #initialize shadow memory
+    #initialize random weights
     dims_plus = (dims[1] + 1, dims[2] + 1, dims[3] + 1)
     weights = rand(dims_plus[1], dims_plus[2], dims_plus[3], num_weights_per_point)
     weights = weights .- 0.50001
     weights = (weights) .* 100
-    weights = CuArray(Float32.(tanh.(weights * 0.02)))
-
-    print("\n uuuuuuuuuuuuuuuuuuuuuuu 000 \n")
+    # weights = CuArray(Float32.(tanh.(weights * 0.1)))
+    weights = CuArray(Float32.(tanh.(weights)))
+    # print("\n uuuuuu 4 min: $( Dates.value(get_current_time() - current_time)/ 60000.0) \n");current_time = get_current_time() 
 
     control_points_out = CuArray(Float32.(control_points))
     threads_apply_w, blocks_apply_w = prepare_for_apply_weights_to_locs_kern(size(control_points), size(weights))
     call_apply_weights_to_locs_kern(control_points, control_points_out, weights, radiuss, threads_apply_w, blocks_apply_w)
+    # print("\n uuuuuu 5 min: $( Dates.value(get_current_time() - current_time)/ 60000.0) \n");current_time = get_current_time() 
 
     control_points = control_points_out
     ### execute kernel no autodiff
     @cuda threads = threads_point_info blocks = blocks_point_info set_tetr_dat_kern_forward(tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers, max_index)
     tetr_dat = tetr_dat_out
+    # print("\n uuuuuu 6 min: $( Dates.value(get_current_time() - current_time)/ 60000.0) \n");current_time = get_current_time() 
+
     @cuda threads = threads_point_info blocks = blocks_point_info point_info_kern_forward(tetr_dat_out, out_sampled_points, source_arr, num_base_samp_points, num_additional_samp_points, max_index)
+    # print("\n uuuuuu 7 min: $( Dates.value(get_current_time() - current_time)/ 60000.0) \n");current_time = get_current_time() 
 
     out_sampled_points = Array(out_sampled_points)
-    print("\n uuuuuuuuuuuuuuuuuuuuuuu 111 \n")
-
-
     #getting coordinates of each sampled point and assigning them a value
-    coords = map(index -> invert(splitdims(out_sampled_points[index, :, 3:5])), 1:size(out_sampled_points)[1])
+    # out_coords=[Vector{Float32}(undef, 3) for _ in 1:size(out_sampled_points)[1]]
+    coords = threaded_map(index -> invert(splitdims(out_sampled_points[index, :, 3:5])), size(out_sampled_points)[1],[[] for _ in 1:size(out_sampled_points)[1]])
     #for now we assign value that is just integer index of which supervoxel they are from we divide by 24 to get the supervoxel index not tetrahedron index
-    coords = map(index -> map(el -> [el..., Int(ceil(index / 24))], coords[index]), 1:size(out_sampled_points)[1])
+    coords = threaded_map(index -> map(el -> [el..., Int(ceil(index / 24))], coords[index]), size(out_sampled_points)[1],[[] for _ in 1:size(out_sampled_points)[1]])
+
     coords = reduce(vcat, coords)
     coords = reduce(hcat, coords) #shape 4xn
     #now we get cartesian coordinates of the image 
     image_cartesian = get_base_indicies_arr(image_shape)
     sh = size(image_cartesian)
     image_cartesian = reshape(image_cartesian, (sh[1] * sh[2] * sh[3], 3))
-
-
-
-    print("\n uuuuuuuuuuuuuuuuuuuuuuu 222 \n")
+    
+    # print("\n uuuuuu 8 min: $( Dates.value(get_current_time() - current_time)/ 60000.0) \n");current_time = get_current_time() 
 
     # coords=coords[:,1:20]
     # image_cartesian=image_cartesian[1:9000,:] #
@@ -176,29 +195,37 @@ function create_synth_image_for_test(radiuss,a)
     dev = get_backend(res)
     inverse_interp_kern(dev, 128)(CuArray(image_cartesian), CuArray(coords), len_coords, res, ndrange=(len_image_coords))
     KernelAbstractions.synchronize(dev)
+    # print("\n uuuuuu 9 min: $( Dates.value(get_current_time() - current_time)/ 60000.0) \n");current_time = get_current_time() 
 
     res_im=reshape(Array(res), (a,a,a))
     return res_im
 end
 
 radiuss = Float32(4.0)
-a = 256
-print("\n iiii \n")  #1536
-# create_synth_image_for_test(radiuss,a)
+a = 48
 
+function get_current_time()
+    return Dates.now()
+  end
 
-dims=(4,4,4)
-flattened_triangles_a=get_flattened_triangle_data(dims) 
-flattened_triangles_b=get_flattened_triangle_data_faster(dims) 
-flattened_triangles_a==flattened_triangles_b
-size(flattened_triangles_a)
-a
-# # using MedImages
-# using PyCall
-# sitk = pyimport_conda("SimpleITK", "simpleitk")
-# # sitk.GetImageFromArray(res_im)
-# sitk.WriteImage( sitk.GetImageFromArray(res_im),"/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/data/res_im.nii.gz")
+current_time = get_current_time() 
+
+res_im=create_synth_image_for_test(radiuss,a)
+
+println("Time taken (minutes): ", Dates.value(get_current_time() - current_time)/ 60000.0) #15.297383333333334
+
+# dims=(256,256,256)
+# flattened_triangles_a=get_flattened_triangle_data(dims) 
+# # flattened_triangles_b=get_flattened_triangle_data_faster(dims) 
+# flattened_triangles_a==flattened_triangles_b
+# size(flattened_triangles_a)
 # a
+# # # using MedImages
+using PyCall
+sitk = pyimport_conda("SimpleITK", "simpleitk")
+# sitk.GetImageFromArray(res_im)
+sitk.WriteImage( sitk.GetImageFromArray(res_im),"/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/data/res_im.nii.gz")
+a
 # ##### viss
 
 
@@ -226,3 +253,22 @@ a
 
 # viz(first_sv_tetrs, color=1:length(first_sv_tetrs))
 
+
+
+function is_point_in_tetrahedron(point, v1, v2, v3, v4)
+    # Compute the barycentric coordinates of the point
+    mat = [v1 v2 v3 v4; 1 1 1 1]
+    bary_coords = mat \ [point; 1]
+
+    # Check if all barycentric coordinates are between 0 and 1
+    return all(0 .<= bary_coords .<= 1)
+end
+
+# Usage
+point = [1.0, 1.0, 1.0]
+v1 = [0.0, 0.0, 0.0]
+v2 = [2.0, 0.0, 0.0]
+v3 = [0.0, 2.0, 0.0]
+v4 = [0.0, 0.0, 2.0]
+
+println(is_point_in_tetrahedron(point, v1, v2, v3, v4))  # Should print true

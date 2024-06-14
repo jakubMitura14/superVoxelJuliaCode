@@ -151,10 +151,62 @@ function get_tetr_triangles_in_corner(base_ind,corner)
     res=map(el-> permutedims(el, (2, 1)) ,res)
     res=map(el-> reshape(el, (1, size(el)...)) ,res)
     res=vcat(res...)
-    print("\n $(res) \n") # (6, 5, 4) 
+    # print("\n $(res) \n") # (6, 5, 4) 
 
     return res
 end
+
+function set_to_index(all_surf_triangles,add_ind, res_main_ind, el1,el2,el3,el4,el5)
+    all_surf_triangles[res_main_ind+add_ind,1,:]=el1
+    all_surf_triangles[res_main_ind+add_ind,2,:]=el2
+    all_surf_triangles[res_main_ind+add_ind,3,:]=el3
+    all_surf_triangles[res_main_ind+add_ind,4,:]=el4
+    all_surf_triangles[res_main_ind+add_ind,5,:]=el5
+
+end
+
+
+
+function get_tetr_triangles_in_corner_on_kern(indices,corner_add,all_surf_triangles,index)
+    base_ind=indices[index[1],:]
+    corner=(base_ind[1]+corner_add[1],base_ind[2]+corner_add[2],base_ind[3]+corner_add[3])
+    
+    corner=Float32.(append!(collect(corner),[4]))
+    
+    sv_center=Float32.([base_ind[1],base_ind[2],base_ind[3],-1.0])
+    p_a=Float32.(flip_num(base_ind,corner,1))
+    p_b=Float32.(flip_num(base_ind,corner,2))
+    p_c=Float32.(flip_num(base_ind,corner,3))
+    p_ab=Float32.(get_linear_between(base_ind,p_a,p_b))
+    p_ac=Float32.(get_linear_between(base_ind,p_a,p_c))
+    p_bc=Float32.(get_linear_between(base_ind,p_b,p_c))
+    dummy=Float32.([-1.0,-1.0,-1.0,-1.0])
+    res_main_ind= (index[1]-1)*24+(index[2]-1)*6
+
+    set_to_index(all_surf_triangles,1, res_main_ind, sv_center,corner,p_a,p_ab,dummy)
+    set_to_index(all_surf_triangles,2, res_main_ind, sv_center,corner,p_ab,p_b,dummy)
+    set_to_index(all_surf_triangles,3, res_main_ind, sv_center,corner,p_b,p_bc,dummy)
+    set_to_index(all_surf_triangles,4, res_main_ind, sv_center,corner,p_bc,p_c,dummy)
+    set_to_index(all_surf_triangles,5, res_main_ind,sv_center,corner,p_a,p_ac,dummy)
+    set_to_index(all_surf_triangles,6, res_main_ind,sv_center,corner,p_ac,p_c,dummy)
+
+    # res= [[sv_center;;corner;;p_a;;p_ab;;dummy]
+    #     ,[sv_center;;corner;;p_ab;;p_b;;dummy]
+    #     ,[sv_center;;corner;;p_b;;p_bc;;dummy]
+    #     ,[sv_center;;corner;;p_bc;;p_c;;dummy]
+    #     ,[sv_center;;corner;;p_a;;p_ac;;dummy]
+    #     ,[sv_center;;corner;;p_ac;;p_c;;dummy] 
+    # ]
+
+
+    # res=map(el-> permutedims(el, (2, 1)) ,res)
+    # res=map(el-> reshape(el, (1, size(el)...)) ,res)
+    # res=vcat(res...)
+    # print("\n $(res) \n") # (6, 5, 4) 
+
+    # return res
+end
+
 
 
 
@@ -180,7 +232,7 @@ second dimension is size 5 and is in orde sv_center, point a,point b,point c,cen
 in last dimension we have x,y,z coordinates of the point
 currently we have just indicies to the appropriate arrays -> it need to be populated after weights get applied        
 """
-function get_flattened_triangle_data(dims)
+function get_flattened_triangle_data_slower(dims)
     indices = CartesianIndices(dims)
     # indices=collect.(Tuple.(collect(indices)))
     indices=Tuple.(collect(indices))
@@ -200,179 +252,27 @@ function get_flattened_triangle_data(dims)
     return all_surf_triangles
 end
 
-function flip_for_gpu(base_ind,corner,ind,inner_ind)
-    # arr=collect(tupl)
-    if(corner[ind]==base_ind[ind])
-        if(inner_ind==ind)
-            return base_ind[inner_ind]+1
-        end    
-    else
-        if(inner_ind==ind)
-            return base_ind[inner_ind]
-        end    
-    end
-    return corner[inner_ind]    
-end
-
-function get_single_triang_coord_from_6(indices,corner_x,corner_y,corner_z,index,all_surf_triangles)
-
-    #[sv_center
-    if(index[4]==1)
-        
-        all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=indices[index[1]*index[2]*index[3],1]
-        all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=indices[index[1]*index[2]*index[3],2]
-        all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=indices[index[1]*index[2]*index[3],3]
-        all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-    end
-    #[corner
-    if(index[4]==2)
-        all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=corner_x
-        all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=corner_y
-        all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=corner_z
-        all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-    end
-    #dummy]
-    if(index[4]==5)
-        all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=-1.0
-        all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=-1.0
-        all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=-1.0
-        all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-    end
-
-
-
-     if(index[3]==1)
-        #[sv_center;;corner;;p_a;;p_ab;;dummy]
-        #p_a flip on x
-        if(index[4]==3)
-            if(corner_x==indices[index[1]*index[2]*index[3],1])
-                all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=indices[index[1]*index[2]*index[3],1]+1
-            else
-                all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=indices[index[1]*index[2]*index[3],1]
-            end
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=corner_y
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=corner_z
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-        end
-        #p_ab
-        if(index[4]==4)
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-        end
-
-    end
-    if(index[3]==2)
-        #[sv_center;;corner;;p_ab;;p_b;;dummy]
-        #p_ab
-        if(index[4]==3)
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-        end
-        #p_b
-        if(index[4]==4)
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-        end
-    end
-    if(index[3]==3)
-        #[sv_center;;corner;;p_b;;p_bc;;dummy]
-        #p_b
-        if(index[4]==3)
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-        end
-        #p_bc
-        if(index[4]==4)
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-        end
-    end
-    if(index[3]==4)
-        #[sv_center;;corner;;p_bc;;p_c;;dummy]
-        #p_bc
-        if(index[4]==3)
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-        end
-        #p_c
-        if(index[4]==4)
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-        end
-    end
-    if(index[3]==5)
-        #[sv_center;;corner;;p_a;;p_ac;;dummy]
-        #p_a
-        if(index[4]==3)
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-        end
-        #p_ac
-        if(index[4]==4)
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-        end
-    end
-    if(index[3]==6)
-        #[sv_center;;corner;;p_ac;;p_c;;dummy] 
-        #p_ac
-        if(index[4]==3)
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-        end
-        #p_c
-        if(index[4]==4)
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],1]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],2]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],3]=-1.0
-            all_surf_triangles[index[1]*index[2]*index[3],index[4],4]=-1.0
-        end
-    end
-
-
-
-end    
 
 @kernel function set_triangles_kern(@Const(indices),all_surf_triangles)
 
     # index = @index(Global)
     index = @index(Global, Cartesian)
+    # get_tetr_triangles_in_corner(base_ind,(base_ind[1],base_ind[2],base_ind[3]))
     if(index[2]==1)
-        # indices[index[1]*index[2]*index[3],1]
-        # indices[index[1]*index[2]*index[3],2]
-        # indices[index[1]*index[2]*index[3],3]
+        get_tetr_triangles_in_corner_on_kern(indices,(0.0,0.0,0.0),all_surf_triangles,index)
     end        
+    #get_tetr_triangles_in_corner(base_ind,(base_ind[1]+1,base_ind[2]+1,base_ind[3]))
     if(index[2]==2)
-
+        get_tetr_triangles_in_corner_on_kern(indices,(1.0,1.0,0.0),all_surf_triangles,index)
     end        
+    #get_tetr_triangles_in_corner(base_ind,(base_ind[1],base_ind[2]+1,base_ind[3]+1))
     if(index[2]==3)
-
+        get_tetr_triangles_in_corner_on_kern(indices,(0.0,1.0,1.0),all_surf_triangles,index)
     end        
+    #get_tetr_triangles_in_corner(base_ind,(base_ind[1]+1,base_ind[2],base_ind[3]+1))
     if(index[2]==4)
-
+        get_tetr_triangles_in_corner_on_kern(indices,(1.0,0.0,1.0),all_surf_triangles,index)
     end        
-
-    all_surf_triangles[index[1]*index[2]*index[3],index[4],]=
 
     # @print("\n index $(index[1]) $(index[2])\n")
     # shared_arr = @localmem Float32 (@groupsize()[1], 1)
@@ -382,8 +282,15 @@ end
 
 
 
-
-function get_flattened_triangle_data_faster(dims)
+"""
+get a flattened array of all surface triangles of all supervoxels
+in first dimension every 24 elements are a single supervoxel
+second dimension is size 5 and is in orde sv_center, point a,point b,point c,centroid 
+    where centroid is a placeholder for centroid of the triangle a,b,c
+in last dimension we have x,y,z coordinates of the point
+currently we have just indicies to the appropriate arrays -> it need to be populated after weights get applied        
+"""
+function get_flattened_triangle_data(dims)
     indices = CartesianIndices(dims)
     # indices=collect.(Tuple.(collect(indices)))
     indices=Tuple.(collect(indices))
@@ -391,13 +298,12 @@ function get_flattened_triangle_data_faster(dims)
     indices=reshape(indices,(3,dims[1]*dims[2]*dims[3]))
     indices=permutedims(indices,(2,1))
 
-    print("\n ooo $(size(indices)) \n")
     # indices=splitdims(indices,1)
-    all_surf_triangles=CUDA.zeros(Float32, (dims[1]*dims[2]*dims[3]*24,5,4))
+    all_surf_triangles=zeros(Float32, (dims[1]*dims[2]*dims[3]*24,5,4))
 
     dev = get_backend(all_surf_triangles)
-    set_triangles_kern(dev, 256)(CuArray(Float32.(indices)),all_surf_triangles
-    , ndrange=(dims[1]*dims[2]*dims[3],4,6,5))
+    set_triangles_kern(dev, 19)(Float32.(indices),all_surf_triangles
+    , ndrange=(dims[1]*dims[2]*dims[3],4))
     KernelAbstractions.synchronize(dev)
 
     # all_surf_triangles=map(el->get_all_surface_triangles_of_sv(el),indices)
@@ -408,7 +314,7 @@ function get_flattened_triangle_data_faster(dims)
 
     # print("\n ooo 111  $(size(all_surf_triangles)) \n")
 
-    return Array(all_surf_triangles)
+    return all_surf_triangles
 end
 
 
@@ -429,10 +335,8 @@ function initialize_centers_and_control_points(image_shape,radius)
     oblique=get_oblique_control_points(dims,diam,radius,diffs)
 
     flattened_triangles=get_flattened_triangle_data(dims)  
-    print("\n iiii 4 \n")
 
     res= sv_centers,combinedims([lin_x, lin_y, lin_z, oblique],4),flattened_triangles,dims
-    print("\n iiii 5 \n")
     return res
 
 end#initialize_centeris_and_control_points    
