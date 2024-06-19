@@ -1,5 +1,5 @@
 
-using SplitApplyCombine
+using SplitApplyCombine,KernelAbstractions
 
 """
 get 4 dimensional array of cartesian indicies of a 3 dimensional array
@@ -318,6 +318,22 @@ function get_flattened_triangle_data(dims)
 end
 
 
+function initialize_control_points(image_shape,radius)
+    diam=radius*2
+    diam=radius*2
+    dims=(get_corrected_dim(1,radius,image_shape),get_corrected_dim(2,radius,image_shape),get_corrected_dim(3,radius,image_shape))
+    diffs= (get_dif(1,image_shape,dims,diam),get_dif(2,image_shape,dims,diam),get_dif(3,image_shape,dims,diam))
+     
+    lin_x=get_linear_control_points(dims,1,diam,radius,diffs)
+    lin_y=get_linear_control_points(dims,2,diam,radius,diffs)
+    lin_z=get_linear_control_points(dims,3,diam,radius,diffs)
+
+    oblique=get_oblique_control_points(dims,diam,radius,diffs)
+
+
+    return combinedims([lin_x, lin_y, lin_z, oblique],4)
+
+end#initialize_centeris_and_control_points    
 
 
 """
@@ -328,15 +344,10 @@ and the intilia positions of the control points
 function initialize_centers_and_control_points(image_shape,radius)
     diam=radius*2
     sv_centers,dims,diffs= get_sv_centers(radius,image_shape)
-    lin_x=get_linear_control_points(dims,1,diam,radius,diffs)
-    lin_y=get_linear_control_points(dims,2,diam,radius,diffs)
-    lin_z=get_linear_control_points(dims,3,diam,radius,diffs)
-
-    oblique=get_oblique_control_points(dims,diam,radius,diffs)
 
     flattened_triangles=get_flattened_triangle_data(dims)  
 
-    res= sv_centers,combinedims([lin_x, lin_y, lin_z, oblique],4),flattened_triangles,dims
+    res= sv_centers,initialize_control_points(image_shape,radius),flattened_triangles,dims
     return res
 
 end#initialize_centeris_and_control_points    

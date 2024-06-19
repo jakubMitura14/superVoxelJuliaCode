@@ -1,4 +1,4 @@
-using Revise, CUDA
+using Revise, CUDA,HDF5
 using Meshes
 using LinearAlgebra
 using GLMakie
@@ -51,58 +51,31 @@ we want to associate with given point in the image so after iterating through sa
     index = @index(Global)
     res[index] = 0.0
     # dist_sum=0.0
-    shared_arr = @localmem Float32 (128, 4)
+    shared_arr = @localmem Float32 (128, 2)
     shared_arr[@index(Local, Linear), 1] = 0.0
     shared_arr[@index(Local, Linear), 2] = 0.0
-    shared_arr[@index(Local, Linear), 3] = 0.0
-    shared_arr[@index(Local, Linear), 4] = 0.0
+    # shared_arr[@index(Local, Linear), 3] = 0.0
+    # shared_arr[@index(Local, Linear), 4] = 0.0
 
 
     # we need to look over not cartesian indicies of new array and check just is a point in a given 
     # tetrahedron next we can additionally use it to make sure that sample popints are always inside sv
+    shared_arr[@index(Local, Linear), 1] = 0.0
+
     for i in range(1, (len_coords - 1))
-        if (image_cartesian[index, 1] == floor(coords[1, i]))
-            shared_arr[@index(Local, Linear), 1] = 1.0
-        end
-
-        if (image_cartesian[index, 1] == ceil(coords[1, i]))
-            shared_arr[@index(Local, Linear), 1] = 1.0
-        end
-
-        if (image_cartesian[index, 2] == floor(coords[2, i]))
-            shared_arr[@index(Local, Linear), 2] = 1.0
-        end
-
-        if (image_cartesian[index, 2] == ceil(coords[2, i]))
-            shared_arr[@index(Local, Linear), 2] = 1.0
-        end
-
-        if (image_cartesian[index, 3] == floor(coords[3, i]))
-            shared_arr[@index(Local, Linear), 3] = 1.0
-        end
-
-        if (image_cartesian[index, 3] == ceil(coords[3, i]))
-            shared_arr[@index(Local, Linear), 3] = 1.0
-        end
-
-
-        if ((shared_arr[@index(Local, Linear), 1] > 0) && (shared_arr[@index(Local, Linear), 2] > 0) && (shared_arr[@index(Local, Linear), 3] > 0))
-            # dist= sqrt(( ((image_cartesian[index,1] -shared_arr[@index(Local, Linear),1] ) ^2)+((image_cartesian[index,2] -shared_arr[@index(Local, Linear),2] ) ^2)+((image_cartesian[index,3] -shared_arr[@index(Local, Linear),3] ) ^2) ))
-            shared_arr[@index(Local, Linear), 4] += (((image_cartesian[index, 1] - coords[1, i])^2) + ((image_cartesian[index, 2] - coords[2, i])^2) + ((image_cartesian[index, 3] - coords[3, i])^2))
+        # dist= sqrt(( ((image_cartesian[index,1] -shared_arr[@index(Local, Linear),1] ) ^2)+((image_cartesian[index,2] -shared_arr[@index(Local, Linear),2] ) ^2)+((image_cartesian[index,3] -shared_arr[@index(Local, Linear),3] ) ^2) ))
+        shared_arr[@index(Local, Linear), 2] =sqrt(((image_cartesian[index, 1] - coords[1, i])^2) + ((image_cartesian[index, 2] - coords[2, i])^2) + ((image_cartesian[index, 3] - coords[3, i])^2)) 
+        if(shared_arr[@index(Local, Linear), 2]<3.0)
+            shared_arr[@index(Local, Linear), 1] += shared_arr[@index(Local, Linear), 2]
             # @print("   ** $(dist)   **")
             # @print("   **i $i $(@index(Local, Linear))   **")
-            res[index] += (coords[4, i] * (((image_cartesian[index, 1] - coords[1, i])^2) + ((image_cartesian[index, 2] - coords[2, i])^2) + ((image_cartesian[index, 3] - coords[3, i])^2)))
+            res[index] += (coords[4, i] * shared_arr[@index(Local, Linear), 2])
         end
-
-        shared_arr[@index(Local, Linear), 1] = 0.0
-        shared_arr[@index(Local, Linear), 2] = 0.0
-        shared_arr[@index(Local, Linear), 3] = 0.0
-        shared_arr[@index(Local, Linear), 4] = 0.0
-
     end
-    if (res[index] > 0.5)
+
+    if (res[index] > 0.0)
         # @print("  $(res[index])  "  )
-        res[index] = res[index] / shared_arr[@index(Local, Linear), 4]
+        res[index] = res[index] / shared_arr[@index(Local, Linear), 1]
     end
 
 end#inverse_interp_kern
@@ -153,13 +126,14 @@ function create_synth_image_for_test(radiuss,a)
     weights = rand(dims_plus[1], dims_plus[2], dims_plus[3], num_weights_per_point)
     weights = weights .- 0.50001
     weights = (weights) .* 100
-    # weights = CuArray(Float32.(tanh.(weights * 0.1)))
-    weights = CuArray(Float32.(tanh.(weights)))
+    weights = CuArray(Float32.(tanh.(weights * 0.1)))
+    # weights = CuArray(Float32.(tanh.(weights)))
+    # weights=CUDA.ones(size(weights)...).*0.5
     # print("\n uuuuuu 4 min: $( Dates.value(get_current_time() - current_time)/ 60000.0) \n");current_time = get_current_time() 
 
-    control_points_out = CuArray(Float32.(control_points))
+    # control_points_out = CuArray(Float32.(control_points))
     threads_apply_w, blocks_apply_w = prepare_for_apply_weights_to_locs_kern(size(control_points), size(weights))
-    call_apply_weights_to_locs_kern(control_points, control_points_out, weights, radiuss, threads_apply_w, blocks_apply_w)
+    control_points_out=call_apply_weights_to_locs_kern(control_points,  weights, radiuss, threads_apply_w, blocks_apply_w)
     # print("\n uuuuuu 5 min: $( Dates.value(get_current_time() - current_time)/ 60000.0) \n");current_time = get_current_time() 
 
     control_points = control_points_out
@@ -167,13 +141,12 @@ function create_synth_image_for_test(radiuss,a)
     @cuda threads = threads_point_info blocks = blocks_point_info set_tetr_dat_kern_forward(tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers, max_index)
     tetr_dat = tetr_dat_out
     # print("\n uuuuuu 6 min: $( Dates.value(get_current_time() - current_time)/ 60000.0) \n");current_time = get_current_time() 
-
+    CUDA.synchronize()
     @cuda threads = threads_point_info blocks = blocks_point_info point_info_kern_forward(tetr_dat_out, out_sampled_points, source_arr, num_base_samp_points, num_additional_samp_points, max_index)
     # print("\n uuuuuu 7 min: $( Dates.value(get_current_time() - current_time)/ 60000.0) \n");current_time = get_current_time() 
-
+    CUDA.synchronize()
     out_sampled_points = Array(out_sampled_points)
     #getting coordinates of each sampled point and assigning them a value
-    # out_coords=[Vector{Float32}(undef, 3) for _ in 1:size(out_sampled_points)[1]]
     coords = threaded_map(index -> invert(splitdims(out_sampled_points[index, :, 3:5])), size(out_sampled_points)[1],[[] for _ in 1:size(out_sampled_points)[1]])
     #for now we assign value that is just integer index of which supervoxel they are from we divide by 24 to get the supervoxel index not tetrahedron index
     coords = threaded_map(index -> map(el -> [el..., Int(ceil(index / 24))], coords[index]), size(out_sampled_points)[1],[[] for _ in 1:size(out_sampled_points)[1]])
@@ -194,15 +167,16 @@ function create_synth_image_for_test(radiuss,a)
     res = CUDA.zeros(len_image_coords)
     dev = get_backend(res)
     inverse_interp_kern(dev, 128)(CuArray(image_cartesian), CuArray(coords), len_coords, res, ndrange=(len_image_coords))
+    CUDA.synchronize()
     KernelAbstractions.synchronize(dev)
     # print("\n uuuuuu 9 min: $( Dates.value(get_current_time() - current_time)/ 60000.0) \n");current_time = get_current_time() 
 
     res_im=reshape(Array(res), (a,a,a))
-    return res_im
+    return res_im,Array(weights),Array(tetr_dat_out)
 end
 
 radiuss = Float32(4.0)
-a = 48
+a = 128
 
 function get_current_time()
     return Dates.now()
@@ -210,23 +184,45 @@ function get_current_time()
 
 current_time = get_current_time() 
 
-res_im=create_synth_image_for_test(radiuss,a)
+# res_im,weights=create_synth_image_for_test(radiuss,a)
+
+h5_path="/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/data/synth_data.h5"
+f = h5open(h5_path, "w")
+
+    # Create a group named "i"
+    for i in 1:3
+        res_im,weights,tetr_dat_out=create_synth_image_for_test(radiuss,a)
+        print("\n iii $i $(sum(res_im))  res_im $(size(res_im)) weights $(size(weights))  tetr_dat_out $(size(tetr_dat_out))  \n")
+
+        group_name = string(i)
+        g = create_group(f,group_name)
+        dset = create_dataset(g, "image", res_im)
+        dsetb = create_dataset(g, "weights", weights)
+        dsetc = create_dataset(g, "tetr", tetr_dat_out)
+
+        write(f["$(i)/image"],res_im)
+        write(f["$(i)/weights"],weights)
+        write(f["$(i)/tetr"],tetr_dat_out)
+
+        print("\n iii $i $(sum(res_im)) dataset : $(sum(g["image"][:,:,:])) ;; res_im $(size(res_im)) weights $(size(weights))  tetr_dat_out $(size(tetr_dat_out))  \n")
+
+
+    end
+close(f)
 
 println("Time taken (minutes): ", Dates.value(get_current_time() - current_time)/ 60000.0) #15.297383333333334
 
-# dims=(256,256,256)
-# flattened_triangles_a=get_flattened_triangle_data(dims) 
-# # flattened_triangles_b=get_flattened_triangle_data_faster(dims) 
-# flattened_triangles_a==flattened_triangles_b
-# size(flattened_triangles_a)
+
+
+
+
+
+# using PyCall
+# sitk = pyimport_conda("SimpleITK", "simpleitk")
+# # sitk.GetImageFromArray(res_im)
+# sitk.WriteImage( sitk.GetImageFromArray(res_im),"/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/data/res_im.nii.gz")
 # a
-# # # using MedImages
-using PyCall
-sitk = pyimport_conda("SimpleITK", "simpleitk")
-# sitk.GetImageFromArray(res_im)
-sitk.WriteImage( sitk.GetImageFromArray(res_im),"/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/data/res_im.nii.gz")
-a
-# ##### viss
+# # ##### viss
 
 
 # function fill_tetrahedron_data(tetr_dat, sv_centers, control_points, index)
@@ -253,22 +249,20 @@ a
 
 # viz(first_sv_tetrs, color=1:length(first_sv_tetrs))
 
+# function is_point_in_tetrahedron(point, v1, v2, v3, v4)
+#     # Compute the barycentric coordinates of the point
+#     mat = [v1 v2 v3 v4; 1 1 1 1]
+#     bary_coords = mat \ [point; 1]
 
+#     # Check if all barycentric coordinates are between 0 and 1
+#     return all(0 .<= bary_coords .<= 1)
+# end
 
-function is_point_in_tetrahedron(point, v1, v2, v3, v4)
-    # Compute the barycentric coordinates of the point
-    mat = [v1 v2 v3 v4; 1 1 1 1]
-    bary_coords = mat \ [point; 1]
+# # Usage
+# point = [1.0, 1.0, 1.0]
+# v1 = [0.0, 0.0, 0.0]
+# v2 = [2.0, 0.0, 0.0]
+# v3 = [0.0, 2.0, 0.0]
+# v4 = [0.0, 0.0, 2.0]
 
-    # Check if all barycentric coordinates are between 0 and 1
-    return all(0 .<= bary_coords .<= 1)
-end
-
-# Usage
-point = [1.0, 1.0, 1.0]
-v1 = [0.0, 0.0, 0.0]
-v2 = [2.0, 0.0, 0.0]
-v3 = [0.0, 2.0, 0.0]
-v4 = [0.0, 0.0, 2.0]
-
-println(is_point_in_tetrahedron(point, v1, v2, v3, v4))  # Should print true
+# println(is_point_in_tetrahedron(point, v1, v2, v3, v4))  # Should print true

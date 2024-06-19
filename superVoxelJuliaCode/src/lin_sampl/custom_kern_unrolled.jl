@@ -454,12 +454,12 @@ function set_tetr_dat_kern_unrolled(tetr_dat, tetr_dat_out, source_arr, control_
 end
 
 
-# @kernel function point_info_kern_unrolled(@Const(tetr_dat),out_sampled_points  ,@Const(source_arr),num_base_samp_points,num_additional_samp_points)
-function point_info_kern_unrolled(tetr_dat, out_sampled_points, source_arr, num_base_samp_points, num_additional_samp_points)
-  shared_arr = CuStaticSharedArray(Float32, (256, 4))
-  index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
-  # shared_arr = @localmem Float32 (@groupsize()[1], 4) 
-  # index = @index(Global)
+@kernel function point_info_kern_unrolled(@Const(tetr_dat),out_sampled_points  ,@Const(source_arr),num_base_samp_points,num_additional_samp_points)
+# function point_info_kern_unrolled(tetr_dat, out_sampled_points, source_arr, num_base_samp_points, num_additional_samp_points)
+  # shared_arr = CuStaticSharedArray(Float32, (256, 4))
+  # index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
+  shared_arr = @localmem Float32 (@groupsize()[1], 4) 
+  index = @index(Global)
 
   #we get the diffrence between the sv center and the triangle center
   shared_arr[threadIdx().x, 1] = ((tetr_dat[index, 5, 1] - tetr_dat[index, 1, 1]) / (3 + 1))
@@ -1303,7 +1303,7 @@ function point_info_kern_unrolled(tetr_dat, out_sampled_points, source_arr, num_
 
 
 
-  return nothing
+  # return nothing
 
 end
 

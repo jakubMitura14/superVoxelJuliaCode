@@ -56,7 +56,7 @@ control_points_size = size(control_points)
 threads_apply_w, blocks_apply_w = prepare_for_apply_weights_to_locs_kern(control_points_size, size(weights))
 
 # control_points = call_apply_weights_to_locs_kern(CuArray(control_points), CUDA.zeros(size(control_points)...), CuArray(weights), radiuss, threads_apply_w, blocks_apply_w)
-control_points = call_apply_weights_to_locs_kern(CuArray(control_points), CuArray(copy(control_points)), CuArray(weights), radiuss, threads_apply_w, blocks_apply_w)
+control_points = call_apply_weights_to_locs_kern(CuArray(control_points),  CuArray(weights), radiuss, threads_apply_w, blocks_apply_w,(0,0,0))
 
 # """
 # this function test single point in the control_points and check weather change in value is correct generally if weight is 

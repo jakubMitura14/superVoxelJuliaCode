@@ -52,22 +52,25 @@ function apply_weights_to_locs(control_points, weights, radius)
     ]
 end #apply_weights_to_locs
 
-function apply_weights_to_locs_kern(control_points, control_points_out, weights, radius::Float32, cp_x::UInt32, cp_y::UInt32, cp_z::UInt32)
+function apply_weights_to_locs_kern(control_points, control_points_out, weights
+    , radius::Float32, cp_x::UInt32, cp_y::UInt32, cp_z::UInt32
+    , beg_x::UInt32, beg_y::UInt32, beg_z::UInt32
+    )
 
     x = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
     y = (threadIdx().y + ((blockIdx().y - 1) * CUDA.blockDim_y()))
     z = (threadIdx().z + ((blockIdx().z - 1) * CUDA.blockDim_z()))
 
-    if (x <= cp_x && y <= cp_y && z <= cp_z)
+    if (x <= cp_x && y <= cp_y && z <= cp_z &&  x > beg_x && y >beg_y && z > beg_z )
         # control_points[x, y, z, 1, 1] = 1 #+ weights[x, y, z, 1] * radius#lin_x
 
-        control_points_out[x, y, z, 1, 1] = control_points[x, y, z, 1, 1] + weights[x, y, z, 1] * radius#lin_x
-        control_points_out[x, y, z, 2, 2] = control_points[x, y, z, 2, 2] + weights[x, y, z, 2] * radius#lin_y
-        control_points_out[x, y, z, 3, 3] = control_points[x, y, z, 3, 3] + weights[x, y, z, 3] * radius#lin_z
+        control_points_out[x, y, z, 1, 1] = control_points[x, y, z, 1, 1] + weights[x, y, z, 1,1] * radius#lin_x
+        control_points_out[x, y, z, 2, 2] = control_points[x, y, z, 2, 2] + weights[x, y, z, 2,1] * radius#lin_y
+        control_points_out[x, y, z, 3, 3] = control_points[x, y, z, 3, 3] + weights[x, y, z, 3,1] * radius#lin_z
 
-        control_points_out[x, y, z, 4, 1] = control_points[x, y, z, 4, 1] + weights[x, y, z, 4] * radius
-        control_points_out[x, y, z, 4, 2] = control_points[x, y, z, 4, 2] + weights[x, y, z, 5] * radius
-        control_points_out[x, y, z, 4, 3] = control_points[x, y, z, 4, 3] + weights[x, y, z, 6] * radius
+        control_points_out[x, y, z, 4, 1] = control_points[x, y, z, 4, 1] + weights[x, y, z, 4,1] * radius
+        control_points_out[x, y, z, 4, 2] = control_points[x, y, z, 4, 2] + weights[x, y, z, 5,1] * radius
+        control_points_out[x, y, z, 4, 3] = control_points[x, y, z, 4, 3] + weights[x, y, z, 6,1] * radius
     end
     return nothing
 
@@ -76,28 +79,33 @@ end #apply_weights_to_locs
 ############################# Enzyme differentiation
 
 
-function apply_weights_to_locs_kern_deff(control_points, d_control_points, control_points_out_in, d_control_points_out_in, weights, d_weights, radius::Float32, cp_x::UInt32, cp_y::UInt32, cp_z::UInt32)
+function apply_weights_to_locs_kern_deff(control_points, d_control_points, control_points_out_in, d_control_points_out_in, weights, d_weights, radius::Float32
+    , cp_x::UInt32, cp_y::UInt32, cp_z::UInt32
+    , beg_x::UInt32, beg_y::UInt32, beg_z::UInt32
+    )
 
-    Enzyme.autodiff_deferred(Enzyme.Reverse, apply_weights_to_locs_kern, Const, Duplicated(control_points, d_control_points), Duplicated(control_points_out_in, d_control_points_out_in), Duplicated(weights, d_weights), Const(radius), Const(cp_x), Const(cp_y), Const(cp_z)
+    Enzyme.autodiff_deferred(Enzyme.Reverse, apply_weights_to_locs_kern, Const, Duplicated(control_points, d_control_points), Duplicated(control_points_out_in, d_control_points_out_in), Duplicated(weights, d_weights), Const(radius)
+    , Const(cp_x), Const(cp_y), Const(cp_z)
+    , Const(beg_x), Const(beg_y), Const(beg_z)
     )
     return nothing
 end
 
 
-function call_apply_weights_to_locs_kern(control_points, control_points_out, weights, radius, threads, blocks)
-    # control_points_out = CUDA.zeros(size(control_points))
-    @cuda threads = threads blocks = blocks apply_weights_to_locs_kern(control_points, control_points_out, weights, radius, UInt32(size(control_points)[1]), UInt32(size(control_points)[2]), UInt32(size(control_points)[3]))
-
-
+function call_apply_weights_to_locs_kern(control_points,  weights, radius, threads, blocks,weights_begin)
+    control_points_out = copy(control_points)
+    @cuda threads = threads blocks = blocks apply_weights_to_locs_kern(control_points, control_points_out, weights, radius
+    , UInt32(size(control_points)[1]+weights_begin[1]), UInt32(size(control_points)[2]+weights_begin[2]), UInt32(size(control_points)[3]+weights_begin[3])
+    , UInt32(weights_begin[1]), UInt32(weights_begin[2]), UInt32(weights_begin[3])    
+    )
     return control_points_out
 end
 
-control_points_out_in
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(call_apply_weights_to_locs_kern), control_points, control_points_out, weights, radius, threads, blocks)
+function ChainRulesCore.rrule(::typeof(call_apply_weights_to_locs_kern), control_points,  weights, radius, threads, blocks,weights_begin)
 
-    control_points_out = call_apply_weights_to_locs_kern(control_points, control_points_out, weights, radius, threads, blocks)
+    control_points_out = call_apply_weights_to_locs_kern(control_points,  weights, radius, threads, blocks,weights_begin)
 
     function kernel1_pullback(d_control_points_out)
 
@@ -111,12 +119,15 @@ function ChainRulesCore.rrule(::typeof(call_apply_weights_to_locs_kern), control
 
         #@device_code_warntype
         @cuda threads = threads blocks = blocks apply_weights_to_locs_kern_deff(
-            control_points, d_control_points, control_points_out, CuArray(collect(d_control_points_out)), weights, d_weights, radius, UInt32(sizz[1]), UInt32(sizz[2]), UInt32(sizz[3]))
+            control_points, d_control_points, control_points_out, CuArray(collect(d_control_points_out)), weights, d_weights, radius
+            , UInt32(sizz[1]+weights_begin[1]), UInt32(sizz[2]+weights_begin[2]), UInt32(sizz[3]+weights_begin[3])
+            , UInt32(weights_begin[1]), UInt32(weights_begin[2]), UInt32(weights_begin[3])
+            )
 
         #     print("eeeeee $(sum(control_points_out))")
 
         # return NoTangent(),d_control_points_out,d_control_points_out_in,d_weights,NoTangent(),NoTangent(),NoTangent()
-        return NoTangent(), d_control_points, CuArray(collect(d_control_points_out)), d_weights, NoTangent(), NoTangent(), NoTangent()
+        return NoTangent(), d_control_points, CuArray(collect(d_control_points_out)), d_weights, NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end
 
     return control_points_out, kernel1_pullback
@@ -125,10 +136,19 @@ end
 
 
 ############## lux definitions
+
+"""
+the main struct describing the apply weights kernel that is responsible to applying weights to 
+control points that are used to define the borders of super voxels 
+radiuss - radius of the super voxel
+image_shape - shape of the image (or its patch) that we work on
+num_convs_per_dim - number of strided convolutions that are used in each dimension to get the weights in correct s
+"""
 struct Points_weights_str <: Lux.AbstractExplicitLayer
-    radius::Int
-    threads::Tuple{Int,Int,Int}
-    blocks::Tuple{Int,Int,Int}
+    radiuss::Float32
+    image_shape::Tuple{Int,Int,Int}
+    num_convs_per_dim::Tuple{Int,Int,Int}
+
 end
 
 function Points_weights(radius, threads, blocks)
@@ -139,15 +159,31 @@ function Lux.initialparameters(rng::AbstractRNG, l::Points_weights_str)
     return ()
 end
 
+function get_corrected_dim_weighs(image_shape,num_convs_per_dim,ax)
+    return Int(round(image_shape[ax]/(2^num_convs_per_dim[ax]) ))
+end
+
 function Lux.initialstates(::AbstractRNG, l::Points_weights_str)::NamedTuple
-    return (radius=l.radius, threads=l.threads, blocks=l.blocks)
+
+    control_points = initialize_control_points(l.image_shape, l.radiuss)
+    weights_shape=(get_corrected_dim_weighs(l.image_shape,l.num_convs_per_dim,1)
+    ,get_corrected_dim_weighs(l.image_shape,l.num_convs_per_dim,2)
+    ,get_corrected_dim_weighs(l.image_shape,l.num_convs_per_dim,3))
+
+    weights_begin=(UInt32(round((size(control_points)[1]-weights_shape[1])/2))
+    ,UInt32(round((size(control_points)[2]-weights_shape[2])/2))
+    ,UInt32(round((size(control_points)[3]-weights_shape[3])/2)))
+
+    threads_apply_w, blocks_apply_w = prepare_for_apply_weights_to_locs_kern(size(control_points), weights_shape)
+    return (radiuss=l.radiuss, image_shape=l.image_shape
+    , threads_apply_w=threads_apply_w, blocks_apply_w=blocks_apply_w
+    , control_points=Float32.(control_points),weights_begin=weights_begin)
+
 end
 
-function (l::Points_weights_str)(x, ps, st::NamedTuple)
-    control_points, weights = x
-    return call_apply_weights_to_locs_kern(control_points, weights, st.radius, st.threads, st.blocks), st
+function (l::Points_weights_str)(weights, ps, st::NamedTuple)
+    return call_apply_weights_to_locs_kern(st.control_points, weights, st.radiuss, st.threads_apply_w, st.blocks_apply_w,st.weights_begin), st
 end
-
 
 
 

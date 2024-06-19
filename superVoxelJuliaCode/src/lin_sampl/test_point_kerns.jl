@@ -355,7 +355,7 @@ function call_set_tetr_dat_kern_test(tetr_dat, source_arr, control_points, sv_ce
     tetr_dat_out = CuArray(Float32.(tetr_dat_out))
 
     # @cuda threads = threads blocks = blocks point_info_kern(CuStaticSharedArray(Float32, (128,3)),tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points)
-    @cuda threads = threads blocks = blocks set_tetr_dat_kern_forward(tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers)
+    @cuda threads = threads blocks = blocks set_tetr_dat_kern_forward(tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers,size(tetr_dat)[1])
 
 
 
@@ -752,7 +752,6 @@ function test_call_set_tetr_dat_kern_test_unrolled()
     end
 end
 
-test_call_set_tetr_dat_kern_test_unrolled()
 
 
 function call_point_info_kern_test_unrolled(tetr_dat, source_arr, control_points, threads, blocks, pad_point_info, num_base_samp_points, num_additional_samp_points)
@@ -790,7 +789,7 @@ function call_point_info_kern_test_unrolled(tetr_dat, source_arr, control_points
 end
 
 # @testset "point_info_kern tests" begin
-function test_point_info_kern_unrolled()
+function test_point_info_kern_unrolledd()
     radiuss = Float32(4.0)
     diam = radiuss * 2
     num_weights_per_point = 6
@@ -881,7 +880,7 @@ function test_point_info_kern_unrolled()
     return out_sampled_points, tetr_dat_out, sv_centers, control_points, tetrs
 end #test_point_info_kern
 
-out_sampled_points, tetr_dat_out, sv_centers, control_points, tetrs = test_point_info_kern_unrolled()
+out_sampled_points, tetr_dat_out, sv_centers, control_points, tetrs = test_point_info_kern_unrolledd()
 
 
 
