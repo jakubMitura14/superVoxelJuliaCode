@@ -93,6 +93,7 @@ end
 
 
 function call_apply_weights_to_locs_kern(control_points,  weights, radius, threads, blocks,weights_begin)
+
     control_points_out = copy(control_points)
     @cuda threads = threads blocks = blocks apply_weights_to_locs_kern(control_points, control_points_out, weights, radius
     , UInt32(size(control_points)[1]+weights_begin[1]), UInt32(size(control_points)[2]+weights_begin[2]), UInt32(size(control_points)[3]+weights_begin[3])
@@ -106,6 +107,7 @@ end
 function ChainRulesCore.rrule(::typeof(call_apply_weights_to_locs_kern), control_points,  weights, radius, threads, blocks,weights_begin)
 
     control_points_out = call_apply_weights_to_locs_kern(control_points,  weights, radius, threads, blocks,weights_begin)
+    
 
     function kernel1_pullback(d_control_points_out)
 
@@ -127,7 +129,7 @@ function ChainRulesCore.rrule(::typeof(call_apply_weights_to_locs_kern), control
         #     print("eeeeee $(sum(control_points_out))")
 
         # return NoTangent(),d_control_points_out,d_control_points_out_in,d_weights,NoTangent(),NoTangent(),NoTangent()
-        return NoTangent(), d_control_points, CuArray(collect(d_control_points_out)), d_weights, NoTangent(), NoTangent(), NoTangent(), NoTangent()
+        return NoTangent(), d_control_points,  d_weights, NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end
 
     return control_points_out, kernel1_pullback

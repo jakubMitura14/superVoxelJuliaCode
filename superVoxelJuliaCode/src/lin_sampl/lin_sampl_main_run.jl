@@ -19,7 +19,7 @@ using KernelAbstractions,Dates
 using Zygote, Lux, LuxCUDA
 using Lux, Random
 import NNlib, Optimisers, Plots, Random, Statistics, Zygote
-
+using Lux, Random, Optimisers, Zygote
 using LinearAlgebra
 
 using Revise
@@ -90,11 +90,27 @@ st=cu(st)
 ps=cu(ps)
 y_pred, st = Lux.apply(model, CuArray(imagee), ps, st)
 
+# gs = only(gradient(p -> sum(first(Lux.apply(model, CuArray(imagee), p, st))), ps))
+
+
+tstate = Lux.Experimental.TrainState(rng, model, opt)
+tstate=cu(tstate)
+function loss_function(model, ps, st, data)
+    y_pred, st = Lux.apply(model, data, ps, st)
+    return sum(y_pred), st, ()
+end
+vjp = AutoZygote()
+
+_, loss, _, tstate = Lux.Experimental.single_train_step!(
+    vjp, loss_function, CuArray(imagee), tstate)
+
+
+
+# gs = only(gradient(p -> sum(first(Lux.apply(model, CuArray(imagee), p, st))), ps))
+
 sum(y_pred)
 
 
-size(y_pred)
-a
 # function loss_function(model, ps, st, x)
 #     y_pred, st = Lux.apply(model, x, ps, st)
 #     return (sum(y_pred)), st, ()
