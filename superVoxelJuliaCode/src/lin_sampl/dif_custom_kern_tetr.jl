@@ -131,6 +131,7 @@ end
 function add_tetr(tetr_dat_out,out_arr,pad_voxels)
 
     out_arr[:,:,1:3]=(tetr_dat_out[:,:,1:3].+pad_voxels)
+    out_arr[:,:,4]=tetr_dat_out[:,:,4]
     return out_arr
 end    
 
@@ -160,10 +161,14 @@ function (l::Set_tetr_dat_str)(x, ps, st::NamedTuple)
     control_points,source_arr = x
 
     tetr_dat_out=call_set_tetr_dat_kern(st.tetr_dat,source_arr, control_points, st.sv_centers,st.threads_tetr_set,st.blocks_tetr_set)
+    # print("\n in lux 1  tetr_dat_out $(sum(tetr_dat_out))  \n")
+
     #TODO if we will deal with spacing we need to take it into account here similar if we will use batches pad_source_arr need to be modified
     tetr_dat_out=add_tetr(tetr_dat_out,CuArray(zeros(Float32,size(tetr_dat_out)...)),st.pad_voxels)
+    # print("\n in lux 2  tetr_dat_out $(sum(tetr_dat_out))  \n")
+
     
-    source_arr=pad_source_arr(source_arr,CuArray(zeros(Float32,image_shape[1]+(st.pad_voxels*2),image_shape[2]+(st.pad_voxels*2),image_shape[3]+(st.pad_voxels*2))),st.pad_voxels,st.image_shape)    
+    source_arr=pad_source_arr(source_arr,CuArray(zeros(Float32,st.image_shape[1]+(st.pad_voxels*2),st.image_shape[2]+(st.pad_voxels*2),st.image_shape[3]+(st.pad_voxels*2))),st.pad_voxels,st.image_shape)    
 
     return (tetr_dat_out,source_arr), st
 end

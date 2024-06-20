@@ -35,7 +35,7 @@ calculate the number of threads and blocks and how much padding to add if needed
 """
 function prepare_for_apply_weights_to_locs_kern(control_points_shape,weights_shape)
     bytes_per_thread=0
-    blocks_apply_w,threads_apply_w,maxBlocks=computeBlocksFromOccupancy(apply_weights_to_locs_kern,(CUDA.zeros(control_points_shape...),CUDA.zeros(control_points_shape...),CUDA.zeros(weights_shape...)
+    blocks_apply_w,threads_apply_w,maxBlocks=computeBlocksFromOccupancy(apply_weights_to_locs_kern,(CUDA.ones(control_points_shape...),CUDA.ones(control_points_shape...),CUDA.ones(weights_shape...)
     ,Float32(3),UInt32(control_points_shape[1]),UInt32(control_points_shape[2]),UInt32(control_points_shape[3])
     ,UInt32(0),UInt32(0),UInt32(0)
     ), bytes_per_thread)

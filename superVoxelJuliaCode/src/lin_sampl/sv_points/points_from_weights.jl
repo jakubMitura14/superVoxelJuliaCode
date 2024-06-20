@@ -167,7 +167,7 @@ function Lux.initialstates(::AbstractRNG, l::Points_weights_str)::NamedTuple
     control_points = initialize_control_points(l.image_shape, l.radiuss,0)
     weights_shape=(get_corrected_dim_weighs(l.image_shape,l.num_convs_per_dim,1)
     ,get_corrected_dim_weighs(l.image_shape,l.num_convs_per_dim,2)
-    ,get_corrected_dim_weighs(l.image_shape,l.num_convs_per_dim,3))
+    ,get_corrected_dim_weighs(l.image_shape,l.num_convs_per_dim,3),1,1)
 
     weights_begin=(UInt32(round((size(control_points)[1]-weights_shape[1])/2))
     ,UInt32(round((size(control_points)[2]-weights_shape[2])/2))

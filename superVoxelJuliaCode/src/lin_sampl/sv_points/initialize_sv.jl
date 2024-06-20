@@ -296,7 +296,7 @@ second dimension is size 5 and is in orde sv_center, point a,point b,point c,cen
 in last dimension we have x,y,z coordinates of the point
 currently we have just indicies to the appropriate arrays -> it need to be populated after weights get applied        
 """
-function get_flattened_triangle_data(dims,radius)
+function get_flattened_triangle_data(dims,radius,image_shape)
     indices = CartesianIndices(dims)
     # indices=collect.(Tuple.(collect(indices)))
     indices=Tuple.(collect(indices))
@@ -344,7 +344,7 @@ end#initialize_centeris_and_control_points
 function initialize_for_tetr_dat(image_shape,radius,pad=0)
     diam=radius*2
     sv_centers,dims,diffs= get_sv_centers(radius,image_shape,pad)
-    flattened_triangles=get_flattened_triangle_data(dims,radius)  
+    flattened_triangles=get_flattened_triangle_data(dims,radius,image_shape)  
 
     res= sv_centers,flattened_triangles,dims
     return res
@@ -360,7 +360,7 @@ and the intilia positions of the control points
 function initialize_centers_and_control_points(image_shape,radius)
     diam=radius*2
     sv_centers,dims,diffs= get_sv_centers(radius,image_shape)
-    flattened_triangles=get_flattened_triangle_data(dims,radius)  
+    flattened_triangles=get_flattened_triangle_data(dims,radius,image_shape)  
 
     res= sv_centers,initialize_control_points(image_shape,radius),flattened_triangles,dims
     return res
