@@ -118,7 +118,7 @@ function ChainRulesCore.rrule(::typeof(pad_source_arr), source_arr,out_arr,pad_v
         d_out_arr = CuArray(collect(d_out_arr))
         d_source_arr = CUDA.zeros(size(source_arr)...)
 
-        Enzyme.autodiff(Reverse, f, Duplicated(source_arr, d_source_arr), Duplicated(out_arr,d_out_arr));
+        Enzyme.autodiff(Enzyme.Reverse, f, Duplicated(source_arr, d_source_arr), Duplicated(out_arr,d_out_arr));
         
         return NoTangent(), d_source_arr, d_out_arr, NoTangent(), NoTangent()
     end
@@ -146,7 +146,7 @@ function ChainRulesCore.rrule(::typeof(add_tetr), tetr_dat_out,out_arr,pad_voxel
         d_out_arr = CuArray(collect(d_out_arr))
         d_tetr_dat_out = CUDA.zeros(size(tetr_dat_out)...)
 
-        Enzyme.autodiff(Reverse, f, Duplicated(tetr_dat_out, d_tetr_dat_out), Duplicated(out_arr,d_out_arr));
+        Enzyme.autodiff(Enzyme.Reverse, f, Duplicated(tetr_dat_out, d_tetr_dat_out), Duplicated(out_arr,d_out_arr));
         
         return NoTangent(), d_tetr_dat_out, d_out_arr, NoTangent()
     end
