@@ -53,17 +53,20 @@ function is created to find ith sample point when max is is the number of main s
   num_additional_samp_points - how many additional sample points we want to have between the last main sample point and the verticies of the triangle that we used for it
 """
 # @kernel function set_tetr_dat_kern_unrolled(@Const(tetr_dat),tetr_dat_out,@Const(source_arr),@Const(control_points),@Const(sv_centers))
-function set_tetr_dat_kern_unrolled(tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers)
-
-  source_arr = CUDA.Const(source_arr)
-  control_points = CUDA.Const(control_points)
-  sv_centers = CUDA.Const(sv_centers)
+function set_tetr_dat_kern_unrolled(tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers,max_index)
+  index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
+  if index > max_index
+    return nothing
+  end  
+  # source_arr = CUDA.Const(source_arr)
+  # control_points = CUDA.Const(control_points)
+  # sv_centers = CUDA.Const(sv_centers)
   shared_arr = CuStaticSharedArray(Float32, (256, 4))
   # shared_arr = @localmem Float32 (@groupsize()[1], 4) 
   # index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
   # index = @index(Global)
 
-  #TODO try also calculating local directional variance of the source_arr (so iterate only over x y or z axis); local entrophy
+  # #TODO try also calculating local directional variance of the source_arr (so iterate only over x y or z axis); local entrophy
   #setting sv centers data
   shared_arr[threadIdx().x, 1] = sv_centers[Int(tetr_dat[index, 1, 1]), Int(tetr_dat[index, 1, 2]), Int(tetr_dat[index, 1, 3]), 1]
   shared_arr[threadIdx().x, 2] = sv_centers[Int(tetr_dat[index, 1, 1]), Int(tetr_dat[index, 1, 2]), Int(tetr_dat[index, 1, 3]), 2]
@@ -110,7 +113,6 @@ function set_tetr_dat_kern_unrolled(tetr_dat, tetr_dat_out, source_arr, control_
 
 
   #get the coordinates of the triangle corners and save them to tetr_dat_out
-  # @loopinfo unroll for triangle_corner_num in UInt8(2):UInt8(4)
 
   shared_arr[threadIdx().x, 1] = control_points[Int(tetr_dat[index, 2, 1]), Int(tetr_dat[index, 2, 2]), Int(tetr_dat[index, 2, 3]), Int(tetr_dat[index, 2, 4]), 1]
   shared_arr[threadIdx().x, 2] = control_points[Int(tetr_dat[index, 2, 1]), Int(tetr_dat[index, 2, 2]), Int(tetr_dat[index, 2, 3]), Int(tetr_dat[index, 2, 4]), 2]
@@ -454,13 +456,21 @@ function set_tetr_dat_kern_unrolled(tetr_dat, tetr_dat_out, source_arr, control_
 end
 
 
-@kernel function point_info_kern_unrolled(@Const(tetr_dat),out_sampled_points  ,@Const(source_arr),num_base_samp_points,num_additional_samp_points)
-# function point_info_kern_unrolled(tetr_dat, out_sampled_points, source_arr, num_base_samp_points, num_additional_samp_points)
-  # shared_arr = CuStaticSharedArray(Float32, (256, 4))
-  # index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
-  shared_arr = @localmem Float32 (@groupsize()[1], 4) 
-  index = @index(Global)
+# @kernel function point_info_kern_unrolled(@Const(tetr_dat),out_sampled_points  ,@Const(source_arr),num_base_samp_points,num_additional_samp_points)
+function point_info_kern_unrolled(tetr_dat, out_sampled_points, source_arr, num_base_samp_points, num_additional_samp_points,max_index)
+ 
+  # source_arr = CUDA.Const(source_arr)
+  # control_points = CUDA.Const(control_points)
+  # sv_centers = CUDA.Const(sv_centers)
+  # tetr_dat = CUDA.Const(tetr_dat)
 
+  shared_arr = CuStaticSharedArray(Float32, (256, 4))
+  index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x()))
+  # shared_arr = @localmem Float32 (@groupsize()[1], 4) 
+  # index = @index(Global)
+  if index > max_index
+    return nothing
+  end  
   #we get the diffrence between the sv center and the triangle center
   shared_arr[threadIdx().x, 1] = ((tetr_dat[index, 5, 1] - tetr_dat[index, 1, 1]) / (3 + 1))
   shared_arr[threadIdx().x, 2] = ((tetr_dat[index, 5, 2] - tetr_dat[index, 1, 2]) / (3 + 1))
@@ -1303,7 +1313,7 @@ end
 
 
 
-  # return nothing
+  return nothing
 
 end
 

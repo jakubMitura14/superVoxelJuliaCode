@@ -12,90 +12,104 @@ using Revise
 includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern_unrolled.jl")
 
 
-function set_tetr_dat_kern_deff(tetr_dat, d_tetr_dat, tetr_dat_out, d_tetr_dat_out, source_arr, d_source_arr, control_points, d_control_points, sv_centers, d_sv_centers)
-    Enzyme.autodiff_deferred(Enzyme.Reverse, set_tetr_dat_kern_unrolled, Const, Duplicated(tetr_dat, d_tetr_dat), Duplicated(tetr_dat_out, d_tetr_dat_out), Duplicated(source_arr, d_source_arr), Duplicated(control_points, d_control_points), Duplicated(sv_centers, d_sv_centers))
+function set_tetr_dat_kern_deff(tetr_dat,d_tetr_dat, tetr_dat_out, d_tetr_dat_out, source_arr,d_source_arr, control_points,d_control_points, sv_centers,d_sv_centers,max_index)
+    Enzyme.autodiff_deferred(Enzyme.Reverse, set_tetr_dat_kern_unrolled, Const
+        , Duplicated(tetr_dat,d_tetr_dat), Duplicated(tetr_dat_out, d_tetr_dat_out), Duplicated(source_arr,d_source_arr)
+        , Duplicated(control_points,d_control_points), Duplicated(sv_centers,d_sv_centers),Const(max_index))
     return nothing
+  end
+
+
+
+function call_set_tetr_dat_kern(tetr_dat,source_arr, control_points, sv_centers,threads_tetr_set,blocks_tetr_set)
+    tetr_dat_out=copy(tetr_dat)
+    max_index=size(tetr_dat_out)[1]
+    @cuda threads = threads_tetr_set blocks = blocks_tetr_set set_tetr_dat_kern_unrolled(tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers,max_index)
+    return tetr_dat_out
 end
-
-"""
-pad tetr data with constant in order to avoid padding in the kernel
-we use 2 as default not 0 in order to avoid it trying to get things at index 0 what in julia is impossible
-"""
-function pad_tetr(arr, pad_point_info, tetr_shape, constt=2)
-    to_pad_tetr = CUDA.ones(pad_point_info + tetr_shape[1], tetr_shape[2], tetr_shape[3]) * constt
-    to_pad_tetr[(pad_point_info+1):end, :, :] = arr
-    return to_pad_tetr
-end
-
-
-
-function call_set_tetr_dat_kern(tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers)
-
-    # tetr_shape = size(tetr_dat)
-
-    # tetr_dat = pad_tetr(tetr_dat,pad_point_info,tetr_shape)
-    # tetr_dat_out = CUDA.zeros(size(tetr_dat)...)
-
-    # @cuda threads = threads blocks = blocks set_tetr_dat_kern_unrolled(tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers)
-
-    # tetr_dat_out = tetr_dat_out[1:tetr_shape[1], :, :]
-    # tetr_dat_out = CUDA.zeros(size(tetr_dat)...)
-    dev = get_backend(tetr_dat)
-    set_tetr_dat_kern_unrolled(dev, 256)(tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers, ndrange=(size(tetr_dat)[1]))
-    KernelAbstractions.synchronize(dev)
-    return nothing
-    # return tetr_dat_out
-end
-
-
 
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(call_set_tetr_dat_kern), tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers)
+function ChainRulesCore.rrule(::typeof(call_set_tetr_dat_kern), tetr_dat, source_arr, control_points, sv_centers,threads_tetr_set,blocks_tetr_set)
 
     #we get here correct tetr dat out by mutation
-    call_set_tetr_dat_kern(tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers)
-
+    tetr_dat_out=call_set_tetr_dat_kern(tetr_dat, source_arr, control_points, sv_centers,threads_tetr_set,blocks_tetr_set)
 
 
     function call_test_kernel1_pullback(d_tetr_dat_out)
-        #@device_code_warntype @cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, CuArray(collect(dAout)),Nx)
-
-        # d_tetr_dat_out = vcat(CuArray(collect(d_tetr_dat_out)), to_pad_tetr)
-        # tetr_dat = pad_tetr(tetr_dat,pad_point_info,tetr_shape)          
+       
         d_tetr_dat_out = CuArray(collect(d_tetr_dat_out))
-        # d_tetr_dat_out = pad_tetr(d_tetr_dat_out,pad_point_info,tetr_shape,1)
         d_tetr_dat = CUDA.zeros(size(tetr_dat)...)
-
         d_source_arr = CUDA.zeros(size(source_arr)...)
         d_control_points = CUDA.zeros(size(control_points)...)
         d_sv_centers = CUDA.zeros(size(sv_centers)...)
+        max_index=size(tetr_dat_out)[1]
 
-        Duplicated(tetr_dat, d_tetr_dat)
-        Duplicated(tetr_dat_out, d_tetr_dat_out)
-        Duplicated(source_arr, d_source_arr)
-        Duplicated(control_points, d_control_points)
-        Duplicated(sv_centers, d_sv_centers)
-
-
-        Enzyme.autodiff_deferred(Enzyme.Reverse, call_set_tetr_dat_kern, Const, Duplicated(tetr_dat, d_tetr_dat), Duplicated(tetr_dat_out, d_tetr_dat_out), Duplicated(source_arr, d_source_arr), Duplicated(control_points, d_control_points), Duplicated(sv_centers, d_sv_centers))
-        # Enzyme.autodiff(Enzyme.Reverse, set_tetr_dat_kern_unrolled, Const
-        # , Duplicated(tetr_dat,d_tetr_dat), Duplicated(tetr_dat_out, d_tetr_dat_out), Duplicated(source_arr,d_source_arr)
-        # , Duplicated(control_points,d_control_points), Duplicated(sv_centers,d_sv_centers))
-
-        # # threads_point_info=128#TODO remove
-        # # blocks_point_info=1#TODO remove
-        # #TODO consider add padding to the source array
-        # @cuda threads = threads_point_info blocks = blocks_point_info set_tetr_dat_kern_deff(tetr_dat,d_tetr_dat
-        # , tetr_dat_out, d_tetr_dat_out, source_arr,d_source_arr, control_points,d_control_points, sv_centers,d_sv_centers     )
-        # #reverse padding
-        # d_tetr_dat = d_tetr_dat[1:tetr_shape[1], :, :]
-
-        return NoTangent(), d_tetr_dat, d_source_arr, d_control_points, d_sv_centers, NoTangent(), NoTangent(), NoTangent()
+        @cuda threads = threads_tetr_set blocks = blocks_tetr_set set_tetr_dat_kern_deff(tetr_dat,d_tetr_dat
+        , tetr_dat_out, d_tetr_dat_out, source_arr,d_source_arr, control_points,d_control_points, sv_centers,d_sv_centers,max_index     )
+        
+        return NoTangent(), d_tetr_dat, d_source_arr, d_control_points, d_sv_centers, NoTangent(), NoTangent()
     end
 
     # tetr_dat_out=tetr_dat_out[1:tetr_shape[1],:,:]
 
     return tetr_dat_out, call_test_kernel1_pullback
 
+end
+
+
+############## lux definitions
+struct Set_tetr_dat_str <: Lux.AbstractExplicitLayer
+    radiuss::Float32
+    pad_voxels::Int
+    image_shape::Tuple{Int,Int,Int}
+end
+
+function Lux.initialparameters(rng::AbstractRNG, l::Set_tetr_dat_str)
+    return ()
+end
+"""
+check the optimal launch configuration for the kernel
+calculate the number of threads and blocks and how much padding to add if needed
+"""
+function prepare_for_set_tetr_dat(image_shape,tetr_dat_shape)
+    # ,control_points_shape,sv_centers_shape)
+    # bytes_per_thread=0
+    # blocks_apply_w,threads_res,maxBlocks=set_tetr_dat_kern_unrolled(Cuda.zeros(tetr_dat_shape...)
+    # , Cuda.zeros(tetr_dat_shape...)
+    # , Cuda.zeros(image_shape...), control_points, sv_centers,max_index)
+    threads_res=256
+    needed_blocks = ceil(Int, tetr_dat_shape[1] / threads_res)
+
+    return threads_res,needed_blocks
+end
+function Lux.initialstates(::AbstractRNG, l::Set_tetr_dat_str)::NamedTuple
+
+    sv_centers,tetr_dat,dims = initialize_for_tetr_dat(l.image_shape, l.radiuss,0)
+
+    threads_tetr_set, blocks_tetr_set = prepare_for_apply_weights_to_locs_kern(l.image_shape, size(tetr_dat))
+    
+    return (radiuss=l.radiuss, image_shape=l.image_shape
+    , threads_tetr_set=threads_tetr_set, blocks_tetr_set=blocks_tetr_set
+    , sv_centers=Float32.(sv_centers),tetr_dat=Float32.(tetr_dat),pad_voxels=l.pad_voxels)
+
+end
+
+function pad_source_arr(source_arr,pad_voxels)
+    sizz=size(source_arr)
+    p=pad_voxels*2
+    p_beg=pad_voxels+1
+    new_arr=CUDA.zeros(sizz[1]+p,sizz[2]+p,sizz[3]+p)
+    new_arr[p_beg:sizz[1]+pad_voxels,p_beg:sizz[2]+pad_voxels,p_beg:sizz[3]+pad_voxels]=source_arr
+    return new_arr
+end
+
+function (l::Set_tetr_dat_str)(x, ps, st::NamedTuple)
+    control_points,source_arr = x
+    source_arr=pad_source_arr(source_arr,st.pad_voxels)
+    tetr_dat_out=call_set_tetr_dat_kern(st.tetr_dat,source_arr, control_points, st.sv_centers,st.threads_tetr_set,st.blocks_tetr_set)
+    #TODO if we will deal with spacing we need to take it into account here
+    tetr_dat_out[:,:,1:3]=(tetr_dat_out[:,:,1:3].+st.pad_voxels)
+    
+    return (tetr_dat_out,source_arr), st
 end

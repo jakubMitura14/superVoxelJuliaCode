@@ -21,17 +21,17 @@ function get_corrected_dim(ax,radius,image_shape)
     return Int(ceil((image_shape[ax]-5)/diam))-2
 end    
 
-function get_dif(ax,image_shape,dims,diam)
-    return max(floor((image_shape[ax]-((dims[ax]+1).*diam))/2),2.0)
+function get_dif(ax,image_shape,dims,diam,pad)
+    return max(floor((image_shape[ax]-((dims[ax]+1).*diam))/2),2.0)+pad
 end
 
 """
 initialize sv centers coordinates 
 """
-function get_sv_centers(radius,image_shape)
+function get_sv_centers(radius,image_shape,pad=0.0)
     diam=radius*2
     dims=(get_corrected_dim(1,radius,image_shape),get_corrected_dim(2,radius,image_shape),get_corrected_dim(3,radius,image_shape))
-    diffs= (get_dif(1,image_shape,dims,diam),get_dif(2,image_shape,dims,diam),get_dif(3,image_shape,dims,diam))
+    diffs= (get_dif(1,image_shape,dims,diam,pad),get_dif(2,image_shape,dims,diam,pad),get_dif(3,image_shape,dims,diam,pad))
     # diffs= (1.0,1.0,1.0)
     res= get_base_indicies_arr(dims)*diam
     res[:,:,:,1]=res[:,:,:,1].+diffs[1]
@@ -280,7 +280,13 @@ end
     # A_out[index[1]] = shared_arr[@index(Local, Linear), 1]
 end
 
-
+"""
+calculate shape of the tetr_dat array - array with tetrahedrons that are created by the center of the supervoxel
+"""
+function get_tetr_dat_shape(radius,image_shape)
+    dims=(get_corrected_dim(1,radius,image_shape),get_corrected_dim(2,radius,image_shape),get_corrected_dim(3,radius,image_shape))
+    return (dims[1]*dims[2]*dims[3]*24,5,4)
+end    
 
 """
 get a flattened array of all surface triangles of all supervoxels
@@ -290,7 +296,7 @@ second dimension is size 5 and is in orde sv_center, point a,point b,point c,cen
 in last dimension we have x,y,z coordinates of the point
 currently we have just indicies to the appropriate arrays -> it need to be populated after weights get applied        
 """
-function get_flattened_triangle_data(dims)
+function get_flattened_triangle_data(dims,radius)
     indices = CartesianIndices(dims)
     # indices=collect.(Tuple.(collect(indices)))
     indices=Tuple.(collect(indices))
@@ -299,7 +305,7 @@ function get_flattened_triangle_data(dims)
     indices=permutedims(indices,(2,1))
 
     # indices=splitdims(indices,1)
-    all_surf_triangles=zeros(Float32, (dims[1]*dims[2]*dims[3]*24,5,4))
+    all_surf_triangles=zeros(Float32,get_tetr_dat_shape(radius,image_shape))
 
     dev = get_backend(all_surf_triangles)
     set_triangles_kern(dev, 19)(Float32.(indices),all_surf_triangles
@@ -318,11 +324,11 @@ function get_flattened_triangle_data(dims)
 end
 
 
-function initialize_control_points(image_shape,radius)
+function initialize_control_points(image_shape,radius,pad=0.0)
     diam=radius*2
     diam=radius*2
     dims=(get_corrected_dim(1,radius,image_shape),get_corrected_dim(2,radius,image_shape),get_corrected_dim(3,radius,image_shape))
-    diffs= (get_dif(1,image_shape,dims,diam),get_dif(2,image_shape,dims,diam),get_dif(3,image_shape,dims,diam))
+    diffs= (get_dif(1,image_shape,dims,diam,pad),get_dif(2,image_shape,dims,diam,pad),get_dif(3,image_shape,dims,diam,pad))
      
     lin_x=get_linear_control_points(dims,1,diam,radius,diffs)
     lin_y=get_linear_control_points(dims,2,diam,radius,diffs)
@@ -335,6 +341,16 @@ function initialize_control_points(image_shape,radius)
 
 end#initialize_centeris_and_control_points    
 
+function initialize_for_tetr_dat(image_shape,radius,pad=0)
+    diam=radius*2
+    sv_centers,dims,diffs= get_sv_centers(radius,image_shape,pad)
+    flattened_triangles=get_flattened_triangle_data(dims,radius)  
+
+    res= sv_centers,flattened_triangles,dims
+    return res
+
+end#initialize_centeris_and_control_points 
+
 
 """
 given the size of the x,y,z dimension of control weights (what in basic architecture get as output of convolutions)
@@ -344,8 +360,7 @@ and the intilia positions of the control points
 function initialize_centers_and_control_points(image_shape,radius)
     diam=radius*2
     sv_centers,dims,diffs= get_sv_centers(radius,image_shape)
-
-    flattened_triangles=get_flattened_triangle_data(dims)  
+    flattened_triangles=get_flattened_triangle_data(dims,radius)  
 
     res= sv_centers,initialize_control_points(image_shape,radius),flattened_triangles,dims
     return res

@@ -9,110 +9,99 @@ using LinearAlgebra
 
 using Revise
 
-Enzyme.API.strictAliasing!(false)# taken from here https://github.com/EnzymeAD/Enzyme.jl/issues/1159
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")
+# Enzyme.API.strictAliasing!(false)# taken from here https://github.com/EnzymeAD/Enzyme.jl/issues/1159
 
 
-includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/custom_kern.jl")
-
-function point_info_kern_deff(tetr_dat, d_tetr_dat, out_sampled_points, d_out_sampled_points, source_arr, d_source_arr, control_points, d_control_points, sv_centers, d_sv_centers, num_base_samp_points, num_additional_samp_points
-)
-    # shared_arr = CuStaticSharedArray(Float32, (128,3))
-    # d_shared_arr = CuStaticSharedArray(Float32, (128,3))
-    Enzyme.autodiff_deferred(Enzyme.Reverse, point_info_kern, Const
-        # , Duplicated(CuStaticSharedArray(Float32, (128,3)), CuStaticSharedArray(Float32, (128,3)))
-        , Duplicated(tetr_dat, d_tetr_dat), Duplicated(out_sampled_points, d_out_sampled_points), Duplicated(source_arr, d_source_arr), Duplicated(control_points, d_control_points), Duplicated(sv_centers, d_sv_centers), Const(num_base_samp_points), Const(num_additional_samp_points))
-
-
+function set_point_info_kern_deff(tetr_dat,d_tetr_dat, out_sampled_points, d_out_sampled_points, source_arr,d_source_arr, num_base_samp_points,num_additional_samp_points,max_index)
+    Enzyme.autodiff_deferred(Enzyme.Reverse, point_info_kern_unrolled, Const
+        , Duplicated(tetr_dat,d_tetr_dat), Duplicated(out_sampled_points, d_out_sampled_points), Duplicated(source_arr,d_source_arr)
+        , Const(num_base_samp_points),Const(num_additional_samp_points),Const(max_index))
     return nothing
-end
+  end
 
 
-function call_point_info_kern(tetr_dat, out_sampled_points, source_arr, control_points, sv_centers, num_base_samp_points, num_additional_samp_points, threads, blocks, pad_point_info)
-    # shared_arr = CuStaticSharedArray(Float32, (threads[1],3))
-    # shared_arr = CuStaticSharedArray(Float32, (100,3))
-    # shared_arr = CuDynamicSharedArray(Float32, (threads[1],3))
-    #shmem is in bytes
-    tetr_shape = size(tetr_dat)
-    out_shape = size(out_sampled_points)
-    to_pad_tetr = CUDA.ones(pad_point_info, tetr_shape[2], tetr_shape[3]) * 2
-    tetr_dat = vcat(tetrs, to_pad_tetr)
-
-    to_pad_out = CUDA.ones(pad_point_info, out_shape[2], out_shape[3]) * 2
-    out_sampled_points = vcat(out_sampled_points, to_pad_out)
 
 
-    #@device_code_warntype  @cuda threads = threads blocks = blocks point_info_kern(CuStaticSharedArray(Float32, (128,3)),tetr_dat,out_sampled_points,source_arr,control_points,sv_centers,num_base_samp_points,num_additional_samp_points)
-    @cuda threads = threads blocks = blocks point_info_kern(tetr_dat, out_sampled_points, source_arr, control_points, sv_centers, num_base_samp_points, num_additional_samp_points)
+function call_point_info_kern(tetr_dat,source_arr, num_base_samp_points, num_additional_samp_points, threads_point_info,blocks_point_info)
 
+    out_sampled_points = CUDA.zeros((size(tetr_dat)[1], num_base_samp_points + (3 * num_additional_samp_points), 5))
+    max_index=size(tetr_dat)[1]
+    @cuda threads = threads_point_info blocks = blocks_point_info point_info_kern_unrolled(
+        tetr_dat,out_sampled_points  ,source_arr,num_base_samp_points
+        ,num_additional_samp_points,max_index)
 
-    tetr_dat = tetr_dat[1:tetr_shape[1], :, :]
-    out_sampled_points = out_sampled_points[1:out_shape[1], :, :]
-
-    # @device_code_warntype @cuda threads = threads blocks = blocks testKern( A, p,  Aout,Nx)
+    #@device_code_warntype  
     return out_sampled_points
 end
 
 
 
 # rrule for ChainRules.
-function ChainRulesCore.rrule(::typeof(call_point_info_kern), tetr_dat, out_sampled_points, source_arr, control_points, sv_centers, num_base_samp_points, num_additional_samp_points, threads_point_info, blocks_point_info, pad_point_info)
+function ChainRulesCore.rrule(::typeof(call_point_info_kern), tetr_dat, source_arr, num_base_samp_points, num_additional_samp_points, threads_point_info, blocks_point_info)
 
-
-    out_sampled_points = call_point_info_kern(tetr_dat, out_sampled_points, source_arr, control_points, sv_centers, num_base_samp_points, num_additional_samp_points, threads_point_info, blocks_point_info, pad_point_info)    #TODO unhash
-    d_tetr_dat = CUDA.ones(size(tetr_dat)...)
-    # d_out_sampled_points = CUDA.ones(size(out_sampled_points)...) # TODO remove
-    d_source_arr = CUDA.ones(size(source_arr)...)
-    d_control_points = CUDA.ones(size(control_points)...)
-    d_sv_centers = CUDA.ones(size(sv_centers)...)
-
-
-    #pad to avoid conditionals in kernel
-    tetr_shape = size(tetr_dat)
-    out_shape = size(out_sampled_points)
-    to_pad_tetr = CUDA.ones(pad_point_info, tetr_shape[2], tetr_shape[3])
-    tetr_dat = vcat(tetrs, to_pad_tetr)
-    d_tetr_dat = vcat(d_tetr_dat, to_pad_tetr)
-
-    to_pad_out = CUDA.ones(pad_point_info, out_shape[2], out_shape[3])
-    out_sampled_points = vcat(out_sampled_points, to_pad_out)
-
+    print("\n yyyyyyyyyyyyyyyyyyyyyy \n")
+    out_sampled_points = call_point_info_kern(tetr_dat,source_arr, num_base_samp_points, num_additional_samp_points, threads_point_info,blocks_point_info)
 
     function call_test_kernel1_pullback(d_out_sampled_points)
-        #@device_code_warntype @cuda threads = threads blocks = blocks testKernDeff( A, dA, p, dp, Aout, CuArray(collect(dAout)),Nx)
-
-
-        d_out_sampled_points = vcat(CuArray(collect(d_out_sampled_points)), to_pad_out)
-
-        # d_out_sampled_points = CUDA.ones(size(out_sampled_points)...) #TODO(remove)
-        # d_out_sampled_points=vcat(d_out_sampled_points,to_pad_out)#TODO(remove)
         #@device_code_warntype 
-        # @device_code_warntype  @cuda threads = threads_point_info blocks = blocks_point_info Enzyme.autodiff_deferred(Enzyme.Reverse,point_info_kern, Const
-        #                                                                         , Duplicated(tetr_dat, d_tetr_dat)
-        #                                                                         , Duplicated(out_sampled_points, d_out_sampled_points)
-        #                                                                         , Duplicated(source_arr, d_source_arr)
-        #                                                                         , Duplicated(control_points, d_control_points)
-        #                                                                         , Duplicated(sv_centers, d_sv_centers)
-        #                                                                         ,Const(num_base_samp_points)
-        #                                                                         ,Const(num_additional_samp_points) 
-        # )  
 
+        d_out_sampled_points = CuArray(collect(d_out_sampled_points))
+        max_index=size(tetr_dat)[1]
 
-        @device_code_warntype @cuda threads = threads_point_info blocks = blocks_point_info point_info_kern_deff(tetr_dat, d_tetr_dat, out_sampled_points, d_out_sampled_points, source_arr, d_source_arr, control_points, d_control_points, sv_centers, d_sv_centers, num_base_samp_points, num_additional_samp_points
-        )
-        #reverse padding
+        d_tetr_dat = CUDA.zeros(size(tetr_dat)...)
+        d_source_arr = CUDA.zeros(size(source_arr)...)
+        @cuda threads = threads_point_info blocks = blocks_point_info set_point_info_kern_deff(tetr_dat,d_tetr_dat, out_sampled_points, d_out_sampled_points, source_arr,d_source_arr, num_base_samp_points,num_additional_samp_points,max_index)
 
-
-
-        d_tetr_dat = d_tetr_dat[1:tetr_shape[1], :, :]
-        d_out_sampled_points = d_out_sampled_points[1:out_shape[1], :, :]
-
-        return NoTangent(), d_tetr_dat, d_out_sampled_points, d_source_arr, d_control_points, d_sv_centers, NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent()
+        return NoTangent(), d_tetr_dat, d_source_arr, NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end
-
-    # tetr_dat=tetr_dat[1:tetr_shape[1],:,:]
-    # out_sampled_points=out_sampled_points[1:out_shape[1],:,:]
-
 
     return out_sampled_points, call_test_kernel1_pullback
 
+end
+############## lux definitions
+struct Point_info_kern_str <: Lux.AbstractExplicitLayer
+    radiuss::Float32
+    image_shape::Tuple{Int,Int,Int}
+    num_base_samp_points::Int
+    num_additional_samp_points::Int
+end
+
+
+
+function Lux.initialparameters(rng::AbstractRNG, l::Point_info_kern_str)
+    return ()
+end
+"""
+check the optimal launch configuration for the kernel
+calculate the number of threads and blocks and how much padding to add if needed
+"""
+function prepare_point_info_kern(image_shape,tetr_dat_shape)
+    # ,control_points_shape,sv_centers_shape)
+    # bytes_per_thread=0
+    # blocks_apply_w,threads_res,maxBlocks=set_tetr_dat_kern_unrolled(Cuda.zeros(tetr_dat_shape...)
+    # , Cuda.zeros(tetr_dat_shape...)
+    # , Cuda.zeros(image_shape...), control_points, sv_centers,max_index)
+    threads_res=256
+    needed_blocks = ceil(Int, tetr_dat_shape[1] / threads_res)
+
+    return threads_res,needed_blocks
+end
+function Lux.initialstates(::AbstractRNG, l::Point_info_kern_str)::NamedTuple
+
+    # num_base_samp_points, num_additional_samp_points, threads_point_info, blocks_point_info
+
+    threads_point_info, blocks_point_info = prepare_point_info_kern(l.image_shape, get_tetr_dat_shape(l.radiuss,l.image_shape))
+    
+    return (radiuss=l.radiuss, image_shape=l.image_shape
+    , threads_point_info=threads_point_info, blocks_point_info=blocks_point_info
+    ,num_base_samp_points=num_base_samp_points,num_additional_samp_points=num_additional_samp_points)
+
+end
+
+function (l::Point_info_kern_str)(x, ps, st::NamedTuple)
+    tetr_dat,source_arr = x
+    source_arr=source_arr[:,:,:,1,1]
+    out_sampled_points=call_point_info_kern(tetr_dat,source_arr, st.num_base_samp_points, st.num_additional_samp_points, st.threads_point_info,st.blocks_point_info)
+    return (out_sampled_points,tetr_dat), st
 end

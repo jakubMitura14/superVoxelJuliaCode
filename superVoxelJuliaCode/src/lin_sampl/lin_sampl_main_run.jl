@@ -25,6 +25,8 @@ using LinearAlgebra
 using Revise
 
 includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/Lux_model.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_tetr.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point.jl")
 
 
 
@@ -32,8 +34,6 @@ h5_path="/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/data/synth_data.h5"
 f = h5open(h5_path, "r")
 
 rng = Random.default_rng()
-threads = (2, 2, 2)
-blocks = (1, 1, 1)
 dev = gpu_device()
 
 
@@ -43,10 +43,22 @@ function get_sample_dat(f::HDF5.File)
     # return f["1/image"][:,:,:],f["1/weights"][:,:,:,:],f["1/tetr"][:,:,:,:]
 end
 
+# function pad_source_arr(source_arr,pad_voxels)
+#     sizz=size(source_arr)
+#     p=pad_voxels*2
+#     p_beg=pad_voxels+1
+#     new_arr=CUDA.zeros(sizz[1]+p,sizz[2]+p,sizz[3]+p,sizz[4],sizz[5])
+#     new_arr[p_beg:sizz[1]+pad_voxels,p_beg:sizz[2]+pad_voxels,p_beg:sizz[3]+pad_voxels,:,:]=source_arr
+#     return new_arr
+# end
+
 imagee,weights,tetr_out_saved = get_sample_dat(f)
 imagee=reshape(imagee, (size(imagee)[1],size(imagee)[2],size(imagee)[3],1,1))
 
 radiuss = Float32(4.0)
+pad_voxels=2
+num_base_samp_points,num_additional_samp_points=3,2
+# imagee=pad_source_arr(imagee,pad_voxels)
 image_shape=size(imagee)
 # threads_apply_w, blocks_apply_w = prepare_for_apply_weights_to_locs_kern(size(control_points), size(weights))
 
@@ -57,16 +69,8 @@ conv2 = (in, out) -> Lux.Conv((3, 3, 3), in => out, NNlib.tanh, stride=2, pad=Lu
 convsigm2 = (in, out) -> Lux.Conv((3, 3, 3), in => out, NNlib.sigmoid, stride=2, pad=Lux.SamePad())
 
 
-# Conv(k::NTuple{N,Integer}, (in_chs => out_chs)::Pair{<:Integer,<:Integer},
-#      activation=identity; init_weight=glorot_uniform, init_bias=zeros32, stride=1,
-#      pad=0, dilation=1, groups=1, use_bias=true, allow_fast_activation=true)
 
-
-weights_dims=(get_corrected_dim(1,radiuss,image_shape)
-        ,get_corrected_dim(2,radiuss,image_shape)
-        ,get_corrected_dim(3,radiuss,image_shape))
-
-function connection_before_kernelA(x, y)
+function connection_before_set_tetr_dat_kern(x, y)
     return (x, y)
 end
 
@@ -80,7 +84,12 @@ conv_part=Lux.Chain(conv2(1, 6), conv2(6, 6),conv2(6, 6))
 conv_part give us weights in semi correct shape and corect number of channels
 now we need to have the skip connection to the point kernels as those require original image for sampling
 """
-model = Lux.Chain(conv_part,Points_weights_str(radiuss,(image_shape[1],image_shape[2],image_shape[3]),num_convs_per_dim))
+before_point_kerns = SkipConnection(Lux.Chain(conv_part
+,Points_weights_str(radiuss,pad_voxels,(image_shape[1],image_shape[2],image_shape[3]),num_convs_per_dim)),connection_before_set_tetr_dat_kern)
+model = Lux.Chain(before_point_kerns
+                ,Set_tetr_dat_str(radiuss,pad_voxels,(image_shape[1],image_shape[2],image_shape[3]))
+                ,Point_info_kern_str(radiuss,(image_shape[1],image_shape[2],image_shape[3]),num_base_samp_points,num_additional_samp_points)
+                )
 # model = Lux.Chain(SkipConnection(Lux.Chain(conv1(1, 3), conv2(3, 3), convsigm2(3, 3))
 #         , connection_before_kernelA; name="prim_convs")
 #         , KernelA(Nx, threads, blocks))
@@ -97,7 +106,7 @@ tstate = Lux.Experimental.TrainState(rng, model, opt)
 tstate=cu(tstate)
 function loss_function(model, ps, st, data)
     y_pred, st = Lux.apply(model, data, ps, st)
-    return sum(y_pred), st, ()
+    return sum(y_pred[1]), st, ()
 end
 vjp = AutoZygote()
 

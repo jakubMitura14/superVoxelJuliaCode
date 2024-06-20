@@ -113,11 +113,7 @@ function ChainRulesCore.rrule(::typeof(call_apply_weights_to_locs_kern), control
 
         d_weights = CUDA.zeros(size(weights)...)
         sizz = size(control_points)
-        # @cuda threads = threads blocks = blocks apply_weights_to_locs_kern_deff(control_points,CuArray(collect(d_control_points_out)),weights,d_weights,radius
-        # ,(UInt32(sizz[1]),UInt32(sizz[2]),UInt32(sizz[3])))
-        # control_points_out_in = CUDA.zeros(sizz...)
-        # d_control_points_out = CUDA.ones(sizz...)
-        d_control_points = CUDA.ones(sizz...)
+        d_control_points = CUDA.zeros(sizz...)
 
         #@device_code_warntype
         @cuda threads = threads blocks = blocks apply_weights_to_locs_kern_deff(
@@ -148,6 +144,7 @@ num_convs_per_dim - number of strided convolutions that are used in each dimensi
 """
 struct Points_weights_str <: Lux.AbstractExplicitLayer
     radiuss::Float32
+    pad_voxels::Int
     image_shape::Tuple{Int,Int,Int}
     num_convs_per_dim::Tuple{Int,Int,Int}
 
@@ -167,7 +164,7 @@ end
 
 function Lux.initialstates(::AbstractRNG, l::Points_weights_str)::NamedTuple
 
-    control_points = initialize_control_points(l.image_shape, l.radiuss)
+    control_points = initialize_control_points(l.image_shape, l.radiuss,0)
     weights_shape=(get_corrected_dim_weighs(l.image_shape,l.num_convs_per_dim,1)
     ,get_corrected_dim_weighs(l.image_shape,l.num_convs_per_dim,2)
     ,get_corrected_dim_weighs(l.image_shape,l.num_convs_per_dim,3))
