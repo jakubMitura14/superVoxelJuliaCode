@@ -1,3 +1,5 @@
+Non isovolumtric support
+We need to change trilinear interpolation and variance to such that support spacing
 When we will add support for non isovolumetric spacing remember to alter addition of cooridinate values in set_tetr_dat Lux layer call
 
 

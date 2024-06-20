@@ -30,19 +30,6 @@ includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/cust
 includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/utils_lin_sampl.jl")
 
 
-# radiuss = Float32(4.0)
-# diam = radiuss * 2
-# num_weights_per_point = 6
-# a = 36
-# image_shape = (a, a, a)
-
-# example_set_of_svs = initialize_centers_and_control_points(image_shape, radiuss)
-# sv_centers, control_points, tetrs, dims = example_set_of_svs
-
-# dims_plus = (dims[1] + 1, dims[2] + 1, dims[3] + 1)
-# # control_points first dimension is lin_x, lin_y, lin_z, oblique
-# weights = rand(dims_plus[1], dims_plus[2], dims_plus[3], num_weights_per_point)
-
 
 """
 interpolation check - chek weather the value we got from interpolation make sense (we are meaking separete kernel just for this tests)

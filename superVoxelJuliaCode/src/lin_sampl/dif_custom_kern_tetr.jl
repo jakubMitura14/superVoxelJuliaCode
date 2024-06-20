@@ -95,21 +95,75 @@ function Lux.initialstates(::AbstractRNG, l::Set_tetr_dat_str)::NamedTuple
 
 end
 
-function pad_source_arr(source_arr,pad_voxels)
-    sizz=size(source_arr)
-    p=pad_voxels*2
+function pad_source_arr(source_arr,out_arr,pad_voxels,image_shape)
+    source_arr=source_arr[:,:,:,1,1]
+    # p=pad_voxels*2
     p_beg=pad_voxels+1
-    new_arr=CUDA.zeros(sizz[1]+p,sizz[2]+p,sizz[3]+p)
-    new_arr[p_beg:sizz[1]+pad_voxels,p_beg:sizz[2]+pad_voxels,p_beg:sizz[3]+pad_voxels]=source_arr
-    return new_arr
+    # new_arr=zeros(image_shape[1]+p,image_shape[2]+p,image_shape[3]+p)
+    out_arr[p_beg:image_shape[1]+pad_voxels,p_beg:image_shape[2]+pad_voxels,p_beg:image_shape[3]+pad_voxels]=source_arr
+    return out_arr
 end
+
+
+
+
+
+function ChainRulesCore.rrule(::typeof(pad_source_arr), source_arr,out_arr,pad_voxels,image_shape)
+
+    #we get here correct tetr dat out by mutation
+    out_arr=pad_source_arr(source_arr,out_arr,pad_voxels,image_shape)
+
+
+    function call_test_kernel1_pullback(d_out_arr)
+        d_out_arr = CuArray(collect(d_out_arr))
+        d_source_arr = CUDA.zeros(size(source_arr)...)
+
+        Enzyme.autodiff(Reverse, f, Duplicated(source_arr, d_source_arr), Duplicated(out_arr,d_out_arr));
+        
+        return NoTangent(), d_source_arr, d_out_arr, NoTangent(), NoTangent()
+    end
+
+    return out_arr, call_test_kernel1_pullback
+
+end
+
+
+function add_tetr(tetr_dat_out,out_arr,pad_voxels)
+
+    out_arr[:,:,1:3]=(tetr_dat_out[:,:,1:3].+pad_voxels)
+    return out_arr
+end    
+
+
+function ChainRulesCore.rrule(::typeof(add_tetr), tetr_dat_out,out_arr,pad_voxels)
+
+    #we get here correct tetr dat out by mutation
+    out_arr=add_tetr(tetr_dat_out,out_arr,pad_voxels)
+
+
+    function call_test_kernel1_pullback(d_out_arr)
+        d_out_arr = CuArray(collect(d_out_arr))
+        d_tetr_dat_out = CUDA.zeros(size(tetr_dat_out)...)
+
+        Enzyme.autodiff(Reverse, f, Duplicated(tetr_dat_out, d_tetr_dat_out), Duplicated(out_arr,d_out_arr));
+        
+        return NoTangent(), d_tetr_dat_out, d_out_arr, NoTangent()
+    end
+
+    return out_arr, call_test_kernel1_pullback
+
+end
+
+
 
 function (l::Set_tetr_dat_str)(x, ps, st::NamedTuple)
     control_points,source_arr = x
-    source_arr=pad_source_arr(source_arr,st.pad_voxels)
+
     tetr_dat_out=call_set_tetr_dat_kern(st.tetr_dat,source_arr, control_points, st.sv_centers,st.threads_tetr_set,st.blocks_tetr_set)
-    #TODO if we will deal with spacing we need to take it into account here
-    tetr_dat_out[:,:,1:3]=(tetr_dat_out[:,:,1:3].+st.pad_voxels)
+    #TODO if we will deal with spacing we need to take it into account here similar if we will use batches pad_source_arr need to be modified
+    tetr_dat_out=add_tetr(tetr_dat_out,CuArray(zeros(Float32,size(tetr_dat_out)...)),st.pad_voxels)
     
+    source_arr=pad_source_arr(source_arr,CuArray(zeros(Float32,image_shape[1]+(st.pad_voxels*2),image_shape[2]+(st.pad_voxels*2),image_shape[3]+(st.pad_voxels*2))),st.pad_voxels,st.image_shape)    
+
     return (tetr_dat_out,source_arr), st
 end

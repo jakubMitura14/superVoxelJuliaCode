@@ -104,20 +104,35 @@ y_pred, st = Lux.apply(model, CuArray(imagee), ps, st)
 
 tstate = Lux.Experimental.TrainState(rng, model, opt)
 tstate=cu(tstate)
+
+"""
+loss function need to first take all of the sv border points and associated variance from tetr_dat
+    the higher the mean of those the better 
+Next we need to take the weighted variance of the points sampled from out_sampled_points separately for each supervoxel 
+    as we have all of the tetrahedrons flattened we need to reshape the outsampled points array so we will be able to process
+    each supervoxel separately and calculate separately variance of each
+To consider - using tulio or sth with einsum to get the variance of each supervoxel
+
+finally mean of variance of supervoxels calculated from out sampled points should be as small as possible
+
+"""
 function loss_function(model, ps, st, data)
     y_pred, st = Lux.apply(model, data, ps, st)
     return sum(y_pred[1]), st, ()
 end
-vjp = AutoZygote()
+# vjp = Lux.Experimental.ADTypes.AutoEnzyme()
+vjp = Lux.Experimental.ADTypes.AutoZygote()
+
 
 _, loss, _, tstate = Lux.Experimental.single_train_step!(
     vjp, loss_function, CuArray(imagee), tstate)
 
 
-
+# using Pkg
+# Pkg.add(url="https://github.com/LuxDL/Lux.jl.git")
 # gs = only(gradient(p -> sum(first(Lux.apply(model, CuArray(imagee), p, st))), ps))
 
-sum(y_pred)
+print("\n  *********** $(sum(y_pred)) \n")
 
 
 # function loss_function(model, ps, st, x)

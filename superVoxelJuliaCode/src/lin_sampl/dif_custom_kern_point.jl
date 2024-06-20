@@ -13,9 +13,13 @@ includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_p
 # Enzyme.API.strictAliasing!(false)# taken from here https://github.com/EnzymeAD/Enzyme.jl/issues/1159
 
 
-function set_point_info_kern_deff(tetr_dat,d_tetr_dat, out_sampled_points, d_out_sampled_points, source_arr,d_source_arr, num_base_samp_points,num_additional_samp_points,max_index)
+# function set_point_info_kern_deff(tetr_dat,d_tetr_dat, out_sampled_points, d_out_sampled_points, source_arr,d_source_arr, num_base_samp_points,num_additional_samp_points,max_index)
+function set_point_info_kern_deff(tetr, out, so, num_base_samp_points,num_additional_samp_points,max_index)
+
     Enzyme.autodiff_deferred(Enzyme.Reverse, point_info_kern_unrolled, Const
-        , Duplicated(tetr_dat,d_tetr_dat), Duplicated(out_sampled_points, d_out_sampled_points), Duplicated(source_arr,d_source_arr)
+        , tetr
+        , out
+        , so
         , Const(num_base_samp_points),Const(num_additional_samp_points),Const(max_index))
     return nothing
   end
@@ -51,7 +55,13 @@ function ChainRulesCore.rrule(::typeof(call_point_info_kern), tetr_dat, source_a
 
         d_tetr_dat = CUDA.zeros(size(tetr_dat)...)
         d_source_arr = CUDA.zeros(size(source_arr)...)
-        @cuda threads = threads_point_info blocks = blocks_point_info set_point_info_kern_deff(tetr_dat,d_tetr_dat, out_sampled_points, d_out_sampled_points, source_arr,d_source_arr, num_base_samp_points,num_additional_samp_points,max_index)
+        so=Duplicated(source_arr,d_source_arr)
+        tetr=Duplicated(tetr_dat,d_tetr_dat)
+        out=Duplicated(out_sampled_points, d_out_sampled_points)
+
+        @cuda threads = threads_point_info blocks = blocks_point_info set_point_info_kern_deff(tetr, out, so, num_base_samp_points,num_additional_samp_points,max_index)
+        # @cuda threads = threads_point_info blocks = blocks_point_info set_point_info_kern_deff(tetr_dat,d_tetr_dat, out_sampled_points
+        # , d_out_sampled_points, source_arr,d_source_arr, num_base_samp_points,num_additional_samp_points,max_index)
 
         return NoTangent(), d_tetr_dat, d_source_arr, NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end
@@ -101,7 +111,6 @@ end
 
 function (l::Point_info_kern_str)(x, ps, st::NamedTuple)
     tetr_dat,source_arr = x
-    source_arr=source_arr[:,:,:,1,1]
     out_sampled_points=call_point_info_kern(tetr_dat,source_arr, st.num_base_samp_points, st.num_additional_samp_points, st.threads_point_info,st.blocks_point_info)
     return (out_sampled_points,tetr_dat), st
 end
