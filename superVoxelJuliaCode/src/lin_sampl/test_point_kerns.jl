@@ -292,12 +292,19 @@ tetr dat check - we are testing the set_tetr_dat_kern kernel - tetr dat was upda
    d) establish if centroid of the tetrahedron  base is in the middle of the points of a tetrahedron base
    e) check weather centroid interpolated correctly
    f) check weather sv center interpolated correctly
+
+   testing point_info_kern function 
+    check base sample points
+    1) check weather the base sample points are on the line between the center of the triangle and the center of the super voxel
+    2) check weather the interpolation value of the sampled points agrees with interpolations checks
+    3) check is weight associated with sample point is proportional to the distance between them
+    check additional sample points
+    4) check weather they are on the line between the last base sample point and corners of the base of the tetrahedron
+    5) check weather the interpolation value of the sampled points agrees with interpolations checks
+    6) check is weight associated with sample point is proportional to the distance between them
+
+
 """
-# Test data initialization
-
-
-
-
 
 
 function fill_tetrahedron_data(tetr_dat, sv_centers, control_points, index)
@@ -316,17 +323,6 @@ end
 
 # Test functions
 
-"""
-testing point_info_kern function 
-check base sample points
-1) check weather the base sample points are on the line between the center of the triangle and the center of the super voxel
-2) check weather the interpolation value of the sampled points agrees with interpolations checks
-3) check is weight associated with sample point is proportional to the distance between them
-check additional sample points
-4) check weather they are on the line between the last base sample point and corners of the base of the tetrahedron
-5) check weather the interpolation value of the sampled points agrees with interpolations checks
-6) check is weight associated with sample point is proportional to the distance between them
-"""
 
 function prepare_for_point_info_kern(tetr_dat_shape)
     bytes_per_thread = 6
@@ -439,16 +435,18 @@ end
 """
 testing unrolled versions of functions
 """
+function connection_before_set_tetr_dat_kern(x, y)
+    return (x, y)
+end
 
-
-# @testset "set_tetr_dat_kern tests" begin
-function test_call_set_tetr_dat_kern_test_unrolled()
+function get_test_data()
     radiuss = Float32(4.0)
     diam = radiuss * 2
     num_weights_per_point = 6
     a = 48
     image_shape = (a, a, a)
     num_convs_per_dim=(3,3,3)
+    num_base_samp_points,num_additional_samp_points=3,2
     pad_voxels=2
 
     example_set_of_svs = initialize_centers_and_control_points(image_shape, radiuss)
@@ -461,31 +459,31 @@ function test_call_set_tetr_dat_kern_test_unrolled()
     #get dummy model 
     rng = Random.default_rng()
 
-
-    weights_shape=(get_corrected_dim_weighs(image_shape,num_convs_per_dim,1)+10
-    ,get_corrected_dim_weighs(image_shape,num_convs_per_dim,2)+10
-    ,get_corrected_dim_weighs(image_shape,num_convs_per_dim,3)+10,1,1)
-
-    model_points_weights=Points_weights_str(radiuss,pad_voxels,(image_shape[1],image_shape[2],image_shape[3]),num_convs_per_dim)
-    ps, st = Lux.setup(rng, model_points_weights)
-    st=cu(st)
-    ps=cu(ps)
-    control_points_out, st = Lux.apply(model_points_weights, CUDA.zeros(weights_shape...), ps, st)
-
-
+    conv2 = (in, out) -> Lux.Conv((3, 3, 3), in => out, NNlib.tanh, stride=2, pad=Lux.SamePad(),init_weight=zeros32, init_bias=zeros32)
 
     ###tetr dat model
-    model = Lux.Chain(Set_tetr_dat_str(radiuss,pad_voxels,(image_shape[1],image_shape[2],image_shape[3])))
-    rng = Random.default_rng()
+    conv_part=Lux.Chain(conv2(1, 6), conv2(6, 6),conv2(6, 6))
+    before_point_kerns = SkipConnection(Lux.Chain(conv_part
+    ,Points_weights_str(radiuss,pad_voxels,(image_shape[1],image_shape[2],image_shape[3]),num_convs_per_dim)),connection_before_set_tetr_dat_kern)
+    model = Lux.Chain(before_point_kerns
+                    ,Set_tetr_dat_str(radiuss,pad_voxels,(image_shape[1],image_shape[2],image_shape[3]))
+                    ,Point_info_kern_str(radiuss,(image_shape[1],image_shape[2],image_shape[3]),num_base_samp_points,num_additional_samp_points)
+                    )
     ps, st = Lux.setup(rng, model)
     st=cu(st)
     ps=cu(ps)
+    y_pred, st = Lux.apply(model, CuArray(reshape(source_arr, (size(source_arr)[1],size(source_arr)[2],size(source_arr)[3],1,1))), ps, st)
+    out_sampled_points,tetr_dat_out=y_pred
+    return Array(out_sampled_points), Array(tetr_dat_out), Array(sv_centers), Array(control_points), Array(tetrs),Array(sv_tetrs),Array(source_arr),num_base_samp_points,num_additional_samp_points
 
-    y_pred, st = Lux.apply(model, (CuArray(control_points_out),CuArray(source_arr) ), ps, st)
+end
 
-    tetr_dat_out,source_arr_padded=y_pred
 
-    tetr_dat_out[:,:,1:3]=(tetr_dat_out[:,:,1:3].-pad_voxels)
+# @testset "set_tetr_dat_kern tests" begin
+function test_call_set_tetr_dat_kern_test_unrolled()
+    @testset "main unrolled kernels tests" begin
+        out_sampled_points, tetr_dat_out, sv_centers, control_points, tetrs,sv_tetrs,source_arr,num_base_samp_points,num_additional_samp_points=get_test_data()
+
 
 
 
@@ -497,12 +495,14 @@ function test_call_set_tetr_dat_kern_test_unrolled()
     # tetr_dat_out[1,1,:][1:3]
     # @testset "is tetr dat out populated correctly" begin
     tetr_dat_out = Array(tetr_dat_out)
+    out_sampled_points = Array(out_sampled_points)
     for v in eachindex(sv_tetrs)
         sum_x = 0.0
         sum_y = 0.0
         sum_z = 0.0
         for p in eachindex(sv_tetrs[v])
             ## test is the location of the tetrahedron points was updated correctly
+            # print("\n vvvv $(v)  $(p)\n ")
             @test sv_tetrs[v][p] == tetr_dat_out[v, p, :][1:3]
             ## check is interpolation of sv cenetr is correctly written
             if (p == 1)
@@ -522,157 +522,112 @@ function test_call_set_tetr_dat_kern_test_unrolled()
         @test tetr_dat_out[v, 5, 3] ≈ (sum_z / 3)
         @test tetr_dat_out[v, 5, 4] ≈ trilinear_variance_kernel_cpu(source_arr, ((sum_x / 3), (sum_y / 3), (sum_z / 3)))
     end
+
+########### testing point info kernel
+for index in 1:size(tetr_dat_out)[1]
+    pp = []
+    ### testing base sample points
+    for num_point in 1:num_base_samp_points
+        pp = get_on_a_line(tetr_dat_out[index, 1, :], tetr_dat_out[index, 5, :], num_point / (num_base_samp_points + 1))
+        @test out_sampled_points[index, num_point, :][3:5] ≈ pp
+        @test isapprox(out_sampled_points[index, num_point, 1], trilinear_interpolation_kernel_cpu(pp, source_arr), atol=0.001)
+        if (num_point == num_base_samp_points)
+
+
+            @test isapprox(((((norm((tetr_dat_out[index, 1, 1:3] - (tetr_dat_out[index, 5, 1:3])) ./ (num_base_samp_points + 1)) * 2) +
+                              (norm((pp - (tetr_dat_out[index, 2, 1:3])) .* (1 / (num_additional_samp_points + 1)))) +
+                              (norm((pp - (tetr_dat_out[index, 3, 1:3])) .* (1 / (num_additional_samp_points + 1)))) +
+                              (norm((pp - (tetr_dat_out[index, 4, 1:3])) .* (1 / (num_additional_samp_points + 1))))
+                ) / 5)^3), out_sampled_points[index, num_point, 2], atol=0.001)
+        else
+
+            @test isapprox(((((norm((tetr_dat_out[index, 1, 1:3] - (tetr_dat_out[index, 5, 1:3])) ./ (num_base_samp_points + 1)) * 2) +
+                              distance_point_to_line_gold(pp, tetr_dat_out[index, 1, 1:3], tetr_dat_out[index, 2, 1:3]) +
+                              distance_point_to_line_gold(pp, tetr_dat_out[index, 1, 1:3], tetr_dat_out[index, 3, 1:3]) +
+                              distance_point_to_line_gold(pp, tetr_dat_out[index, 1, 1:3], tetr_dat_out[index, 4, 1:3])
+                ) / 5)^3), out_sampled_points[index, num_point, 2], atol=0.001)
+
+
+        end
+
+
+    end
+    ##pp is last base sample point
+    ### testing additional sample points
+    for num_point in 1:num_additional_samp_points
+        for triangle_corner_num in UInt8(1):UInt8(3)
+            pp2 = get_on_a_line(pp, tetr_dat_out[index, triangle_corner_num+1, :], num_point / (num_additional_samp_points + 1))
+            # distst=get_line_diff(tetr_dat_out[index,triangle_corner_num+1,:],pp,num_point/(num_additional_samp_points+1))
+            # print("\n pppp $pp2 get_line_diff $(distst) \n")
+            @test out_sampled_points[index, (num_base_samp_points+triangle_corner_num)+((num_point-1)*3), :][3:5] ≈ pp2
+            @test out_sampled_points[index, (num_base_samp_points+triangle_corner_num)+((num_point-1)*3), 1] ≈ trilinear_interpolation_kernel_cpu(pp2, source_arr)
+
+            aa = [1, 2, 3, 4]
+            aa = deleteat!(aa, triangle_corner_num + 1)
+
+            rrr = norm((tetr_dat_out[index, triangle_corner_num+1, 1:3] - pp) ./ (num_additional_samp_points + 1)) * 2
+            for ii in aa
+                rrr += distance_point_to_line_gold(pp2, tetr_dat_out[index, ii, 1:3], tetr_dat_out[index, triangle_corner_num+1, 1:3])
+            end
+
+            rr = (((rrr) / 5)^3)
+
+            @test isapprox(rr, out_sampled_points[index, (num_base_samp_points+triangle_corner_num)+((num_point-1)*3), 2], atol=0.001)
+
+        end
+    end
+
+end
+end #main unrolled kernels tests set
 end
 
 test_call_set_tetr_dat_kern_test_unrolled()
-
+out_sampled_points, tetr_dat_out, sv_centers, control_points, tetrs,sv_tetrs,source_arr,num_base_samp_points,num_additional_samp_points=get_test_data()
 # # @testset "point_info_kern tests" begin
-# function test_point_info_kern_unrolledd()
-#     radiuss = Float32(4.0)
-#     diam = radiuss * 2
-#     num_weights_per_point = 6
-#     a = 36
-#     image_shape = (a, a, a)
-
-#     example_set_of_svs = initialize_centers_and_control_points(image_shape, radiuss)
-#     sv_centers, control_points, tetrs, dims = example_set_of_svs
-#     #here we get all tetrahedrons mapped to non modified locations
-#     sv_tetrs = map(index -> fill_tetrahedron_data(tetrs, sv_centers, control_points, index), 1:(size(tetrs)[1]))
-#     source_arr = rand(Float32, image_shape)
-#     num_base_samp_points, num_additional_samp_points = 3, 2
-
-#     tetr_dat_out = zeros(size(tetrs))
-#     threads_point_info, blocks_point_info, pad_point_info = prepare_for_set_tetr_dat(size(tetrs))
-    
-#     krowa
-#     tetr_dat_out = call_set_tetr_dat_kern_test(tetrs, source_arr, control_points, sv_centers, threads_point_info, blocks_point_info, pad_point_info)
-
-
-#     krowa
-#     threads_point_info, blocks_point_info, pad_point_info = prepare_for_point_info_kern(size(tetrs))
-#     out_sampled_points = call_point_info_kern_test_unrolled(tetr_dat_out, source_arr, control_points, threads_point_info, blocks_point_info, pad_point_info, num_base_samp_points, num_additional_samp_points)
-
-#     tetr_dat_out = Array(tetr_dat_out)
-
-#     index = 1
-#     point_num = 1
-#     point_coords = (((tetr_dat_out[index, 5, 1] - tetr_dat_out[index, 1, 1]) * (point_num / (num_base_samp_points + 1))),
-#         ((tetr_dat_out[index, 5, 2] - tetr_dat_out[index, 1, 2]) * (point_num / (num_base_samp_points + 1))),
-#         ((tetr_dat_out[index, 5, 3] - tetr_dat_out[index, 1, 3]) * (point_num / (num_base_samp_points + 1))))
-
-#     out_sampled_points = Array(out_sampled_points)
-#     out_sampled_points[1, :, :]
-#     tetr_dat_out[1, :, :]
-
-
-#     for index in 1:size(tetr_dat_out)[1]
-#         pp = []
-#         ### testing base sample points
-#         for num_point in 1:num_base_samp_points
-#             pp = get_on_a_line(tetr_dat_out[index, 1, :], tetr_dat_out[index, 5, :], num_point / (num_base_samp_points + 1))
-#             @test out_sampled_points[index, num_point, :][3:5] ≈ pp
-#             @test isapprox(out_sampled_points[index, num_point, 1], trilinear_interpolation_kernel_cpu(pp, source_arr), atol=0.001)
-#             if (num_point == num_base_samp_points)
-
-
-#                 @test isapprox(((((norm((tetr_dat_out[index, 1, 1:3] - (tetr_dat_out[index, 5, 1:3])) ./ (num_base_samp_points + 1)) * 2) +
-#                                   (norm((pp - (tetr_dat_out[index, 2, 1:3])) .* (1 / (num_additional_samp_points + 1)))) +
-#                                   (norm((pp - (tetr_dat_out[index, 3, 1:3])) .* (1 / (num_additional_samp_points + 1)))) +
-#                                   (norm((pp - (tetr_dat_out[index, 4, 1:3])) .* (1 / (num_additional_samp_points + 1))))
-#                     ) / 5)^3), out_sampled_points[index, num_point, 2], atol=0.001)
-#             else
-
-#                 @test isapprox(((((norm((tetr_dat_out[index, 1, 1:3] - (tetr_dat_out[index, 5, 1:3])) ./ (num_base_samp_points + 1)) * 2) +
-#                                   distance_point_to_line_gold(pp, tetr_dat_out[index, 1, 1:3], tetr_dat_out[index, 2, 1:3]) +
-#                                   distance_point_to_line_gold(pp, tetr_dat_out[index, 1, 1:3], tetr_dat_out[index, 3, 1:3]) +
-#                                   distance_point_to_line_gold(pp, tetr_dat_out[index, 1, 1:3], tetr_dat_out[index, 4, 1:3])
-#                     ) / 5)^3), out_sampled_points[index, num_point, 2], atol=0.001)
-
-
-#             end
-
-
-#         end
-#         ##pp is last base sample point
-#         ### testing additional sample points
-#         for num_point in 1:num_additional_samp_points
-#             for triangle_corner_num in UInt8(1):UInt8(3)
-#                 pp2 = get_on_a_line(pp, tetr_dat_out[index, triangle_corner_num+1, :], num_point / (num_additional_samp_points + 1))
-#                 # distst=get_line_diff(tetr_dat_out[index,triangle_corner_num+1,:],pp,num_point/(num_additional_samp_points+1))
-#                 # print("\n pppp $pp2 get_line_diff $(distst) \n")
-#                 @test out_sampled_points[index, (num_base_samp_points+triangle_corner_num)+((num_point-1)*3), :][3:5] ≈ pp2
-#                 @test out_sampled_points[index, (num_base_samp_points+triangle_corner_num)+((num_point-1)*3), 1] ≈ trilinear_interpolation_kernel_cpu(pp2, source_arr)
-
-#                 aa = [1, 2, 3, 4]
-#                 aa = deleteat!(aa, triangle_corner_num + 1)
-
-#                 rrr = norm((tetr_dat_out[index, triangle_corner_num+1, 1:3] - pp) ./ (num_additional_samp_points + 1)) * 2
-#                 for ii in aa
-#                     rrr += distance_point_to_line_gold(pp2, tetr_dat_out[index, ii, 1:3], tetr_dat_out[index, triangle_corner_num+1, 1:3])
-#                 end
-
-#                 rr = (((rrr) / 5)^3)
-
-#                 @test isapprox(rr, out_sampled_points[index, (num_base_samp_points+triangle_corner_num)+((num_point-1)*3), 2], atol=0.001)
-
-#             end
-#         end
-
-#     end
-#     return out_sampled_points, tetr_dat_out, sv_centers, control_points, tetrs
-# end #test_point_info_kern
-
-# out_sampled_points, tetr_dat_out, sv_centers, control_points, tetrs = test_point_info_kern_unrolledd()
 
 
 
 
+"""
+visualization
+visualize the points with weights as balls and the line between the center of the triangle and the center of the super voxel plus lines and balls for base and additional sample points
+"""
 
 
+"""
+now we want to visualize the points that were selected for sampling and their weights
+    we will display their weights by the spheres of the radius equal to weight
+"""
+
+function radius_from_volume(volume)
+    return (volume^(1 / 3))
+end
+index = 1
+from_sampled_points = out_sampled_points[index, :, :]
+terr_dat_curr = tetr_dat_out[index, :, :]
+terr_dat_curr = terr_dat_curr[:, 1:3]
+to_disp_points = false
+to_disp_tetr = true
+
+to_points = invert(splitdims(from_sampled_points))
+points_mesh_a = map(v -> Meshes.Point(v[3], v[4], v[5]), to_points)
+points_mesh_b = map(v -> Meshes.Point(v...), invert(splitdims(terr_dat_curr)))
+points_mesh = [points_mesh_a; points_mesh_b]
+
+spheres = map(v -> Meshes.Sphere((v[3], v[4], v[5]), radius_from_volume(v[2]) / 2), to_points)
+# spheres=map(i->Meshes.Sphere((out_sampled_points[i,3],out_sampled_points[i,4],out_sampled_points[i,5]),out_sampled_points[i,2]/2),1:6)
+if (to_disp_points)
+    spheres = [spheres; points_mesh_b]
+    viz(spheres, color=1:length(spheres), alpha=collect(1:length(spheres)) .* 0.9)
+end
 
 
-
-
-# """
-# visualization
-# visualize the points with weights as balls and the line between the center of the triangle and the center of the super voxel plus lines and balls for base and additional sample points
-# """
-
-
-# """
-# now we want to visualize the points that were selected for sampling and their weights
-#     we will display their weights by the spheres of the radius equal to weight
-# """
-
-# function radius_from_volume(volume)
-#     return (volume^(1 / 3))
-# end
-# index = 1
-# from_sampled_points = out_sampled_points[index, :, :]
-# terr_dat_curr = tetr_dat_out[index, :, :]
-# terr_dat_curr = terr_dat_curr[:, 1:3]
-# to_disp_points = false
-# to_disp_tetr = true
-
-# to_points = invert(splitdims(from_sampled_points))
-# points_mesh_a = map(v -> Meshes.Point(v[3], v[4], v[5]), to_points)
-# points_mesh_b = map(v -> Meshes.Point(v...), invert(splitdims(terr_dat_curr)))
-# points_mesh = [points_mesh_a; points_mesh_b]
-
-# spheres = map(v -> Meshes.Sphere((v[3], v[4], v[5]), radius_from_volume(v[2]) / 2), to_points)
-# # spheres=map(i->Meshes.Sphere((out_sampled_points[i,3],out_sampled_points[i,4],out_sampled_points[i,5]),out_sampled_points[i,2]/2),1:6)
-# if (to_disp_points)
-#     spheres = [spheres; points_mesh_b]
-#     viz(spheres, color=1:length(spheres), alpha=collect(1:length(spheres)) .* 0.9)
-# end
-
-
-# if (to_disp_tetr)
-#     first_sv_tetrs = map(index -> fill_tetrahedron_data(tetrs, sv_centers, control_points, index), 1:24)
-#     first_sv_tetrs = map(get_tetrahedrons_from_corners, first_sv_tetrs)
-#     spheres = [spheres; [first_sv_tetrs[1]]]
-#     viz(spheres, color=1:length(spheres), alpha=collect(1:length(spheres)) .* 0.9)
-# end
+if (to_disp_tetr)
+    first_sv_tetrs = map(index -> fill_tetrahedron_data(tetrs, sv_centers, control_points, index), 1:24)
+    first_sv_tetrs = map(get_tetrahedrons_from_corners, first_sv_tetrs)
+    spheres = [spheres; [first_sv_tetrs[1]]]
+    viz(spheres, color=1:length(spheres), alpha=collect(1:length(spheres)) .* 0.9)
+end
 
 
 

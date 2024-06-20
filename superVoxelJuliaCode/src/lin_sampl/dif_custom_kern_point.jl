@@ -105,7 +105,7 @@ function Lux.initialstates(::AbstractRNG, l::Point_info_kern_str)::NamedTuple
     
     return (radiuss=l.radiuss, image_shape=l.image_shape
     , threads_point_info=threads_point_info, blocks_point_info=blocks_point_info
-    ,num_base_samp_points=num_base_samp_points,num_additional_samp_points=num_additional_samp_points)
+    ,num_base_samp_points=l.num_base_samp_points,num_additional_samp_points=l.num_additional_samp_points)
 
 end
 

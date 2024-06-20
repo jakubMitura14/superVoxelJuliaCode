@@ -87,8 +87,7 @@ function Lux.initialstates(::AbstractRNG, l::Set_tetr_dat_str)::NamedTuple
 
     sv_centers,tetr_dat,dims = initialize_for_tetr_dat(l.image_shape, l.radiuss,0)
 
-    threads_tetr_set, blocks_tetr_set = prepare_for_apply_weights_to_locs_kern(l.image_shape, size(tetr_dat))
-    
+    threads_tetr_set, blocks_tetr_set = prepare_for_set_tetr_dat(l.image_shape, size(tetr_dat))
     return (radiuss=l.radiuss, image_shape=l.image_shape
     , threads_tetr_set=threads_tetr_set, blocks_tetr_set=blocks_tetr_set
     , sv_centers=Float32.(sv_centers),tetr_dat=Float32.(tetr_dat),pad_voxels=l.pad_voxels)
@@ -163,12 +162,10 @@ function (l::Set_tetr_dat_str)(x, ps, st::NamedTuple)
     tetr_dat_out=call_set_tetr_dat_kern(st.tetr_dat,source_arr, control_points, st.sv_centers,st.threads_tetr_set,st.blocks_tetr_set)
     # print("\n in lux 1  tetr_dat_out $(sum(tetr_dat_out))  \n")
 
-    #TODO if we will deal with spacing we need to take it into account here similar if we will use batches pad_source_arr need to be modified
-    tetr_dat_out=add_tetr(tetr_dat_out,CuArray(zeros(Float32,size(tetr_dat_out)...)),st.pad_voxels)
-    # print("\n in lux 2  tetr_dat_out $(sum(tetr_dat_out))  \n")
-
-    
-    source_arr=pad_source_arr(source_arr,CuArray(zeros(Float32,st.image_shape[1]+(st.pad_voxels*2),st.image_shape[2]+(st.pad_voxels*2),st.image_shape[3]+(st.pad_voxels*2))),st.pad_voxels,st.image_shape)    
+    # #TODO if we will deal with spacing we need to take it into account here similar if we will use batches pad_source_arr need to be modified
+    # tetr_dat_out=add_tetr(tetr_dat_out,CuArray(zeros(Float32,size(tetr_dat_out)...)),st.pad_voxels)
+   
+    # source_arr=pad_source_arr(source_arr,CuArray(zeros(Float32,st.image_shape[1]+(st.pad_voxels*2),st.image_shape[2]+(st.pad_voxels*2),st.image_shape[3]+(st.pad_voxels*2))),st.pad_voxels,st.image_shape)    
 
     return (tetr_dat_out,source_arr), st
 end

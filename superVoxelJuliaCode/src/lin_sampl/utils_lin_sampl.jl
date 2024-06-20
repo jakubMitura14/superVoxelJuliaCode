@@ -44,6 +44,7 @@ function prepare_for_apply_weights_to_locs_kern(control_points_shape,weights_sha
     # threads_res=(8,8,(floor(Int,threads_apply_w/64)))
     threads_res=(8,8,(floor(Int,threads_apply_w/128)))
     needed_blocks=(ceil(Int,control_points_shape[1]/threads_res[1]),ceil(Int,control_points_shape[2]/threads_res[2]),ceil(Int,control_points_shape[3]/threads_res[3]))
+    
 
     return threads_res,needed_blocks
 end

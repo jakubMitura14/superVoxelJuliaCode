@@ -55,6 +55,9 @@ function is created to find ith sample point when max is is the number of main s
 # @kernel function set_tetr_dat_kern_unrolled(@Const(tetr_dat),tetr_dat_out,@Const(source_arr),@Const(control_points),@Const(sv_centers))
 function set_tetr_dat_kern_unrolled(tetr_dat, tetr_dat_out, source_arr, control_points, sv_centers,max_index)
   index = (threadIdx().x + ((blockIdx().x - 1) * CUDA.blockDim_x())) 
+  
+  # @cuprintf("index %d\n", index)
+
   if index > max_index
     return nothing
   end  

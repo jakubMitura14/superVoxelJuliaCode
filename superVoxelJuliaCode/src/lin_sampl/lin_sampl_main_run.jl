@@ -69,7 +69,7 @@ conv2 = (in, out) -> Lux.Conv((3, 3, 3), in => out, NNlib.tanh, stride=2, pad=Lu
 convsigm2 = (in, out) -> Lux.Conv((3, 3, 3), in => out, NNlib.sigmoid, stride=2, pad=Lux.SamePad())
 
 
-init_weight=glorot_uniform, init_bias=zeros32
+# init_weight=glorot_uniform, init_bias=zeros32
 
 
 function connection_before_set_tetr_dat_kern(x, y)
