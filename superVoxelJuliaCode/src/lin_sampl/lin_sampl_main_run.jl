@@ -29,6 +29,7 @@ using Revise
 includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/Lux_model.jl")
 includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_tetr.jl")
 includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point.jl")
+includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_variance_for_loss.jl")
 
 
 
@@ -70,7 +71,7 @@ function connection_before_set_tetr_dat_kern(x, y)
 end
 #conv part is to get the weights of write size (in case of radiuss 4 we need 3 times stride 2 convolutions
 # to get the weights fitted to number of super voxels and we need 6 channels as it is number of weights per super voxel)
-conv_part=Lux.Chain(conv2(1, 6), conv2(6, 6),conv2(6, 6))
+conv_part=Lux.Chain(conv2(1, 10), conv2(10, 12),conv2(12, 6))
 
 
 """
@@ -86,7 +87,7 @@ model = Lux.Chain(before_point_kerns
 # model = Lux.Chain(SkipConnection(Lux.Chain(conv1(1, 3), conv2(3, 3), convsigm2(3, 3))
 #         , connection_before_kernelA; name="prim_convs")
 #         , KernelA(Nx, threads, blocks))
-opt = Optimisers.Adam(0.0003)
+opt = Optimisers.Adam(0.0001)
 tstate_glob = Lux.Experimental.TrainState(rng, model, opt)
 tstate_glob=cu(tstate_glob)
 
@@ -95,6 +96,34 @@ y_pred, st = Lux.apply(model, CuArray(imagee),tstate_glob.parameters, tstate_glo
 out_sampled_points,tetr_dat=y_pred
 
 
+sizz_out=size(out_sampled_points)
+out_sampled_points_reshaped=reshape(out_sampled_points[:,:,1:2],(get_num_tetr_in_sv(),Int(round(sizz_out[1]/get_num_tetr_in_sv())),sizz_out[2],2))
+size(out_sampled_points_reshaped)
+out_sampled_points_reshaped=permutedims(out_sampled_points_reshaped,[2,1,3])
+size(out_sampled_points_reshaped)
+values=out_sampled_points_reshaped[:,:,1]
+weights=out_sampled_points_reshaped[:,:,2]
+
+size(out_sampled_points_reshaped)
+
+
+
+consecutive_array = collect(1:48*9*2)
+reshaped_array = reshape(consecutive_array, (48, 9, 2))
+
+reshaped_array[1,1,1]
+reshaped_array[25,1,1]
+
+reshaped_array_b=reshape(reshaped_array,(24,2,9,2))
+reshaped_array_b=permutedims(reshaped_array_b,[2,3,1,4])
+reshaped_array_b=reshape(reshaped_array,(2,24*9,2))
+
+reshaped_array_b[1,1,1]
+reshaped_array_b[2,1,1]
+
+reshaped_array_b[1,3,1,1]
+reshaped_array_b[2,3,1,1]
+a
 # gs = only(gradient(p -> sum(first(Lux.apply(model, CuArray(imagee), p, st))), ps))
 
 
