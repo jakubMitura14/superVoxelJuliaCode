@@ -287,9 +287,7 @@ function point_info_kern_forward(tetr_dat, out_sampled_points, source_arr, num_b
 
 
     #now as we had looked into distance to other points in 5 directions we divide by 5 and save it to the out_sampled_points
-    # out_sampled_points[index,point_num,2]= ((shared_arr[threadIdx().x,4]/5)^3)
     out_sampled_points[index, point_num, 2] = (((shared_arr[threadIdx().x, 4]) / 5)^3)
-
 
     ##time to get value by interpolation and save it to the out_sampled_points
 

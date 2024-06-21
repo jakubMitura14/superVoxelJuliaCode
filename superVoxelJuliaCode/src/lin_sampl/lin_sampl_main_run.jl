@@ -24,6 +24,8 @@ using LinearAlgebra
 
 using Revise
 
+
+
 includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/Lux_model.jl")
 includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_tetr.jl")
 includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/dif_custom_kern_point.jl")
@@ -34,8 +36,8 @@ h5_path="/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/data/synth_data.h5"
 f = h5open(h5_path, "r")
 
 rng = Random.default_rng()
-dev = gpu_device()
-
+# dev = gpu_device()
+num_convs_per_dim=(3,3,3)
 
 function get_sample_dat(f::HDF5.File)
 
@@ -43,17 +45,13 @@ function get_sample_dat(f::HDF5.File)
     # return f["1/image"][:,:,:],f["1/weights"][:,:,:,:],f["1/tetr"][:,:,:,:]
 end
 
-# function pad_source_arr(source_arr,pad_voxels)
-#     sizz=size(source_arr)
-#     p=pad_voxels*2
-#     p_beg=pad_voxels+1
-#     new_arr=CUDA.zeros(sizz[1]+p,sizz[2]+p,sizz[3]+p,sizz[4],sizz[5])
-#     new_arr[p_beg:sizz[1]+pad_voxels,p_beg:sizz[2]+pad_voxels,p_beg:sizz[3]+pad_voxels,:,:]=source_arr
-#     return new_arr
-# end
+
 
 imagee,weights,tetr_out_saved = get_sample_dat(f)
 imagee=reshape(imagee, (size(imagee)[1],size(imagee)[2],size(imagee)[3],1,1))
+
+
+
 
 radiuss = Float32(4.0)
 pad_voxels=2
@@ -67,18 +65,11 @@ image_shape=size(imagee)
 conv1 = (in, out) -> Lux.Conv((3, 3, 3), in => out, NNlib.tanh, stride=1, pad=Lux.SamePad(),init_weight=glorot_uniform)
 conv2 = (in, out) -> Lux.Conv((3, 3, 3), in => out, NNlib.tanh, stride=2, pad=Lux.SamePad(),init_weight=glorot_uniform)
 convsigm2 = (in, out) -> Lux.Conv((3, 3, 3), in => out, NNlib.sigmoid, stride=2, pad=Lux.SamePad())
-
-
-# init_weight=glorot_uniform, init_bias=zeros32
-
-
 function connection_before_set_tetr_dat_kern(x, y)
     return (x, y)
 end
-
 #conv part is to get the weights of write size (in case of radiuss 4 we need 3 times stride 2 convolutions
 # to get the weights fitted to number of super voxels and we need 6 channels as it is number of weights per super voxel)
-num_convs_per_dim=(3,3,3)
 conv_part=Lux.Chain(conv2(1, 6), conv2(6, 6),conv2(6, 6))
 
 
@@ -95,46 +86,89 @@ model = Lux.Chain(before_point_kerns
 # model = Lux.Chain(SkipConnection(Lux.Chain(conv1(1, 3), conv2(3, 3), convsigm2(3, 3))
 #         , connection_before_kernelA; name="prim_convs")
 #         , KernelA(Nx, threads, blocks))
-opt = Optimisers.Adam(0.003)
-ps, st = Lux.setup(rng, model)
-st=cu(st)
-ps=cu(ps)
-y_pred, st = Lux.apply(model, CuArray(imagee), ps, st)
+opt = Optimisers.Adam(0.0003)
+tstate_glob = Lux.Experimental.TrainState(rng, model, opt)
+tstate_glob=cu(tstate_glob)
+
+y_pred, st = Lux.apply(model, CuArray(imagee),tstate_glob.parameters, tstate_glob.states)
+
+out_sampled_points,tetr_dat=y_pred
+
 
 # gs = only(gradient(p -> sum(first(Lux.apply(model, CuArray(imagee), p, st))), ps))
 
 
-tstate = Lux.Experimental.TrainState(rng, model, opt)
-tstate=cu(tstate)
+
 
 """
 loss function need to first take all of the sv border points and associated variance from tetr_dat
     the higher the mean of those the better 
+in tetr dat for each tetrahedron first entry is sv center and the rest are border points
+    we need to take the border points and get variance which is the fourth in each point data 
+
+
 Next we need to take the weighted variance of the points sampled from out_sampled_points separately for each supervoxel 
     as we have all of the tetrahedrons flattened we need to reshape the outsampled points array so we will be able to process
     each supervoxel separately and calculate separately variance of each
+    so we out sample points are in the shape of (num tetrahedrons, num_sample points , 5) last dimension is info about the point
+    first entry is interpolated value and next one its weight
+
 To consider - using tulio or sth with einsum to get the variance of each supervoxel
 
 finally mean of variance of supervoxels calculated from out sampled points should be as small as possible
 
 """
+function get_border_loss(tetr_dat)
+    return mean(tetr_dat[:,2:end,4])*(-1)
+end
+
+function get_sv_variance_loss(out_sampled_points)
+    num_tetr_per_sv=get_num_tetr_in_sv()
+    out=out_sampled_points[:,:,1:2]
+    variances=reshape(out,(num_tetr_per_sv,size(out_sampled_points)[2],2))
+    # krowa check if this reshaping is doing what we want it to do
+    return mean(variances)
+end
+
 function loss_function(model, ps, st, data)
     y_pred, st = Lux.apply(model, data, ps, st)
-    return sum(y_pred[1]), st, ()
+    out_sampled_points,tetr_dat=y_pred
+    b_loss=get_border_loss(tetr_dat)
+    
+    return b_loss, st, ()
 end
 # vjp = Lux.Experimental.ADTypes.AutoEnzyme()
-vjp = Lux.Experimental.ADTypes.AutoZygote()
 
 
-_, loss, _, tstate = Lux.Experimental.single_train_step!(
-    vjp, loss_function, CuArray(imagee), tstate)
+"""
+look into the synthethic data and we check weather the location of tetr dat points is etting closer to 
+the original ones from synthethic data
+"""
+function get_metric_in_synth(tstate,tetr_out_saved,model)
+    y_pred, st = Lux.apply(model, CuArray(imagee),tstate.parameters, tstate.states)
+    out_sampled_points,tetr_dat=y_pred
+    return mean((CuArray(tetr_out_saved[:,2:end,1:3])-tetr_dat[:,2:end,1:3]).^2)
+end
 
+function main_loop()
+    tstate = Lux.Experimental.TrainState(rng, model, opt)
+    tstate=cu(tstate)
+    vjp = Lux.Experimental.ADTypes.AutoZygote()
 
+    for i in 1:600
+        _, loss, _, tstate = Lux.Experimental.single_train_step!(vjp, loss_function, CuArray(imagee), tstate)
+
+            metric=get_metric_in_synth(tstate,tetr_out_saved,model)
+            print("\n  *********** $(i) $(round(loss; digits = 2)) metric $(round(metric; digits = 2)) \n")
+
+    end
+end
+
+main_loop()
 # using Pkg
 # Pkg.add(url="https://github.com/LuxDL/Lux.jl.git")
 # gs = only(gradient(p -> sum(first(Lux.apply(model, CuArray(imagee), p, st))), ps))
 
-print("\n  *********** $(sum(y_pred)) \n")
 
 
 # function loss_function(model, ps, st, x)

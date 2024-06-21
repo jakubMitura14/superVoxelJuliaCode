@@ -623,7 +623,7 @@ end
 
 
 if (to_disp_tetr)
-    first_sv_tetrs = map(index -> fill_tetrahedron_data(tetrs, sv_centers, control_points, index), 1:24)
+    first_sv_tetrs = map(index -> fill_tetrahedron_data(tetrs, sv_centers, control_points, index), 1:get_num_tetr_in_sv())
     first_sv_tetrs = map(get_tetrahedrons_from_corners, first_sv_tetrs)
     spheres = [spheres; [first_sv_tetrs[1]]]
     viz(spheres, color=1:length(spheres), alpha=collect(1:length(spheres)) .* 0.9)

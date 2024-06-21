@@ -117,19 +117,12 @@ function get_tetrahedrons_from_corners(corners)
     points = map(el -> Meshes.Point((el[1], el[2], el[3])), corners)
     return Meshes.Tetrahedron(points...)
 end
-first_sv_tetrs = map(index -> fill_tetrahedron_data(tetrs, sv_centers, control_points, index), 1:24)
+first_sv_tetrs = map(index -> fill_tetrahedron_data(tetrs, sv_centers, control_points, index), 1:get_num_tetr_in_sv())
 first_sv_tetrs = map(get_tetrahedrons_from_corners, first_sv_tetrs)
 
 viz(first_sv_tetrs, color=1:length(first_sv_tetrs))
 
-curr_sv = sv_centers[1, 1, 1, :]
-curr_tetr = tetrs[1:24, :, :]
 
-index = 1
-
-
-
-curr_tetr[4, :, :]
 
 # # control_points first dimension is lin_x, lin_y, lin_z, oblique
 # # weights=zeros((dims_plus[1],dims_plus[2],dims_plus[3],num_weights_per_point))

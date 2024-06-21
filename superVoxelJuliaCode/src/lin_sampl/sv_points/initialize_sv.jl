@@ -181,7 +181,7 @@ function get_tetr_triangles_in_corner_on_kern(indices,corner_add,all_surf_triang
     p_ac=Float32.(get_linear_between(base_ind,p_a,p_c))
     p_bc=Float32.(get_linear_between(base_ind,p_b,p_c))
     dummy=Float32.([-1.0,-1.0,-1.0,-1.0])
-    res_main_ind= (index[1]-1)*24+(index[2]-1)*6
+    res_main_ind= (index[1]-1)*get_num_tetr_in_sv()+(index[2]-1)*6
 
     set_to_index(all_surf_triangles,1, res_main_ind, sv_center,corner,p_a,p_ab,dummy)
     set_to_index(all_surf_triangles,2, res_main_ind, sv_center,corner,p_ab,p_b,dummy)
@@ -226,7 +226,7 @@ end #get_tetrahedrons_of_sv
 
 """
 get a flattened array of all surface triangles of all supervoxels
-in first dimension every 24 elements are a single supervoxel
+in first dimension every get_num_tetr_in_sv() elements are a single supervoxel
 second dimension is size 5 and is in orde sv_center, point a,point b,point c,centroid 
     where centroid is a placeholder for centroid of the triangle a,b,c
 in last dimension we have x,y,z coordinates of the point
@@ -281,16 +281,23 @@ end
 end
 
 """
+return number of tetrahedrons in single supervoxel
+"""
+function get_num_tetr_in_sv()
+    return 24
+end
+
+"""
 calculate shape of the tetr_dat array - array with tetrahedrons that are created by the center of the supervoxel
 """
 function get_tetr_dat_shape(radius,image_shape)
     dims=(get_corrected_dim(1,radius,image_shape),get_corrected_dim(2,radius,image_shape),get_corrected_dim(3,radius,image_shape))
-    return (dims[1]*dims[2]*dims[3]*24,5,4)
+    return (dims[1]*dims[2]*dims[3]*get_num_tetr_in_sv(),5,4)
 end    
 
 """
 get a flattened array of all surface triangles of all supervoxels
-in first dimension every 24 elements are a single supervoxel
+in first dimension every get_num_tetr_in_sv() elements are a single supervoxel
 second dimension is size 5 and is in orde sv_center, point a,point b,point c,centroid 
     where centroid is a placeholder for centroid of the triangle a,b,c
 in last dimension we have x,y,z coordinates of the point

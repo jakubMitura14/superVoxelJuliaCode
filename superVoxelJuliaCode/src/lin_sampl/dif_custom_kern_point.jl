@@ -44,7 +44,6 @@ end
 # rrule for ChainRules.
 function ChainRulesCore.rrule(::typeof(call_point_info_kern), tetr_dat, source_arr, num_base_samp_points, num_additional_samp_points, threads_point_info, blocks_point_info)
 
-    print("\n yyyyyyyyyyyyyyyyyyyyyy \n")
     out_sampled_points = call_point_info_kern(tetr_dat,source_arr, num_base_samp_points, num_additional_samp_points, threads_point_info,blocks_point_info)
 
     function call_test_kernel1_pullback(d_out_sampled_points)
