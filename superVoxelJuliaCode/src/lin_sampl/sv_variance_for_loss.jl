@@ -23,7 +23,7 @@ function get_per_sv_variance(out_sampled_points,out_res)
     shared_arr = CuStaticSharedArray(Float32, (24,9,2))
     shared_arr_b = CuStaticSharedArray(Float32, (2))
 
-    index_x = (1 + ((blockIdx().x - 1) * CUDA.blockDim_x()))
+    index = (1 + ((blockIdx().x - 1) * CUDA.blockDim_x()))
 
     #loading interpolated values
     shared_arr[threadIdx().y,threadIdx().z,1]=out_sampled_points[index,threadIdx().y,threadIdx().z,1]
@@ -87,6 +87,7 @@ function get_per_sv_variance(out_sampled_points,out_res)
         #now we have all summed up on first entry in shared memory we can save variance of global memory
         out_res[index]=(shared_arr[1,1,1]/shared_arr[1,1,2])
     end    
+    return nothing
 end
 
 

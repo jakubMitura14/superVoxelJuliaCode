@@ -99,8 +99,10 @@ out_sampled_points,tetr_dat=y_pred
 sizz_out=size(out_sampled_points)
 out_sampled_points_reshaped=reshape(out_sampled_points[:,:,1:2],(get_num_tetr_in_sv(),Int(round(sizz_out[1]/get_num_tetr_in_sv())),sizz_out[2],2))
 size(out_sampled_points_reshaped)
-out_sampled_points_reshaped=permutedims(out_sampled_points_reshaped,[2,1,3])
+out_sampled_points_reshaped=permutedims(out_sampled_points_reshaped,[2,1,3,4])
 size(out_sampled_points_reshaped)
+call_get_per_sv_variance(out_sampled_points_reshaped)
+
 values=out_sampled_points_reshaped[:,:,1]
 weights=out_sampled_points_reshaped[:,:,2]
 
@@ -115,14 +117,14 @@ reshaped_array[1,1,1]
 reshaped_array[25,1,1]
 
 reshaped_array_b=reshape(reshaped_array,(24,2,9,2))
-reshaped_array_b=permutedims(reshaped_array_b,[2,3,1,4])
+reshaped_array_b=permutedims(reshaped_array_b,[2,1,3,4])
 reshaped_array_b=reshape(reshaped_array,(2,24*9,2))
 
 reshaped_array_b[1,1,1]
 reshaped_array_b[2,1,1]
 
-reshaped_array_b[1,3,1,1]
-reshaped_array_b[2,3,1,1]
+reshaped_array_b[1,2,1,1]
+reshaped_array_b[2,2,1,1]
 a
 # gs = only(gradient(p -> sum(first(Lux.apply(model, CuArray(imagee), p, st))), ps))
 
