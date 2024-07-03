@@ -96,7 +96,7 @@ y_pred, st = Lux.apply(model, CuArray(imagee),tstate_glob.parameters, tstate_glo
 out_sampled_points,tetr_dat=y_pred
 
 
-sizz_out=size(out_sampled_points)
+sizz_out=size(out_sampled_points)#(65856, 9, 5)
 out_sampled_points_reshaped=reshape(out_sampled_points[:,:,1:2],(get_num_tetr_in_sv(),Int(round(sizz_out[1]/get_num_tetr_in_sv())),sizz_out[2],2))
 size(out_sampled_points_reshaped)
 out_sampled_points_reshaped=permutedims(out_sampled_points_reshaped,[2,1,3,4])

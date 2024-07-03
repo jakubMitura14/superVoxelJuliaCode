@@ -18,7 +18,7 @@ import CUDA
 using KernelAbstractions
 using LLVMLoopInfo
 
-# ]add LLVMLoopInfo,Plots,Optimisers,Revise,Zygote,Lux,cuDNN,NNlib ,LuxCUDA,Enzyme,CUDA, Meshes, GLMakie, Combinatorics, SplitApplyCombine, ChainRulesCore, ChainRulesTestUtils, EnzymeTestUtils, Logging, FiniteDifferences, FiniteDiff, Interpolations, Dates, KernelAbstractions
+# ]add HDF5,LLVMLoopInfo,Plots,Optimisers,Revise,Zygote,Lux,cuDNN,NNlib ,LuxCUDA,Enzyme,CUDA, Meshes, GLMakie, Combinatorics, SplitApplyCombine, ChainRulesCore, ChainRulesTestUtils, EnzymeTestUtils, Logging, FiniteDifferences, FiniteDiff, Interpolations, Dates, KernelAbstractions
 
 
 includet("/workspaces/superVoxelJuliaCode/superVoxelJuliaCode/src/lin_sampl/sv_points/initialize_sv.jl")

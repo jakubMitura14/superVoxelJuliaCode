@@ -37,56 +37,57 @@ function get_per_sv_variance(out_sampled_points,out_res)
         for i in 2:CUDA.blockDim_z()
             shared_arr[threadIdx().y,1,1]+=(shared_arr[threadIdx().y,i,1]*shared_arr[threadIdx().y,i,2])
         end
-    end    
     sync_threads()
-    if(threadIdx().z==2)
         for i in 2:CUDA.blockDim_z()
             shared_arr[threadIdx().y,1,2]+=shared_arr[threadIdx().y,i,2]
         end
     end    
     sync_threads()
-    #reducing sum of values and weights on points dimension
-    if(threadIdx().z==1 && threadIdx().y==1)
-        for i in 2:CUDA.blockDim_y()
-            shared_arr[1,1,1]+=(shared_arr[i,1,1]*shared_arr[i,1,2])
-            shared_arr[1,1,1]+=shared_arr[i,1,2]
-        end
-        #now we have all summed up on first entry in shared memory we can save it to as mean
-        shared_arr_b[1]=(shared_arr[1,1,1]/shared_arr[1,1,2])
-    end    
-    sync_threads()
+    # #reducing sum of values and weights on points dimension
+    # if(threadIdx().z==1 && threadIdx().y==1)
+    #     for i in 2:CUDA.blockDim_y()
+    #         shared_arr[1,1,1]+=(shared_arr[i,1,1]*shared_arr[i,1,2])
+    #         shared_arr[1,1,1]+=shared_arr[i,1,2]
+    #     end
+    #     #now we have all summed up on first entry in shared memory we can save it to as mean
+    #     shared_arr_b[1]=(shared_arr[1,1,1]/shared_arr[1,1,2])
+    #     # @cuprintf("mean %f\n",shared_arr_b[1] )
+    #     # @cuprintf("sum points %f\n",shared_arr[1,1,1] )
+    #     # @cuprintf("sum weights %f\n",shared_arr[1,1,2] )
+    # end    
+    # sync_threads()
 
-    ############# caclulating variance
+    # ############# caclulating variance
 
-    #loading interpolated values and subtracting mean of sv
-    shared_arr[threadIdx().y,threadIdx().z,1]=((out_sampled_points[index,threadIdx().y,threadIdx().z,1]-shared_arr_b[1])^2)
-    #loading weights one more time
-    shared_arr[threadIdx().y,threadIdx().z,2]=out_sampled_points[index,threadIdx().y,threadIdx().z,2]
-    #sync threads
-    sync_threads()
-    #calculating sum of values and weights on sv dimension 
-    if(threadIdx().z==1)
-        shared_arr[threadIdx().y,1,1]=(shared_arr[threadIdx().y,1,1]*shared_arr[threadIdx().y,1,2])
-        for i in 2:CUDA.blockDim_z()
-            shared_arr[threadIdx().y,1,1]+=(shared_arr[threadIdx().y,i,1]*shared_arr[threadIdx().y,i,2])
-        end
-    end    
-    sync_threads()
-    if(threadIdx().z==2)
-        for i in 2:CUDA.blockDim_z()
-            shared_arr[threadIdx().y,1,2]+=shared_arr[threadIdx().y,i,2]
-        end
-    end    
-    sync_threads()
-    #reducing sum of values and weights on points dimension
-    if(threadIdx().z==1 && threadIdx().y==1)
-        for i in 2:CUDA.blockDim_y()
-            shared_arr[1,1,1]+=shared_arr[i,1,1]
-            shared_arr[1,1,1]+=shared_arr[i,1,2]
-        end
-        #now we have all summed up on first entry in shared memory we can save variance of global memory
-        out_res[index]=(shared_arr[1,1,1]/shared_arr[1,1,2])
-    end    
+    # #loading interpolated values and subtracting mean of sv
+    # shared_arr[threadIdx().y,threadIdx().z,1]=((out_sampled_points[index,threadIdx().y,threadIdx().z,1]-shared_arr_b[1])^2)
+    # #loading weights one more time
+    # shared_arr[threadIdx().y,threadIdx().z,2]=out_sampled_points[index,threadIdx().y,threadIdx().z,2]
+    # #sync threads
+    # sync_threads()
+    # #calculating sum of values and weights on sv dimension 
+    # if(threadIdx().z==1)
+    #     shared_arr[threadIdx().y,1,1]=(shared_arr[threadIdx().y,1,1]*shared_arr[threadIdx().y,1,2])
+    #     for i in 2:CUDA.blockDim_z()
+    #         shared_arr[threadIdx().y,1,1]+=(shared_arr[threadIdx().y,i,1]*shared_arr[threadIdx().y,i,2])
+    #     end
+    # sync_threads()
+    #     for i in 2:CUDA.blockDim_z()
+    #         shared_arr[threadIdx().y,1,2]+=shared_arr[threadIdx().y,i,2]
+    #     end
+    # end    
+    # sync_threads()
+    # #reducing sum of values and weights on points dimension
+    # if(threadIdx().z==1 && threadIdx().y==1)
+    #     for i in 2:CUDA.blockDim_y()
+    #         shared_arr[1,1,1]+=shared_arr[i,1,1]
+    #         shared_arr[1,1,1]+=shared_arr[i,1,2]
+    #     end
+    #     #now we have all summed up on first entry in shared memory we can save variance of global memory
+    #     out_res[index]=(shared_arr[1,1,1]/shared_arr[1,1,2])
+    # end    
+
+
     return nothing
 end
 
