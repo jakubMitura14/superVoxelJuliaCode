@@ -56,8 +56,14 @@ weighted_points=values.*weights
 mean_weighted= sum(weighted_points)/sum(weights)
 variance=sum(((values.-mean_weighted).^2).*weights)/sum(weights)
 
+
+
 res[1]
+mean_weighted[1]
 
 a=round(res[1],digits=4)
+
+
 b=round(variance[1],digits=4)
+
 round(a/b,digits=1)
